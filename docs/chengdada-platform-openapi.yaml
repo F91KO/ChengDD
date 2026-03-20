@@ -1,0 +1,499 @@
+openapi: 3.0.3
+info:
+  title: ChengDaDa Platform API
+  version: 1.0.0
+  description: |
+    程哒哒平台端核心接口文档（OpenAPI 风格草案）。
+    覆盖商家接入处理、分类模板治理、发布治理、定制需求评审、权限审计与 CI/CD 主链路接口。
+servers:
+  - url: https://api.example.com
+    description: Default Server
+tags:
+  - name: PlatformMerchant
+  - name: PlatformCategoryTemplate
+  - name: PlatformRelease
+  - name: PlatformCustomRequest
+  - name: PlatformAudit
+  - name: PlatformCICD
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    RequestIdHeader:
+      name: X-Request-Id
+      in: header
+      required: false
+      schema:
+        type: string
+    MerchantIdPath:
+      name: merchant_id
+      in: path
+      required: true
+      schema:
+        type: string
+    TemplateIdPath:
+      name: template_id
+      in: path
+      required: true
+      schema:
+        type: string
+    RequestIdPath:
+      name: request_id
+      in: path
+      required: true
+      schema:
+        type: string
+    TaskIdPath:
+      name: task_id
+      in: path
+      required: true
+      schema:
+        type: string
+    PipelineIdPath:
+      name: pipeline_id
+      in: path
+      required: true
+      schema:
+        type: string
+    RoleIdPath:
+      name: role_id
+      in: path
+      required: true
+      schema:
+        type: string
+  schemas:
+    ApiResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 0
+        message:
+          type: string
+          example: success
+        data:
+          type: object
+          nullable: true
+        request_id:
+          type: string
+          example: req_20260320_xxx
+    MerchantProcessRequest:
+      type: object
+      required:
+        - action
+      properties:
+        action:
+          type: string
+          enum: [approve, reject, require_supplement]
+        reason:
+          type: string
+    CategoryTemplateCreateRequest:
+      type: object
+      required:
+        - template_name
+        - industry_code
+        - template_version
+        - max_level
+      properties:
+        template_name:
+          type: string
+        industry_code:
+          type: string
+        template_version:
+          type: string
+        max_level:
+          type: integer
+    ReleaseCheckRequest:
+      type: object
+      required:
+        - merchant_ids
+        - template_version
+      properties:
+        merchant_ids:
+          type: array
+          items:
+            type: string
+        template_version:
+          type: string
+    ReleaseTaskCreateRequest:
+      type: object
+      required:
+        - merchant_ids
+        - template_version
+        - release_type
+      properties:
+        merchant_ids:
+          type: array
+          items:
+            type: string
+        mini_program_ids:
+          type: array
+          items:
+            type: string
+        template_version:
+          type: string
+        release_type:
+          type: string
+          enum: [first_publish, republish, gray_publish, full_publish, rollback]
+        gray_ratio:
+          type: integer
+        release_desc:
+          type: string
+    CustomRequestReviewRequest:
+      type: object
+      required:
+        - request_type
+        - review_result
+        - status
+      properties:
+        request_type:
+          type: string
+          enum: [standard_config, feature_switch, approved_extension]
+        review_result:
+          type: string
+        status:
+          type: string
+          enum: [evaluating, scheduled, developing, testing, published, rejected]
+        target_release_version:
+          type: string
+        owner_id:
+          type: string
+    RoleCreateRequest:
+      type: object
+      required:
+        - role_name
+      properties:
+        role_name:
+          type: string
+        role_type:
+          type: string
+    RolePermissionConfigRequest:
+      type: object
+      properties:
+        menu_permissions:
+          type: array
+          items:
+            type: string
+        action_permissions:
+          type: array
+          items:
+            type: string
+        data_permissions:
+          type: array
+          items:
+            type: object
+    PipelineCreateRequest:
+      type: object
+      required:
+        - pipeline_name
+        - pipeline_type
+        - repo_url
+        - target_env
+        - trigger_mode
+      properties:
+        pipeline_name:
+          type: string
+        pipeline_type:
+          type: string
+          enum: [build, deploy, rollback, full_release]
+        repo_url:
+          type: string
+        branch_rule:
+          type: string
+        target_env:
+          type: string
+          enum: [dev, test, pre, prod]
+        trigger_mode:
+          type: string
+          enum: [manual, webhook, schedule]
+    PipelineRunRequest:
+      type: object
+      properties:
+        run_params:
+          type: object
+paths:
+  /platform/merchants:
+    get:
+      tags: [PlatformMerchant]
+      summary: 查询商家列表
+      operationId: listPlatformMerchants
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /platform/merchants/{merchant_id}/process:
+    post:
+      tags: [PlatformMerchant]
+      summary: 处理商家申请
+      operationId: processPlatformMerchant
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/MerchantIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MerchantProcessRequest'
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /platform/merchants/{merchant_id}/freeze:
+    post:
+      tags: [PlatformMerchant]
+      summary: 冻结商家
+      operationId: freezePlatformMerchant
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/MerchantIdPath'
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /platform/category-templates:
+    post:
+      tags: [PlatformCategoryTemplate]
+      summary: 创建分类模板
+      operationId: createCategoryTemplate
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryTemplateCreateRequest'
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /platform/releases/check:
+    post:
+      tags: [PlatformRelease]
+      summary: 执行兼容性校验
+      operationId: checkPlatformRelease
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReleaseCheckRequest'
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /platform/releases/tasks:
+    post:
+      tags: [PlatformRelease]
+      summary: 创建发布任务
+      operationId: createPlatformReleaseTask
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReleaseTaskCreateRequest'
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /platform/releases/tasks/{task_id}/retry:
+    post:
+      tags: [PlatformRelease]
+      summary: 重试发布任务
+      operationId: retryPlatformReleaseTask
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TaskIdPath'
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /platform/releases/tasks/{task_id}/rollback:
+    post:
+      tags: [PlatformRelease]
+      summary: 回滚发布任务
+      operationId: rollbackPlatformReleaseTask
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TaskIdPath'
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /platform/custom-requests/{request_id}/review:
+    post:
+      tags: [PlatformCustomRequest]
+      summary: 评审定制需求
+      operationId: reviewPlatformCustomRequest
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomRequestReviewRequest'
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /platform/rbac/roles:
+    post:
+      tags: [PlatformAudit]
+      summary: 创建角色
+      operationId: createPlatformRole
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoleCreateRequest'
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /platform/rbac/roles/{role_id}/permissions:
+    post:
+      tags: [PlatformAudit]
+      summary: 配置角色权限
+      operationId: configPlatformRolePermissions
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RoleIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RolePermissionConfigRequest'
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /platform/audit-logs:
+    get:
+      tags: [PlatformAudit]
+      summary: 查询审计日志
+      operationId: listPlatformAuditLogs
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /platform/cicd/pipelines:
+    post:
+      tags: [PlatformCICD]
+      summary: 创建流水线配置
+      operationId: createPipeline
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PipelineCreateRequest'
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /platform/cicd/pipelines/{pipeline_id}/run:
+    post:
+      tags: [PlatformCICD]
+      summary: 执行流水线
+      operationId: runPipeline
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PipelineIdPath'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PipelineRunRequest'
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /platform/cicd/pipelines/{pipeline_id}/runs:
+    get:
+      tags: [PlatformCICD]
+      summary: 查询流水线执行记录
+      operationId: listPipelineRuns
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PipelineIdPath'
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+security:
+  - bearerAuth: []

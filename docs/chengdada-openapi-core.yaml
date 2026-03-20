@@ -1,0 +1,1110 @@
+openapi: 3.0.3
+info:
+  title: ChengDaDa Core API
+  version: 1.0.0
+  description: |
+    程哒哒核心接口文档（OpenAPI 风格草案）。
+    覆盖商家端与平台端主链路接口，用于接口评审、前后端联调和后续 Swagger 落地。
+servers:
+  - url: https://api.example.com
+    description: Default Server
+tags:
+  - name: MerchantApplication
+  - name: MerchantMiniProgram
+  - name: MerchantOnboarding
+  - name: MerchantStore
+  - name: MerchantAccount
+  - name: MerchantCategory
+  - name: MerchantProduct
+  - name: MerchantOrder
+  - name: PlatformMerchant
+  - name: PlatformCategoryTemplate
+  - name: PlatformRelease
+  - name: PlatformCustomRequest
+  - name: PlatformAudit
+  - name: PlatformCICD
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    RequestIdHeader:
+      name: X-Request-Id
+      in: header
+      required: false
+      schema:
+        type: string
+    MerchantIdPath:
+      name: merchant_id
+      in: path
+      required: true
+      schema:
+        type: string
+    MiniProgramIdPath:
+      name: mini_program_id
+      in: path
+      required: true
+      schema:
+        type: string
+    StoreIdPath:
+      name: store_id
+      in: path
+      required: true
+      schema:
+        type: string
+    AccountIdPath:
+      name: account_id
+      in: path
+      required: true
+      schema:
+        type: string
+    CategoryIdPath:
+      name: category_id
+      in: path
+      required: true
+      schema:
+        type: string
+    ProductIdPath:
+      name: product_id
+      in: path
+      required: true
+      schema:
+        type: string
+    OrderIdPath:
+      name: order_id
+      in: path
+      required: true
+      schema:
+        type: string
+    AfterSaleIdPath:
+      name: after_sale_id
+      in: path
+      required: true
+      schema:
+        type: string
+    TemplateIdPath:
+      name: template_id
+      in: path
+      required: true
+      schema:
+        type: string
+    RequestIdPath:
+      name: request_id
+      in: path
+      required: true
+      schema:
+        type: string
+    TaskIdPath:
+      name: task_id
+      in: path
+      required: true
+      schema:
+        type: string
+    PipelineIdPath:
+      name: pipeline_id
+      in: path
+      required: true
+      schema:
+        type: string
+  schemas:
+    ApiResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 0
+        message:
+          type: string
+          example: success
+        data:
+          type: object
+          nullable: true
+        request_id:
+          type: string
+          example: req_20260320_xxx
+    BlockingItem:
+      type: object
+      properties:
+        field:
+          type: string
+        reason:
+          type: string
+        suggestion:
+          type: string
+    MerchantApplicationSubmitRequest:
+      type: object
+      required:
+        - merchant_name
+        - merchant_type
+        - contact_name
+        - contact_mobile
+        - legal_person_name
+        - business_category
+        - license_file_url
+        - legal_id_front_url
+        - legal_id_back_url
+      properties:
+        merchant_name:
+          type: string
+        merchant_type:
+          type: string
+          enum: [enterprise, individual]
+        contact_name:
+          type: string
+        contact_mobile:
+          type: string
+        legal_person_name:
+          type: string
+        business_category:
+          type: string
+        brand_name:
+          type: string
+        license_file_url:
+          type: string
+        legal_id_front_url:
+          type: string
+        legal_id_back_url:
+          type: string
+    MiniProgramBindingRequest:
+      type: object
+      required:
+        - store_id
+        - app_id
+        - app_secret
+        - payment_mch_id
+        - callback_url
+        - server_domain
+        - privacy_agreement_confirmed
+      properties:
+        store_id:
+          type: string
+        app_id:
+          type: string
+        app_secret:
+          type: string
+        payment_mch_id:
+          type: string
+        callback_url:
+          type: string
+        server_domain:
+          type: string
+        upload_domain:
+          type: string
+        privacy_agreement_confirmed:
+          type: boolean
+    DetectResult:
+      type: object
+      properties:
+        overall_passed:
+          type: boolean
+        blocking_items:
+          type: array
+          items:
+            $ref: '#/components/schemas/BlockingItem'
+        warning_items:
+          type: array
+          items:
+            type: object
+    OnboardingPublishRequest:
+      type: object
+      required:
+        - store_id
+        - mini_program_id
+        - template_version
+        - home_template_code
+        - theme_color
+        - shipping_sla_hours
+        - confirm_platform_agreement
+        - confirm_privacy_agreement
+      properties:
+        store_id:
+          type: string
+        mini_program_id:
+          type: string
+        template_version:
+          type: string
+        home_template_code:
+          type: string
+        theme_color:
+          type: string
+        shipping_sla_hours:
+          type: integer
+        confirm_platform_agreement:
+          type: boolean
+        confirm_privacy_agreement:
+          type: boolean
+    StoreUpsertRequest:
+      type: object
+      required:
+        - store_name
+        - logo_url
+        - customer_service_type
+        - customer_service_value
+        - business_status
+        - shipping_sla_hours
+      properties:
+        store_name:
+          type: string
+        logo_url:
+          type: string
+        description:
+          type: string
+        customer_service_type:
+          type: string
+          enum: [wechat, mobile, enterprise_wechat]
+        customer_service_value:
+          type: string
+        business_status:
+          type: string
+          enum: [open, resting, closed]
+        shipping_sla_hours:
+          type: integer
+    SubAccountCreateRequest:
+      type: object
+      required:
+        - account_name
+        - display_name
+        - mobile
+        - permission_modules
+        - action_permissions
+        - data_scope_type
+      properties:
+        account_name:
+          type: string
+        display_name:
+          type: string
+        mobile:
+          type: string
+        permission_modules:
+          type: array
+          items:
+            type: string
+        action_permissions:
+          type: array
+          items:
+            type: string
+        data_scope_type:
+          type: string
+          enum: [merchant, store, mini_program]
+        data_scope_ids:
+          type: array
+          items:
+            type: string
+    CategoryUpsertRequest:
+      type: object
+      required:
+        - category_name
+        - is_enabled
+        - is_visible
+      properties:
+        parent_id:
+          type: string
+        category_name:
+          type: string
+        sort_order:
+          type: integer
+        icon_url:
+          type: string
+        description:
+          type: string
+        is_enabled:
+          type: boolean
+        is_visible:
+          type: boolean
+    ProductSkuRequest:
+      type: object
+      required:
+        - spec_values
+        - sale_price
+        - stock_qty
+      properties:
+        spec_values:
+          type: array
+          items:
+            type: string
+        sale_price:
+          type: number
+        stock_qty:
+          type: integer
+    ProductUpsertRequest:
+      type: object
+      required:
+        - store_id
+        - category_id
+        - product_name
+        - main_image_url
+        - image_urls
+        - detail_html
+        - skus
+      properties:
+        store_id:
+          type: string
+        category_id:
+          type: string
+        product_name:
+          type: string
+        main_image_url:
+          type: string
+        image_urls:
+          type: array
+          items:
+            type: string
+        detail_html:
+          type: string
+        skus:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductSkuRequest'
+    ProductPublishRequest:
+      type: object
+      required:
+        - store_id
+        - product_ids
+        - submit_strategy
+      properties:
+        store_id:
+          type: string
+        product_ids:
+          type: array
+          items:
+            type: string
+        submit_strategy:
+          type: string
+          enum: [all_or_nothing, passed_first]
+    OrderShipRequest:
+      type: object
+      required:
+        - logistics_company_code
+        - logistics_company_name
+        - tracking_no
+      properties:
+        logistics_company_code:
+          type: string
+        logistics_company_name:
+          type: string
+        tracking_no:
+          type: string
+        ship_remark:
+          type: string
+    AfterSaleAuditRequest:
+      type: object
+      required:
+        - action
+      properties:
+        action:
+          type: string
+          enum: [agree, reject]
+        merchant_result:
+          type: string
+        reject_reason:
+          type: string
+    MerchantProcessRequest:
+      type: object
+      required:
+        - action
+      properties:
+        action:
+          type: string
+          enum: [approve, reject, require_supplement]
+        reason:
+          type: string
+    CategoryTemplateCreateRequest:
+      type: object
+      required:
+        - template_name
+        - industry_code
+        - template_version
+        - max_level
+      properties:
+        template_name:
+          type: string
+        industry_code:
+          type: string
+        template_version:
+          type: string
+        max_level:
+          type: integer
+    ReleaseCheckRequest:
+      type: object
+      required:
+        - merchant_ids
+        - template_version
+      properties:
+        merchant_ids:
+          type: array
+          items:
+            type: string
+        template_version:
+          type: string
+    ReleaseTaskCreateRequest:
+      type: object
+      required:
+        - merchant_ids
+        - template_version
+        - release_type
+      properties:
+        merchant_ids:
+          type: array
+          items:
+            type: string
+        mini_program_ids:
+          type: array
+          items:
+            type: string
+        template_version:
+          type: string
+        release_type:
+          type: string
+          enum: [first_publish, republish, gray_publish, full_publish, rollback]
+        gray_ratio:
+          type: integer
+        release_desc:
+          type: string
+    CustomRequestReviewRequest:
+      type: object
+      required:
+        - request_type
+        - review_result
+        - status
+      properties:
+        request_type:
+          type: string
+          enum: [standard_config, feature_switch, approved_extension]
+        review_result:
+          type: string
+        status:
+          type: string
+          enum: [evaluating, scheduled, developing, testing, published, rejected]
+        target_release_version:
+          type: string
+        owner_id:
+          type: string
+    RoleCreateRequest:
+      type: object
+      required:
+        - role_name
+      properties:
+        role_name:
+          type: string
+        role_type:
+          type: string
+    RolePermissionConfigRequest:
+      type: object
+      properties:
+        menu_permissions:
+          type: array
+          items:
+            type: string
+        action_permissions:
+          type: array
+          items:
+            type: string
+        data_permissions:
+          type: array
+          items:
+            type: object
+    PipelineCreateRequest:
+      type: object
+      required:
+        - pipeline_name
+        - pipeline_type
+        - repo_url
+        - target_env
+        - trigger_mode
+      properties:
+        pipeline_name:
+          type: string
+        pipeline_type:
+          type: string
+          enum: [build, deploy, rollback, full_release]
+        repo_url:
+          type: string
+        branch_rule:
+          type: string
+        target_env:
+          type: string
+          enum: [dev, test, pre, prod]
+        trigger_mode:
+          type: string
+          enum: [manual, webhook, schedule]
+    PipelineRunRequest:
+      type: object
+      properties:
+        run_params:
+          type: object
+paths:
+  /merchant/applications/submit:
+    post:
+      tags: [MerchantApplication]
+      summary: 提交入驻申请
+      operationId: submitMerchantApplication
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MerchantApplicationSubmitRequest'
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /merchant/mini-programs:
+    post:
+      tags: [MerchantMiniProgram]
+      summary: 创建小程序接入
+      operationId: createMerchantMiniProgramBinding
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MiniProgramBindingRequest'
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /merchant/mini-programs/{mini_program_id}/detect:
+    post:
+      tags: [MerchantMiniProgram]
+      summary: 一键接入检测
+      operationId: detectMerchantMiniProgramBinding
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/MiniProgramIdPath'
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/DetectResult'
+  /merchant/onboarding/publish:
+    post:
+      tags: [MerchantOnboarding]
+      summary: 一键开通并发布
+      operationId: publishMerchantOnboarding
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OnboardingPublishRequest'
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /merchant/stores:
+    post:
+      tags: [MerchantStore]
+      summary: 创建店铺
+      operationId: createMerchantStore
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StoreUpsertRequest'
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /merchant/stores/{store_id}:
+    put:
+      tags: [MerchantStore]
+      summary: 更新店铺
+      operationId: updateMerchantStore
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/StoreIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StoreUpsertRequest'
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /merchant/accounts/sub-accounts:
+    post:
+      tags: [MerchantAccount]
+      summary: 创建子账号
+      operationId: createMerchantSubAccount
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubAccountCreateRequest'
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /merchant/categories:
+    post:
+      tags: [MerchantCategory]
+      summary: 新增分类
+      operationId: createMerchantCategory
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryUpsertRequest'
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /merchant/categories/{category_id}:
+    put:
+      tags: [MerchantCategory]
+      summary: 更新分类
+      operationId: updateMerchantCategory
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CategoryIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryUpsertRequest'
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /merchant/products:
+    post:
+      tags: [MerchantProduct]
+      summary: 新增商品
+      operationId: createMerchantProduct
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductUpsertRequest'
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /merchant/products/{product_id}:
+    put:
+      tags: [MerchantProduct]
+      summary: 更新商品
+      operationId: updateMerchantProduct
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ProductIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductUpsertRequest'
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /merchant/products/publish:
+    post:
+      tags: [MerchantProduct]
+      summary: 批量发布商品
+      operationId: publishMerchantProducts
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductPublishRequest'
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /merchant/orders/{order_id}/ship:
+    post:
+      tags: [MerchantOrder]
+      summary: 订单发货
+      operationId: shipMerchantOrder
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/OrderIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderShipRequest'
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /merchant/after-sales/{after_sale_id}/audit:
+    post:
+      tags: [MerchantOrder]
+      summary: 审核售后
+      operationId: auditMerchantAfterSale
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AfterSaleIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AfterSaleAuditRequest'
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /platform/merchants:
+    get:
+      tags: [PlatformMerchant]
+      summary: 查询商家列表
+      operationId: listPlatformMerchants
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /platform/merchants/{merchant_id}/process:
+    post:
+      tags: [PlatformMerchant]
+      summary: 处理商家申请
+      operationId: processPlatformMerchant
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/MerchantIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MerchantProcessRequest'
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /platform/merchants/{merchant_id}/freeze:
+    post:
+      tags: [PlatformMerchant]
+      summary: 冻结商家
+      operationId: freezePlatformMerchant
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/MerchantIdPath'
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /platform/category-templates:
+    post:
+      tags: [PlatformCategoryTemplate]
+      summary: 创建分类模板
+      operationId: createCategoryTemplate
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryTemplateCreateRequest'
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /platform/releases/check:
+    post:
+      tags: [PlatformRelease]
+      summary: 执行兼容性校验
+      operationId: checkPlatformRelease
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReleaseCheckRequest'
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /platform/releases/tasks:
+    post:
+      tags: [PlatformRelease]
+      summary: 创建发布任务
+      operationId: createPlatformReleaseTask
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReleaseTaskCreateRequest'
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /platform/releases/tasks/{task_id}/retry:
+    post:
+      tags: [PlatformRelease]
+      summary: 重试发布任务
+      operationId: retryPlatformReleaseTask
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TaskIdPath'
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /platform/releases/tasks/{task_id}/rollback:
+    post:
+      tags: [PlatformRelease]
+      summary: 回滚发布任务
+      operationId: rollbackPlatformReleaseTask
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TaskIdPath'
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /platform/custom-requests/{request_id}/review:
+    post:
+      tags: [PlatformCustomRequest]
+      summary: 评审定制需求
+      operationId: reviewPlatformCustomRequest
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RequestIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomRequestReviewRequest'
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /platform/rbac/roles:
+    post:
+      tags: [PlatformAudit]
+      summary: 创建角色
+      operationId: createPlatformRole
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoleCreateRequest'
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /platform/rbac/roles/{role_id}/permissions:
+    post:
+      tags: [PlatformAudit]
+      summary: 配置角色权限
+      operationId: configPlatformRolePermissions
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RoleIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RolePermissionConfigRequest'
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /platform/audit-logs:
+    get:
+      tags: [PlatformAudit]
+      summary: 查询审计日志
+      operationId: listPlatformAuditLogs
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /platform/cicd/pipelines:
+    post:
+      tags: [PlatformCICD]
+      summary: 创建流水线配置
+      operationId: createPipeline
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PipelineCreateRequest'
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /platform/cicd/pipelines/{pipeline_id}/run:
+    post:
+      tags: [PlatformCICD]
+      summary: 执行流水线
+      operationId: runPipeline
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PipelineIdPath'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PipelineRunRequest'
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /platform/cicd/pipelines/{pipeline_id}/runs:
+    get:
+      tags: [PlatformCICD]
+      summary: 查询流水线执行记录
+      operationId: listPipelineRuns
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PipelineIdPath'
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+security:
+  - bearerAuth: []

@@ -1,0 +1,739 @@
+openapi: 3.0.3
+info:
+  title: ChengDaDa Merchant API
+  version: 1.0.0
+  description: |
+    程哒哒商家端核心接口文档（OpenAPI 风格草案）。
+    覆盖商家入驻、小程序接入、一键开通、店铺、账号、分类、商品、订单、售后等主链路接口。
+servers:
+  - url: https://api.example.com
+    description: Default Server
+tags:
+  - name: MerchantApplication
+  - name: MerchantMiniProgram
+  - name: MerchantOnboarding
+  - name: MerchantStore
+  - name: MerchantAccount
+  - name: MerchantCategory
+  - name: MerchantProduct
+  - name: MerchantOrder
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    RequestIdHeader:
+      name: X-Request-Id
+      in: header
+      required: false
+      schema:
+        type: string
+    MiniProgramIdPath:
+      name: mini_program_id
+      in: path
+      required: true
+      schema:
+        type: string
+    StoreIdPath:
+      name: store_id
+      in: path
+      required: true
+      schema:
+        type: string
+    AccountIdPath:
+      name: account_id
+      in: path
+      required: true
+      schema:
+        type: string
+    CategoryIdPath:
+      name: category_id
+      in: path
+      required: true
+      schema:
+        type: string
+    ProductIdPath:
+      name: product_id
+      in: path
+      required: true
+      schema:
+        type: string
+    OrderIdPath:
+      name: order_id
+      in: path
+      required: true
+      schema:
+        type: string
+    AfterSaleIdPath:
+      name: after_sale_id
+      in: path
+      required: true
+      schema:
+        type: string
+    TaskIdPath:
+      name: task_id
+      in: path
+      required: true
+      schema:
+        type: string
+    SwitchCodePath:
+      name: switch_code
+      in: path
+      required: true
+      schema:
+        type: string
+  schemas:
+    ApiResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 0
+        message:
+          type: string
+          example: success
+        data:
+          type: object
+          nullable: true
+        request_id:
+          type: string
+          example: req_20260320_xxx
+    BlockingItem:
+      type: object
+      properties:
+        field:
+          type: string
+        reason:
+          type: string
+        suggestion:
+          type: string
+    MerchantApplicationSubmitRequest:
+      type: object
+      required:
+        - merchant_name
+        - merchant_type
+        - contact_name
+        - contact_mobile
+        - legal_person_name
+        - business_category
+        - license_file_url
+        - legal_id_front_url
+        - legal_id_back_url
+      properties:
+        merchant_name:
+          type: string
+        merchant_type:
+          type: string
+          enum: [enterprise, individual]
+        contact_name:
+          type: string
+        contact_mobile:
+          type: string
+        legal_person_name:
+          type: string
+        business_category:
+          type: string
+        brand_name:
+          type: string
+        license_file_url:
+          type: string
+        legal_id_front_url:
+          type: string
+        legal_id_back_url:
+          type: string
+    MiniProgramBindingRequest:
+      type: object
+      required:
+        - store_id
+        - app_id
+        - app_secret
+        - payment_mch_id
+        - callback_url
+        - server_domain
+        - privacy_agreement_confirmed
+      properties:
+        store_id:
+          type: string
+        app_id:
+          type: string
+        app_secret:
+          type: string
+        payment_mch_id:
+          type: string
+        callback_url:
+          type: string
+        server_domain:
+          type: string
+        upload_domain:
+          type: string
+        privacy_agreement_confirmed:
+          type: boolean
+    DetectResult:
+      type: object
+      properties:
+        overall_passed:
+          type: boolean
+        blocking_items:
+          type: array
+          items:
+            $ref: '#/components/schemas/BlockingItem'
+        warning_items:
+          type: array
+          items:
+            type: object
+    OnboardingPublishRequest:
+      type: object
+      required:
+        - store_id
+        - mini_program_id
+        - template_version
+        - home_template_code
+        - theme_color
+        - shipping_sla_hours
+        - confirm_platform_agreement
+        - confirm_privacy_agreement
+      properties:
+        store_id:
+          type: string
+        mini_program_id:
+          type: string
+        template_version:
+          type: string
+        home_template_code:
+          type: string
+        theme_color:
+          type: string
+        shipping_sla_hours:
+          type: integer
+        confirm_platform_agreement:
+          type: boolean
+        confirm_privacy_agreement:
+          type: boolean
+    StoreUpsertRequest:
+      type: object
+      required:
+        - store_name
+        - logo_url
+        - customer_service_type
+        - customer_service_value
+        - business_status
+        - shipping_sla_hours
+      properties:
+        store_name:
+          type: string
+        logo_url:
+          type: string
+        description:
+          type: string
+        customer_service_type:
+          type: string
+          enum: [wechat, mobile, enterprise_wechat]
+        customer_service_value:
+          type: string
+        business_status:
+          type: string
+          enum: [open, resting, closed]
+        shipping_sla_hours:
+          type: integer
+    SubAccountCreateRequest:
+      type: object
+      required:
+        - account_name
+        - display_name
+        - mobile
+        - permission_modules
+        - action_permissions
+        - data_scope_type
+      properties:
+        account_name:
+          type: string
+        display_name:
+          type: string
+        mobile:
+          type: string
+        permission_modules:
+          type: array
+          items:
+            type: string
+        action_permissions:
+          type: array
+          items:
+            type: string
+        data_scope_type:
+          type: string
+          enum: [merchant, store, mini_program]
+        data_scope_ids:
+          type: array
+          items:
+            type: string
+    FeatureSwitchChangeRequest:
+      type: object
+      required:
+        - switch_value
+      properties:
+        switch_value:
+          nullable: true
+        effective_time:
+          type: string
+          format: date-time
+    CustomRequestCreateRequest:
+      type: object
+      required:
+        - request_title
+        - request_desc
+      properties:
+        request_title:
+          type: string
+        request_desc:
+          type: string
+        target_page:
+          type: string
+        expected_online_time:
+          type: string
+          format: date
+    CategoryUpsertRequest:
+      type: object
+      required:
+        - category_name
+        - is_enabled
+        - is_visible
+      properties:
+        parent_id:
+          type: string
+        category_name:
+          type: string
+        sort_order:
+          type: integer
+        icon_url:
+          type: string
+        description:
+          type: string
+        is_enabled:
+          type: boolean
+        is_visible:
+          type: boolean
+    ProductSkuRequest:
+      type: object
+      required:
+        - spec_values
+        - sale_price
+        - stock_qty
+      properties:
+        spec_values:
+          type: array
+          items:
+            type: string
+        sale_price:
+          type: number
+        stock_qty:
+          type: integer
+    ProductUpsertRequest:
+      type: object
+      required:
+        - store_id
+        - category_id
+        - product_name
+        - main_image_url
+        - image_urls
+        - detail_html
+        - skus
+      properties:
+        store_id:
+          type: string
+        category_id:
+          type: string
+        product_name:
+          type: string
+        main_image_url:
+          type: string
+        image_urls:
+          type: array
+          items:
+            type: string
+        detail_html:
+          type: string
+        skus:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductSkuRequest'
+    ProductPublishRequest:
+      type: object
+      required:
+        - store_id
+        - product_ids
+        - submit_strategy
+      properties:
+        store_id:
+          type: string
+        product_ids:
+          type: array
+          items:
+            type: string
+        submit_strategy:
+          type: string
+          enum: [all_or_nothing, passed_first]
+    OrderShipRequest:
+      type: object
+      required:
+        - logistics_company_code
+        - logistics_company_name
+        - tracking_no
+      properties:
+        logistics_company_code:
+          type: string
+        logistics_company_name:
+          type: string
+        tracking_no:
+          type: string
+        ship_remark:
+          type: string
+    AfterSaleAuditRequest:
+      type: object
+      required:
+        - action
+      properties:
+        action:
+          type: string
+          enum: [agree, reject]
+        merchant_result:
+          type: string
+        reject_reason:
+          type: string
+paths:
+  /merchant/applications/submit:
+    post:
+      tags: [MerchantApplication]
+      summary: 提交入驻申请
+      operationId: submitMerchantApplication
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MerchantApplicationSubmitRequest'
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /merchant/mini-programs:
+    post:
+      tags: [MerchantMiniProgram]
+      summary: 创建小程序接入
+      operationId: createMerchantMiniProgramBinding
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MiniProgramBindingRequest'
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /merchant/mini-programs/{mini_program_id}/detect:
+    post:
+      tags: [MerchantMiniProgram]
+      summary: 一键接入检测
+      operationId: detectMerchantMiniProgramBinding
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/MiniProgramIdPath'
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/DetectResult'
+  /merchant/onboarding/publish:
+    post:
+      tags: [MerchantOnboarding]
+      summary: 一键开通并发布
+      operationId: publishMerchantOnboarding
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OnboardingPublishRequest'
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /merchant/stores:
+    post:
+      tags: [MerchantStore]
+      summary: 创建店铺
+      operationId: createMerchantStore
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StoreUpsertRequest'
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /merchant/stores/{store_id}:
+    put:
+      tags: [MerchantStore]
+      summary: 更新店铺
+      operationId: updateMerchantStore
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/StoreIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StoreUpsertRequest'
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /merchant/accounts/sub-accounts:
+    post:
+      tags: [MerchantAccount]
+      summary: 创建子账号
+      operationId: createMerchantSubAccount
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubAccountCreateRequest'
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /merchant/feature-switches/{switch_code}/change:
+    post:
+      tags: [MerchantStore]
+      summary: 修改功能开关
+      operationId: changeMerchantFeatureSwitch
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/SwitchCodePath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FeatureSwitchChangeRequest'
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /merchant/custom-requests:
+    post:
+      tags: [MerchantStore]
+      summary: 提交定制需求
+      operationId: createMerchantCustomRequest
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomRequestCreateRequest'
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /merchant/categories:
+    post:
+      tags: [MerchantCategory]
+      summary: 新增分类
+      operationId: createMerchantCategory
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryUpsertRequest'
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /merchant/categories/{category_id}:
+    put:
+      tags: [MerchantCategory]
+      summary: 更新分类
+      operationId: updateMerchantCategory
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CategoryIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryUpsertRequest'
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /merchant/products:
+    post:
+      tags: [MerchantProduct]
+      summary: 新增商品
+      operationId: createMerchantProduct
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductUpsertRequest'
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /merchant/products/{product_id}:
+    put:
+      tags: [MerchantProduct]
+      summary: 更新商品
+      operationId: updateMerchantProduct
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ProductIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductUpsertRequest'
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /merchant/products/publish:
+    post:
+      tags: [MerchantProduct]
+      summary: 批量发布商品
+      operationId: publishMerchantProducts
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductPublishRequest'
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /merchant/orders/{order_id}/ship:
+    post:
+      tags: [MerchantOrder]
+      summary: 订单发货
+      operationId: shipMerchantOrder
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/OrderIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderShipRequest'
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /merchant/after-sales/{after_sale_id}/audit:
+    post:
+      tags: [MerchantOrder]
+      summary: 审核售后
+      operationId: auditMerchantAfterSale
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AfterSaleIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AfterSaleAuditRequest'
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+security:
+  - bearerAuth: []
