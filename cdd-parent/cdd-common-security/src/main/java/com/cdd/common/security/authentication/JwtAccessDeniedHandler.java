@@ -11,6 +11,7 @@ import java.io.IOException;
 import org.springframework.http.MediaType;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.web.access.AccessDeniedHandler;
+import org.springframework.util.StringUtils;
 
 public class JwtAccessDeniedHandler implements AccessDeniedHandler {
 
@@ -25,9 +26,12 @@ public class JwtAccessDeniedHandler implements AccessDeniedHandler {
             throws IOException, ServletException {
         response.setStatus(HttpServletResponse.SC_FORBIDDEN);
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        String message = StringUtils.hasText(accessDeniedException.getMessage())
+                ? accessDeniedException.getMessage()
+                : CommonErrorCode.FORBIDDEN.getMessage();
         objectMapper.writeValue(response.getOutputStream(), ApiResponse.failure(
                 CommonErrorCode.FORBIDDEN.getCode(),
-                CommonErrorCode.FORBIDDEN.getMessage(),
+                message,
                 request.getHeader(RequestHeaders.REQUEST_ID)));
     }
 }

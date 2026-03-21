@@ -3,6 +3,8 @@ package com.cdd.gateway.web;
 import com.cdd.api.auth.model.CurrentAuthContextResponse;
 import com.cdd.common.core.error.BusinessException;
 import com.cdd.common.core.error.CommonErrorCode;
+import com.cdd.common.security.authorization.RequireRoles;
+import com.cdd.common.security.authorization.RequireScope;
 import com.cdd.common.security.context.AuthContext;
 import com.cdd.common.security.context.AuthContextHolder;
 import com.cdd.common.web.ApiResponse;
@@ -16,6 +18,8 @@ import org.springframework.web.bind.annotation.RestController;
 public class GatewayContextController {
 
     @GetMapping("/context")
+    @RequireRoles(anyOf = {"platform_admin", "merchant_owner", "merchant_admin"})
+    @RequireScope
     public ApiResponse<CurrentAuthContextResponse> current() {
         AuthContext authContext = AuthContextHolder.get();
         if (authContext == null) {
