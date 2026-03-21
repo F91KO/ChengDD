@@ -1,5 +1,6 @@
 package com.cdd.common.web;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
 
 public class PageResponse<T> {
@@ -28,6 +29,7 @@ public class PageResponse<T> {
         return page;
     }
 
+    @JsonProperty("page_size")
     public long getPageSize() {
         return pageSize;
     }

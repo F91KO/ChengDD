@@ -1,7 +1,8 @@
 cdd:
   runtime:
     env: local
+  security:
+    permit-all: false
 
 server:
   port: 8080
-

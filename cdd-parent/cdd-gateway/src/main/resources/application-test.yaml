@@ -1,7 +1,13 @@
 cdd:
   runtime:
     env: test
+  security:
+    permit-all: false
+    jwt:
+      issuer: cdd-auth-service-test
+      secret: chengdd-jwt-secret-for-tests-20260321-abcdef
+      access-token-ttl: 30m
+      refresh-token-ttl: 7d
 
 server:
   port: 8080
-

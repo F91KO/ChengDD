@@ -1,7 +1,31 @@
 cdd:
   runtime:
     env: test
+  security:
+    permit-all: true
+    jwt:
+      issuer: cdd-auth-service-test
+      secret: chengdd-jwt-secret-for-tests-20260321-abcdef
+      access-token-ttl: 30m
+      refresh-token-ttl: 7d
+  auth:
+    bootstrap-accounts:
+      - user-id: p_1001
+        account-type: platform
+        account-name: platform_admin
+        password: admin123456
+        display-name: 平台管理员
+        role-codes:
+          - platform_admin
+      - user-id: m_1001
+        account-type: merchant
+        account-name: merchant_admin
+        password: merchant123456
+        display-name: 商家管理员
+        merchant-id: merchant_1001
+        store-id: store_1001
+        role-codes:
+          - merchant_admin
 
 server:
   port: 8081
-

@@ -97,6 +97,7 @@ echo "Checking migration config..."
 test -f config/db-migration/application-db-migration.yml
 
 echo "Running startup smoke checks..."
+run_boot_check "cdd-auth-service" "AuthServiceApplication"
 run_boot_check "cdd-gateway" "GatewayApplication"
 run_boot_check "cdd-merchant-service" "MerchantServiceApplication"
 
