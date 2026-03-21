@@ -1,0 +1,7 @@
+cdd:
+  runtime:
+    env: dev
+
+server:
+  port: 8087
+

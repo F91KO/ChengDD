@@ -1,0 +1,19 @@
+spring:
+  application:
+    name: cdd-marketing-service
+  profiles:
+    active: ${CDD_ENV:local}
+
+cdd:
+  runtime:
+    config-mode: ${CDD_CONFIG_MODE:file}
+
+management:
+  endpoint:
+    health:
+      probes:
+        enabled: true
+  endpoints:
+    web:
+      exposure:
+        include: health,info

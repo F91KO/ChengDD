@@ -1,0 +1,7 @@
+cdd:
+  runtime:
+    env: local
+
+server:
+  port: 8085
+

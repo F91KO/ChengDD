@@ -1,0 +1,7 @@
+cdd:
+  runtime:
+    env: prod
+
+server:
+  port: 8086
+
