@@ -1,0 +1,6 @@
+.DS_Store
+/.idea/
+/.vscode/
+/.m2/
+config/migration/application-migration.local.yml
+**/target/

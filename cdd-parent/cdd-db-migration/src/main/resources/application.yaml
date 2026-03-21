@@ -1,0 +1,12 @@
+spring:
+  application:
+    name: cdd-db-migration
+  profiles:
+    active: ${CDD_ENV:local}
+  main:
+    web-application-type: none
+    banner-mode: off
+
+cdd:
+  runtime:
+    config-mode: ${CDD_CONFIG_MODE:file}

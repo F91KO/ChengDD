@@ -1,0 +1,14 @@
+spring:
+  datasource:
+    url: jdbc:mysql://127.0.0.1:3306/chengdd?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false
+    username: root
+    password: change_me
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+cdd:
+  migration:
+    locations:
+      - filesystem:db/migration
+    validate-migration-naming: true
+    connect-retries: 3
+

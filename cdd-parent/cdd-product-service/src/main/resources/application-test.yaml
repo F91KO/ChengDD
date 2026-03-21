@@ -1,0 +1,7 @@
+cdd:
+  runtime:
+    env: test
+
+server:
+  port: 8084
+
