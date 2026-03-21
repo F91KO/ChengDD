@@ -284,24 +284,193 @@ class OrderControllerIntegrationTest {
                 .andExpect(jsonPath("$.data.pay_status").value("refund_full"));
     }
 
-    private String createPaidOrderByCallback(long merchantId,
-                                             long storeId,
-                                             long userId,
-                                             BigDecimal amount,
-                                             String callbackEventId) throws Exception {
-        mockMvc.perform(post("/api/order/cart/items")
+    @Test
+    void shouldSupportItemLevelRefundOnlyAfterSaleFlow() throws Exception {
+        long merchantId = 3010L;
+        long storeId = 4010L;
+        long userId = 5010L;
+
+        String orderNo = createPaidOrderWithItems(
+                merchantId,
+                storeId,
+                userId,
+                "callback-item-refund-only",
+                new OrderItemSeed(93101L, 94101L, 2, new BigDecimal("12.00")),
+                new OrderItemSeed(93102L, 94102L, 1, new BigDecimal("20.00")));
+
+        JsonNode orderDetail = readData(mockMvc.perform(get("/api/order/orders/{order_no}", orderNo)
+                        .param("merchant_id", String.valueOf(merchantId))
+                        .param("store_id", String.valueOf(storeId))
+                        .param("user_id", String.valueOf(userId)))
+                .andExpect(status().isOk())
+                .andReturn());
+        long firstItemId = orderDetail.path("items").get(0).path("id").asLong();
+
+        MvcResult createAfterSaleResult = mockMvc.perform(post("/api/order/orders/{order_no}/after-sales", orderNo)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(writeJson(Map.of(
                                 "merchant_id", merchantId,
                                 "store_id", storeId,
                                 "user_id", userId,
-                                "product_id", 93001L,
-                                "sku_id", 94001L,
-                                "quantity", 2,
-                                "selected", true,
-                                "snapshot_price", amount.divide(new BigDecimal("2.00"))))))
+                                "order_item_id", firstItemId,
+                                "after_sale_type", "refund_only",
+                                "refund_quantity", 1,
+                                "refund_amount", new BigDecimal("12.00"),
+                                "reason_code", "damaged",
+                                "reason_desc", "商品破损"))))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value(0));
+                .andExpect(jsonPath("$.data.after_sale_status").value("pending_merchant"))
+                .andReturn();
+
+        String afterSaleNo = readData(createAfterSaleResult).path("after_sale_no").asText();
+        assertThat(afterSaleNo).isNotBlank();
+
+        MvcResult reviewResult = mockMvc.perform(post("/api/order/after-sales/{after_sale_no}/review", afterSaleNo)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(writeJson(Map.of(
+                                "merchant_id", merchantId,
+                                "store_id", storeId,
+                                "operator_id", 90001L,
+                                "review_action", "agree",
+                                "merchant_result", "同意仅退款"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.after_sale_status").value("refunding"))
+                .andReturn();
+
+        String refundNo = readData(reviewResult).path("refund_no").asText();
+        assertThat(refundNo).isNotBlank();
+
+        completeRefund(refundNo, merchantId, storeId, "after-sale-refund-success-1", "wx_after_sale_refund_1")
+                .andExpect(jsonPath("$.data.refund_status").value("success"))
+                .andExpect(jsonPath("$.data.pay_status").value("refund_partial"));
+
+        mockMvc.perform(get("/api/order/orders/{order_no}", orderNo)
+                        .param("merchant_id", String.valueOf(merchantId))
+                        .param("store_id", String.valueOf(storeId))
+                        .param("user_id", String.valueOf(userId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.pay_status").value("refund_partial"))
+                .andExpect(jsonPath("$.data.items[0].refund_status").value("partial_refunded"))
+                .andExpect(jsonPath("$.data.items[0].refunded_quantity").value(1))
+                .andExpect(jsonPath("$.data.items[0].refunded_amount").value(12.00))
+                .andExpect(jsonPath("$.data.items[1].refund_status").value("none"))
+                .andExpect(jsonPath("$.data.items[1].refunded_quantity").value(0))
+                .andExpect(jsonPath("$.data.items[1].refunded_amount").value(0.00));
+    }
+
+    @Test
+    void shouldSupportReturnRefundAfterSaleFlow() throws Exception {
+        long merchantId = 3011L;
+        long storeId = 4011L;
+        long userId = 5011L;
+
+        String orderNo = createPaidOrderWithItems(
+                merchantId,
+                storeId,
+                userId,
+                "callback-item-return-refund",
+                new OrderItemSeed(93201L, 94201L, 2, new BigDecimal("18.00")));
+
+        JsonNode orderDetail = readData(mockMvc.perform(get("/api/order/orders/{order_no}", orderNo)
+                        .param("merchant_id", String.valueOf(merchantId))
+                        .param("store_id", String.valueOf(storeId))
+                        .param("user_id", String.valueOf(userId)))
+                .andExpect(status().isOk())
+                .andReturn());
+        long itemId = orderDetail.path("items").get(0).path("id").asLong();
+
+        MvcResult createAfterSaleResult = mockMvc.perform(post("/api/order/orders/{order_no}/after-sales", orderNo)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(writeJson(Map.of(
+                                "merchant_id", merchantId,
+                                "store_id", storeId,
+                                "user_id", userId,
+                                "order_item_id", itemId,
+                                "after_sale_type", "return_refund",
+                                "refund_quantity", 1,
+                                "refund_amount", new BigDecimal("18.00"),
+                                "reason_code", "size_wrong",
+                                "reason_desc", "尺码不合适"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.after_sale_status").value("pending_merchant"))
+                .andReturn();
+
+        String afterSaleNo = readData(createAfterSaleResult).path("after_sale_no").asText();
+        assertThat(afterSaleNo).isNotBlank();
+
+        mockMvc.perform(post("/api/order/after-sales/{after_sale_no}/review", afterSaleNo)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(writeJson(Map.of(
+                                "merchant_id", merchantId,
+                                "store_id", storeId,
+                                "operator_id", 90002L,
+                                "review_action", "agree",
+                                "merchant_result", "请寄回商品"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.after_sale_status").value("waiting_return"));
+
+        MvcResult returnResult = mockMvc.perform(post("/api/order/after-sales/{after_sale_no}/return", afterSaleNo)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(writeJson(Map.of(
+                                "merchant_id", merchantId,
+                                "store_id", storeId,
+                                "user_id", userId,
+                                "return_company", "SF",
+                                "return_logistics_no", "SF10001"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.after_sale_status").value("refunding"))
+                .andReturn();
+
+        String refundNo = readData(returnResult).path("refund_no").asText();
+        assertThat(refundNo).isNotBlank();
+
+        completeRefund(refundNo, merchantId, storeId, "after-sale-return-success-1", "wx_after_sale_return_1")
+                .andExpect(jsonPath("$.data.refund_status").value("success"))
+                .andExpect(jsonPath("$.data.pay_status").value("refund_partial"));
+
+        mockMvc.perform(get("/api/order/orders/{order_no}", orderNo)
+                        .param("merchant_id", String.valueOf(merchantId))
+                        .param("store_id", String.valueOf(storeId))
+                        .param("user_id", String.valueOf(userId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items[0].refund_status").value("partial_refunded"))
+                .andExpect(jsonPath("$.data.items[0].refunded_quantity").value(1))
+                .andExpect(jsonPath("$.data.items[0].refunded_amount").value(18.00));
+    }
+
+    private String createPaidOrderByCallback(long merchantId,
+                                             long storeId,
+                                             long userId,
+                                             BigDecimal amount,
+                                             String callbackEventId) throws Exception {
+        return createPaidOrderWithItems(
+                merchantId,
+                storeId,
+                userId,
+                callbackEventId,
+                new OrderItemSeed(93001L, 94001L, 2, amount.divide(new BigDecimal("2.00"))));
+    }
+
+    private String createPaidOrderWithItems(long merchantId,
+                                            long storeId,
+                                            long userId,
+                                            String callbackEventId,
+                                            OrderItemSeed... items) throws Exception {
+        for (OrderItemSeed item : items) {
+            mockMvc.perform(post("/api/order/cart/items")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(writeJson(Map.of(
+                                    "merchant_id", merchantId,
+                                    "store_id", storeId,
+                                    "user_id", userId,
+                                    "product_id", item.productId(),
+                                    "sku_id", item.skuId(),
+                                    "quantity", item.quantity(),
+                                    "selected", true,
+                                    "snapshot_price", item.snapshotPrice()))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(0));
+        }
 
         MvcResult checkoutResult = mockMvc.perform(post("/api/order/checkout")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -357,7 +526,7 @@ class OrderControllerIntegrationTest {
                                 "store_id", storeId,
                                 "pay_no", payNo,
                                 "callback_event_id", callbackEventId,
-                                "paid_amount", amount,
+                                "paid_amount", orderAmount(items),
                                 "third_party_trade_no", "wx_trade_" + callbackEventId,
                                 "pay_channel", "wechat_pay",
                                 "callback_payload_json", "{\"status\":\"success\"}"))))
@@ -370,6 +539,14 @@ class OrderControllerIntegrationTest {
                 .andExpect(jsonPath("$.data.duplicated").value(false));
 
         return orderNo;
+    }
+
+    private BigDecimal orderAmount(OrderItemSeed... items) {
+        BigDecimal total = BigDecimal.ZERO;
+        for (OrderItemSeed item : items) {
+            total = total.add(item.snapshotPrice().multiply(BigDecimal.valueOf(item.quantity())));
+        }
+        return total;
     }
 
     private String createRefund(String orderNo,
@@ -418,5 +595,8 @@ class OrderControllerIntegrationTest {
 
     private String writeJson(Object body) throws Exception {
         return objectMapper.writeValueAsString(body);
+    }
+
+    private record OrderItemSeed(long productId, long skuId, int quantity, BigDecimal snapshotPrice) {
     }
 }

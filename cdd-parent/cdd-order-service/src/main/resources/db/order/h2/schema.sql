@@ -102,7 +102,9 @@ CREATE TABLE IF NOT EXISTS cdd_order_item (
   sale_price DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
   quantity INT NOT NULL DEFAULT 1,
   line_amount DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
-  refund_status VARCHAR(32) DEFAULT NULL,
+  refund_status VARCHAR(32) NOT NULL DEFAULT 'none',
+  refunded_quantity INT NOT NULL DEFAULT 0,
+  refunded_amount DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
   created_by BIGINT DEFAULT NULL,
   updated_by BIGINT DEFAULT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -199,12 +201,15 @@ CREATE TABLE IF NOT EXISTS cdd_order_refund_record (
   refund_no VARCHAR(32) NOT NULL,
   order_id BIGINT NOT NULL,
   order_no VARCHAR(32) NOT NULL,
+  order_item_id BIGINT DEFAULT NULL,
   pay_record_id BIGINT DEFAULT NULL,
   merchant_id BIGINT NOT NULL,
   store_id BIGINT NOT NULL,
+  after_sale_id BIGINT DEFAULT NULL,
   refund_reason VARCHAR(512) DEFAULT NULL,
   refund_status VARCHAR(32) NOT NULL,
   refund_amount DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
+  refund_quantity INT NOT NULL DEFAULT 0,
   third_party_refund_no VARCHAR(64) DEFAULT NULL,
   applied_at TIMESTAMP NOT NULL,
   success_at TIMESTAMP DEFAULT NULL,
@@ -222,6 +227,10 @@ CREATE UNIQUE INDEX IF NOT EXISTS uk_order_refund_no_deleted
   ON cdd_order_refund_record (refund_no, deleted);
 CREATE INDEX IF NOT EXISTS idx_order_refund_order_id
   ON cdd_order_refund_record (order_id);
+CREATE INDEX IF NOT EXISTS idx_order_refund_after_sale_id
+  ON cdd_order_refund_record (after_sale_id);
+CREATE INDEX IF NOT EXISTS idx_order_refund_item_status
+  ON cdd_order_refund_record (order_item_id, refund_status);
 
 CREATE TABLE IF NOT EXISTS cdd_order_refund_callback_record (
   id BIGINT NOT NULL PRIMARY KEY,
@@ -249,6 +258,54 @@ CREATE UNIQUE INDEX IF NOT EXISTS uk_order_refund_callback_event_deleted
   ON cdd_order_refund_callback_record (refund_no, callback_event_id, deleted);
 CREATE INDEX IF NOT EXISTS idx_order_refund_callback_refund_record_id
   ON cdd_order_refund_callback_record (refund_record_id);
+
+CREATE TABLE IF NOT EXISTS cdd_order_after_sale (
+  id BIGINT NOT NULL PRIMARY KEY,
+  after_sale_no VARCHAR(32) NOT NULL,
+  order_id BIGINT NOT NULL,
+  order_no VARCHAR(32) NOT NULL,
+  order_item_id BIGINT NOT NULL,
+  merchant_id BIGINT NOT NULL,
+  store_id BIGINT NOT NULL,
+  user_id BIGINT NOT NULL,
+  after_sale_type VARCHAR(32) NOT NULL,
+  after_sale_status VARCHAR(32) NOT NULL,
+  refund_record_id BIGINT DEFAULT NULL,
+  refund_no VARCHAR(32) DEFAULT NULL,
+  apply_reason VARCHAR(256) DEFAULT NULL,
+  apply_desc VARCHAR(512) DEFAULT NULL,
+  reason_code VARCHAR(64) DEFAULT NULL,
+  reason_desc VARCHAR(512) DEFAULT NULL,
+  proof_urls_json CLOB,
+  refund_amount DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
+  refund_quantity INT NOT NULL DEFAULT 0,
+  merchant_result VARCHAR(512) DEFAULT NULL,
+  return_company VARCHAR(64) DEFAULT NULL,
+  return_logistics_no VARCHAR(64) DEFAULT NULL,
+  returned_at TIMESTAMP DEFAULT NULL,
+  approved_at TIMESTAMP DEFAULT NULL,
+  completed_at TIMESTAMP DEFAULT NULL,
+  closed_at TIMESTAMP DEFAULT NULL,
+  handled_by BIGINT DEFAULT NULL,
+  handled_at TIMESTAMP DEFAULT NULL,
+  created_by BIGINT DEFAULT NULL,
+  updated_by BIGINT DEFAULT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  deleted TINYINT NOT NULL DEFAULT 0,
+  version BIGINT NOT NULL DEFAULT 0
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uk_after_sale_no_deleted
+  ON cdd_order_after_sale (after_sale_no, deleted);
+CREATE INDEX IF NOT EXISTS idx_after_sale_order_id
+  ON cdd_order_after_sale (order_id);
+CREATE INDEX IF NOT EXISTS idx_after_sale_store_status
+  ON cdd_order_after_sale (store_id, after_sale_status);
+CREATE INDEX IF NOT EXISTS idx_after_sale_user_created
+  ON cdd_order_after_sale (user_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_after_sale_order_item_status
+  ON cdd_order_after_sale (order_item_id, after_sale_status);
 
 CREATE TABLE IF NOT EXISTS cdd_compensation_task (
   id BIGINT NOT NULL PRIMARY KEY,

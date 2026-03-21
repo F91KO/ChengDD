@@ -7,6 +7,10 @@ import com.cdd.api.order.model.CheckoutResponse;
 import com.cdd.api.order.model.CreateOrderRequest;
 import com.cdd.api.order.model.CreateOrderResponse;
 import com.cdd.api.order.model.OrderCancelRequest;
+import com.cdd.api.order.model.OrderAfterSaleCreateRequest;
+import com.cdd.api.order.model.OrderAfterSaleLifecycleResponse;
+import com.cdd.api.order.model.OrderAfterSaleReturnRequest;
+import com.cdd.api.order.model.OrderAfterSaleReviewRequest;
 import com.cdd.api.order.model.OrderDeliveryUpdateRequest;
 import com.cdd.api.order.model.OrderDetailResponse;
 import com.cdd.api.order.model.OrderItemResponse;
@@ -25,6 +29,7 @@ import com.cdd.common.core.error.BusinessException;
 import com.cdd.order.error.OrderErrorCode;
 import com.cdd.order.infrastructure.persistence.OrderRepository.CompensationTaskRecord;
 import com.cdd.order.infrastructure.persistence.OrderRepository;
+import com.cdd.order.infrastructure.persistence.OrderRepository.AfterSaleRecord;
 import com.cdd.order.infrastructure.persistence.OrderRepository.CartItem;
 import com.cdd.order.infrastructure.persistence.OrderRepository.CheckoutSnapshot;
 import com.cdd.order.infrastructure.persistence.OrderRepository.OrderItemRecord;
@@ -83,6 +88,22 @@ public class OrderApplicationService {
     private static final String REFUND_CALLBACK_STATUS_PROCESSED = "processed";
     private static final String REFUND_CALLBACK_RESULT_SUCCESS = "success";
     private static final String REFUND_CALLBACK_RESULT_FAILED = "failed";
+    private static final String AFTER_SALE_TYPE_REFUND_ONLY = "refund_only";
+    private static final String AFTER_SALE_TYPE_RETURN_REFUND = "return_refund";
+    private static final String AFTER_SALE_STATUS_PENDING_MERCHANT = "pending_merchant";
+    private static final String AFTER_SALE_STATUS_AGREED = "agreed";
+    private static final String AFTER_SALE_STATUS_REJECTED = "rejected";
+    private static final String AFTER_SALE_STATUS_WAITING_RETURN = "waiting_return";
+    private static final String AFTER_SALE_STATUS_REFUNDING = "refunding";
+    private static final String AFTER_SALE_STATUS_COMPLETED = "completed";
+    private static final String REVIEW_ACTION_AGREE = "agree";
+    private static final String REVIEW_ACTION_REJECT = "reject";
+    private static final String ITEM_REFUND_STATUS_NONE = "none";
+    private static final String ITEM_REFUND_STATUS_PARTIAL_REFUNDING = "partial_refunding";
+    private static final String ITEM_REFUND_STATUS_FULL_REFUNDING = "full_refunding";
+    private static final String ITEM_REFUND_STATUS_PARTIAL_REFUNDED = "partial_refunded";
+    private static final String ITEM_REFUND_STATUS_FULL_REFUNDED = "full_refunded";
+    private static final String ITEM_REFUND_STATUS_REFUND_FAILED = "refund_failed";
     private static final String COMPENSATION_BIZ_TYPE_ORDER_REFUND = "order_refund";
     private static final String COMPENSATION_TYPE_REFUND_RETRY = "refund_retry";
     private static final String COMPENSATION_TASK_STATUS_PENDING = "pending";
@@ -220,7 +241,9 @@ public class OrderApplicationService {
                         item.salePrice(),
                         item.quantity(),
                         item.lineAmount(),
-                        null))
+                        ITEM_REFUND_STATUS_NONE,
+                        0,
+                        BigDecimal.ZERO))
                 .toList();
 
         repository.createOrder(order, itemRecords);
@@ -447,10 +470,13 @@ public class OrderApplicationService {
                 order.id(),
                 order.orderNo(),
                 payRecord.id(),
+                null,
+                null,
                 order.merchantId(),
                 order.storeId(),
                 trimToNull(request.refundReason()),
                 REFUND_STATUS_PROCESSING,
+                0,
                 request.refundAmount(),
                 null,
                 appliedAt,
@@ -543,7 +569,23 @@ public class OrderApplicationService {
             BigDecimal totalSuccessRefundAmount = repository.sumRefundAmountByOrderIdAndStatuses(order.id(), REFUND_SUCCESS_STATUSES);
             String targetPayStatus = resolveOrderPayStatusAfterRefund(order, totalSuccessRefundAmount);
             repository.updateOrderPayStatusAfterRefund(order.id(), targetPayStatus);
-            repository.updateOrderItemsRefundStatus(order.id(), REFUND_STATUS_SUCCESS);
+            if (refundRecord.orderItemId() != null) {
+                OrderItemRecord orderItem = requireOrderItem(order.id(), refundRecord.orderItemId());
+                refreshOrderItemRefundSnapshot(orderItem.id(), orderItem.quantity(), orderItem.lineAmount(), false);
+                if (refundRecord.afterSaleId() != null) {
+                    repository.updateAfterSaleStatus(
+                            refundRecord.afterSaleId(),
+                            AFTER_SALE_STATUS_COMPLETED,
+                            null,
+                            null,
+                            processedAt,
+                            null,
+                            processedAt,
+                            null);
+                }
+            } else {
+                repository.updateOrderItemsRefundStatus(order.id(), REFUND_STATUS_SUCCESS);
+            }
             repository.createStatusLog(new OrderStatusLogRecord(
                     idGenerator.nextId(),
                     order.id(),
@@ -573,7 +615,12 @@ public class OrderApplicationService {
                     throw new BusinessException(OrderErrorCode.REFUND_STATUS_INVALID, "当前退款状态不允许回写失败");
                 }
             }
-            repository.updateOrderItemsRefundStatus(order.id(), REFUND_STATUS_FAILED);
+            if (refundRecord.orderItemId() != null) {
+                OrderItemRecord orderItem = requireOrderItem(order.id(), refundRecord.orderItemId());
+                refreshOrderItemRefundSnapshot(orderItem.id(), orderItem.quantity(), orderItem.lineAmount(), false);
+            } else {
+                repository.updateOrderItemsRefundStatus(order.id(), REFUND_STATUS_FAILED);
+            }
             compensationTaskCode = ensureRefundCompensationTask(refundRecord, order, failureReason, request.callbackEventId());
             repository.bindRefundCompensationTask(refundRecord.id(), compensationTaskCode);
             repository.createStatusLog(new OrderStatusLogRecord(
@@ -607,6 +654,186 @@ public class OrderApplicationService {
                 REFUND_CALLBACK_STATUS_PROCESSED,
                 false,
                 latestRefund.compensationTaskCode());
+    }
+
+    @Transactional
+    public OrderAfterSaleLifecycleResponse createAfterSale(String orderNo, OrderAfterSaleCreateRequest request) {
+        OrderRecord order = requireOrder(orderNo, request.merchantId(), request.storeId(), request.userId());
+        validateAfterSalePayStatus(order);
+        OrderItemRecord orderItem = requireOrderItem(order.id(), request.orderItemId());
+        String afterSaleType = normalizeAfterSaleType(request.afterSaleType());
+        validateAfterSaleRequest(order, orderItem, request.refundQuantity(), request.refundAmount());
+
+        String afterSaleNo = "AS" + idGenerator.nextId();
+        AfterSaleRecord afterSaleRecord = new AfterSaleRecord(
+                idGenerator.nextId(),
+                afterSaleNo,
+                order.id(),
+                order.orderNo(),
+                orderItem.id(),
+                order.merchantId(),
+                order.storeId(),
+                order.userId(),
+                afterSaleType,
+                AFTER_SALE_STATUS_PENDING_MERCHANT,
+                trimToNull(request.reasonCode()),
+                trimToNull(request.reasonDesc()),
+                writeNullableJson(request.proofUrls()),
+                request.refundQuantity(),
+                request.refundAmount(),
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null);
+        repository.createAfterSaleRecord(afterSaleRecord);
+        repository.createStatusLog(new OrderStatusLogRecord(
+                idGenerator.nextId(),
+                order.id(),
+                order.orderNo(),
+                order.orderStatus(),
+                order.orderStatus(),
+                "after_sale_apply",
+                request.userId(),
+                "用户" + request.userId(),
+                defaultText(trimToNull(request.reasonDesc()), "发起售后申请"),
+                Instant.now()));
+        return toAfterSaleLifecycleResponse(afterSaleRecord, order.orderNo(), order.payStatus());
+    }
+
+    @Transactional
+    public OrderAfterSaleLifecycleResponse reviewAfterSale(String afterSaleNo, OrderAfterSaleReviewRequest request) {
+        AfterSaleRecord afterSale = requireAfterSale(afterSaleNo);
+        if (afterSale.merchantId() != request.merchantId() || afterSale.storeId() != request.storeId()) {
+            throw new BusinessException(OrderErrorCode.AFTER_SALE_NOT_FOUND);
+        }
+        if (!AFTER_SALE_STATUS_PENDING_MERCHANT.equals(afterSale.afterSaleStatus())) {
+            throw new BusinessException(OrderErrorCode.AFTER_SALE_STATUS_INVALID, "当前售后状态不允许审核");
+        }
+        OrderRecord order = requireOrderById(afterSale.orderId());
+        OrderItemRecord orderItem = requireOrderItem(order.id(), afterSale.orderItemId());
+        String reviewAction = normalize(request.reviewAction());
+        Instant now = Instant.now();
+        if (REVIEW_ACTION_REJECT.equals(reviewAction)) {
+            repository.updateAfterSaleStatus(
+                    afterSale.id(),
+                    AFTER_SALE_STATUS_REJECTED,
+                    trimToNull(request.merchantResult()),
+                    request.operatorId(),
+                    now,
+                    null,
+                    null,
+                    now);
+            repository.createStatusLog(new OrderStatusLogRecord(
+                    idGenerator.nextId(),
+                    order.id(),
+                    order.orderNo(),
+                    order.orderStatus(),
+                    order.orderStatus(),
+                    "after_sale_reject",
+                    request.operatorId(),
+                    "商家" + request.operatorId(),
+                    defaultText(trimToNull(request.merchantResult()), "商家拒绝售后"),
+                    now));
+            AfterSaleRecord latestAfterSale = requireAfterSale(afterSaleNo);
+            return toAfterSaleLifecycleResponse(latestAfterSale, order.orderNo(), order.payStatus());
+        }
+        if (!REVIEW_ACTION_AGREE.equals(reviewAction)) {
+            throw new BusinessException(OrderErrorCode.AFTER_SALE_STATUS_INVALID, "审核动作仅支持 agree 或 reject");
+        }
+
+        if (AFTER_SALE_TYPE_REFUND_ONLY.equals(afterSale.afterSaleType())) {
+            RefundRecord refundRecord = createAfterSaleRefundRecord(order, orderItem, afterSale, now);
+            repository.bindAfterSaleRefundRecord(afterSale.id(), refundRecord.id(), refundRecord.refundNo());
+            repository.updateAfterSaleStatus(
+                    afterSale.id(),
+                    AFTER_SALE_STATUS_REFUNDING,
+                    trimToNull(request.merchantResult()),
+                    request.operatorId(),
+                    now,
+                    now,
+                    null,
+                    null);
+            refreshOrderItemRefundSnapshot(orderItem.id(), orderItem.quantity(), orderItem.lineAmount(), true);
+        } else {
+            repository.updateAfterSaleStatus(
+                    afterSale.id(),
+                    AFTER_SALE_STATUS_WAITING_RETURN,
+                    trimToNull(request.merchantResult()),
+                    request.operatorId(),
+                    now,
+                    now,
+                    null,
+                    null);
+        }
+        repository.createStatusLog(new OrderStatusLogRecord(
+                idGenerator.nextId(),
+                order.id(),
+                order.orderNo(),
+                order.orderStatus(),
+                order.orderStatus(),
+                "after_sale_agree",
+                request.operatorId(),
+                "商家" + request.operatorId(),
+                defaultText(trimToNull(request.merchantResult()), "商家同意售后"),
+                now));
+        AfterSaleRecord latestAfterSale = requireAfterSale(afterSaleNo);
+        return toAfterSaleLifecycleResponse(latestAfterSale, order.orderNo(), order.payStatus());
+    }
+
+    @Transactional
+    public OrderAfterSaleLifecycleResponse submitAfterSaleReturn(String afterSaleNo, OrderAfterSaleReturnRequest request) {
+        AfterSaleRecord afterSale = requireAfterSale(afterSaleNo);
+        if (afterSale.merchantId() != request.merchantId()
+                || afterSale.storeId() != request.storeId()
+                || afterSale.userId() != request.userId()) {
+            throw new BusinessException(OrderErrorCode.AFTER_SALE_NOT_FOUND);
+        }
+        if (!AFTER_SALE_TYPE_RETURN_REFUND.equals(afterSale.afterSaleType())) {
+            throw new BusinessException(OrderErrorCode.AFTER_SALE_TYPE_INVALID, "仅退货退款售后允许提交退货物流");
+        }
+        if (!AFTER_SALE_STATUS_WAITING_RETURN.equals(afterSale.afterSaleStatus())) {
+            throw new BusinessException(OrderErrorCode.AFTER_SALE_STATUS_INVALID, "当前售后状态不允许提交退货物流");
+        }
+        OrderRecord order = requireOrderById(afterSale.orderId());
+        OrderItemRecord orderItem = requireOrderItem(order.id(), afterSale.orderItemId());
+        Instant now = Instant.now();
+        repository.updateAfterSaleReturnInfo(
+                afterSale.id(),
+                trimToNull(request.returnCompany()),
+                trimToNull(request.returnLogisticsNo()),
+                now);
+        RefundRecord refundRecord = createAfterSaleRefundRecord(order, orderItem, afterSale, now);
+        repository.bindAfterSaleRefundRecord(afterSale.id(), refundRecord.id(), refundRecord.refundNo());
+        repository.updateAfterSaleStatus(
+                afterSale.id(),
+                AFTER_SALE_STATUS_REFUNDING,
+                afterSale.merchantResult(),
+                request.userId(),
+                now,
+                afterSale.approvedAt(),
+                null,
+                null);
+        refreshOrderItemRefundSnapshot(orderItem.id(), orderItem.quantity(), orderItem.lineAmount(), true);
+        repository.createStatusLog(new OrderStatusLogRecord(
+                idGenerator.nextId(),
+                order.id(),
+                order.orderNo(),
+                order.orderStatus(),
+                order.orderStatus(),
+                "after_sale_return_submit",
+                request.userId(),
+                "用户" + request.userId(),
+                "提交退货物流",
+                now));
+        AfterSaleRecord latestAfterSale = requireAfterSale(afterSaleNo);
+        return toAfterSaleLifecycleResponse(latestAfterSale, order.orderNo(), order.payStatus());
     }
 
     @Transactional
@@ -780,6 +1007,19 @@ public class OrderApplicationService {
                 .orElseThrow(() -> new BusinessException(OrderErrorCode.ORDER_NOT_FOUND));
     }
 
+    private AfterSaleRecord requireAfterSale(String afterSaleNo) {
+        return repository.findAfterSaleByAfterSaleNo(afterSaleNo)
+                .orElseThrow(() -> new BusinessException(OrderErrorCode.AFTER_SALE_NOT_FOUND));
+    }
+
+    private OrderItemRecord requireOrderItem(long orderId, Long orderItemId) {
+        if (orderItemId == null) {
+            throw new BusinessException(OrderErrorCode.ORDER_ITEM_NOT_FOUND);
+        }
+        return repository.findOrderItem(orderId, orderItemId)
+                .orElseThrow(() -> new BusinessException(OrderErrorCode.ORDER_ITEM_NOT_FOUND));
+    }
+
     private CartItemResponse toCartItemResponse(CartItem item) {
         return new CartItemResponse(
                 item.id(),
@@ -819,7 +1059,9 @@ public class OrderApplicationService {
                 item.salePrice(),
                 item.quantity(),
                 item.lineAmount(),
-                item.refundStatus());
+                item.refundStatus(),
+                item.refundedQuantity(),
+                item.refundedAmount());
     }
 
     private OrderStatusLogResponse toOrderStatusLogResponse(OrderStatusLogRecord log) {
@@ -835,6 +1077,123 @@ public class OrderApplicationService {
 
     private OrderLifecycleResponse toLifecycleResponse(OrderRecord order) {
         return new OrderLifecycleResponse(order.orderNo(), order.orderStatus(), order.payStatus(), order.deliveryStatus());
+    }
+
+    private OrderAfterSaleLifecycleResponse toAfterSaleLifecycleResponse(AfterSaleRecord afterSale,
+                                                                         String orderNo,
+                                                                         String payStatus) {
+        return new OrderAfterSaleLifecycleResponse(
+                afterSale.afterSaleNo(),
+                defaultText(afterSale.orderNo(), orderNo),
+                afterSale.orderItemId(),
+                afterSale.afterSaleType(),
+                afterSale.afterSaleStatus(),
+                afterSale.refundQuantity(),
+                afterSale.refundAmount(),
+                afterSale.refundNo(),
+                payStatus);
+    }
+
+    private void validateAfterSalePayStatus(OrderRecord order) {
+        if (!PAY_STATUS_PAID.equals(order.payStatus()) && !ORDER_PAY_STATUS_REFUND_PARTIAL.equals(order.payStatus())) {
+            throw new BusinessException(OrderErrorCode.ORDER_STATUS_INVALID, "当前支付状态不允许发起售后");
+        }
+    }
+
+    private void validateAfterSaleRequest(OrderRecord order,
+                                          OrderItemRecord orderItem,
+                                          int refundQuantity,
+                                          BigDecimal refundAmount) {
+        if (refundQuantity <= 0) {
+            throw new BusinessException(OrderErrorCode.REFUND_ITEM_QUANTITY_INVALID, "退款数量必须大于 0");
+        }
+        if (refundAmount == null || refundAmount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BusinessException(OrderErrorCode.REFUND_ITEM_AMOUNT_INVALID, "退款金额必须大于 0");
+        }
+        int occupiedRefundQuantity = repository.sumRefundQuantityByOrderItemIdAndStatuses(orderItem.id(), REFUND_OCCUPIED_STATUSES);
+        BigDecimal occupiedRefundAmount = repository.sumRefundAmountByOrderItemIdAndStatuses(orderItem.id(), REFUND_OCCUPIED_STATUSES);
+        if (refundQuantity > orderItem.quantity() - occupiedRefundQuantity) {
+            throw new BusinessException(OrderErrorCode.REFUND_ITEM_QUANTITY_INVALID, "退款数量不能超过订单项剩余可退数量");
+        }
+        if (refundAmount.compareTo(orderItem.lineAmount().subtract(occupiedRefundAmount)) > 0) {
+            throw new BusinessException(OrderErrorCode.REFUND_ITEM_AMOUNT_INVALID, "退款金额不能超过订单项剩余可退金额");
+        }
+        BigDecimal orderPaidAmount = order.paidAmount() != null ? order.paidAmount() : order.payableAmount();
+        BigDecimal orderOccupiedRefundAmount = repository.sumRefundAmountByOrderIdAndStatuses(order.id(), REFUND_OCCUPIED_STATUSES);
+        if (orderPaidAmount != null && refundAmount.compareTo(orderPaidAmount.subtract(orderOccupiedRefundAmount)) > 0) {
+            throw new BusinessException(OrderErrorCode.REFUND_AMOUNT_INVALID, "退款金额不能大于订单剩余可退金额");
+        }
+    }
+
+    private RefundRecord createAfterSaleRefundRecord(OrderRecord order,
+                                                     OrderItemRecord orderItem,
+                                                     AfterSaleRecord afterSale,
+                                                     Instant appliedAt) {
+        PayRecord payRecord = repository.findLatestPayRecordByOrderId(order.id())
+                .orElseThrow(() -> new BusinessException(OrderErrorCode.PAY_RECORD_NOT_FOUND, "未找到可关联的支付流水"));
+        String refundNo = "R" + idGenerator.nextId();
+        RefundRecord refundRecord = new RefundRecord(
+                idGenerator.nextId(),
+                refundNo,
+                order.id(),
+                order.orderNo(),
+                payRecord.id(),
+                afterSale.id(),
+                orderItem.id(),
+                order.merchantId(),
+                order.storeId(),
+                defaultText(afterSale.reasonDesc(), afterSale.reasonCode()),
+                REFUND_STATUS_PROCESSING,
+                afterSale.refundQuantity(),
+                afterSale.refundAmount(),
+                null,
+                appliedAt,
+                null,
+                null,
+                null);
+        repository.createRefundRecord(refundRecord);
+        return refundRecord;
+    }
+
+    private void refreshOrderItemRefundSnapshot(long orderItemId,
+                                                int totalQuantity,
+                                                BigDecimal lineAmount,
+                                                boolean includeOccupied) {
+        int refundedQuantity = repository.sumRefundQuantityByOrderItemIdAndStatuses(orderItemId, REFUND_SUCCESS_STATUSES);
+        BigDecimal refundedAmount = repository.sumRefundAmountByOrderItemIdAndStatuses(orderItemId, REFUND_SUCCESS_STATUSES);
+        String refundStatus;
+        if (includeOccupied) {
+            int occupiedQuantity = repository.sumRefundQuantityByOrderItemIdAndStatuses(orderItemId, REFUND_OCCUPIED_STATUSES);
+            BigDecimal occupiedAmount = repository.sumRefundAmountByOrderItemIdAndStatuses(orderItemId, REFUND_OCCUPIED_STATUSES);
+            refundStatus = resolveProcessingItemRefundStatus(totalQuantity, lineAmount, occupiedQuantity, occupiedAmount);
+        } else {
+            refundStatus = resolveFinalItemRefundStatus(totalQuantity, lineAmount, refundedQuantity, refundedAmount);
+        }
+        repository.updateOrderItemRefundSnapshot(orderItemId, refundStatus, refundedQuantity, refundedAmount);
+    }
+
+    private String resolveProcessingItemRefundStatus(int totalQuantity,
+                                                     BigDecimal lineAmount,
+                                                     int occupiedQuantity,
+                                                     BigDecimal occupiedAmount) {
+        if (occupiedQuantity <= 0 && occupiedAmount.compareTo(BigDecimal.ZERO) <= 0) {
+            return ITEM_REFUND_STATUS_NONE;
+        }
+        return occupiedQuantity >= totalQuantity || occupiedAmount.compareTo(lineAmount) >= 0
+                ? ITEM_REFUND_STATUS_FULL_REFUNDING
+                : ITEM_REFUND_STATUS_PARTIAL_REFUNDING;
+    }
+
+    private String resolveFinalItemRefundStatus(int totalQuantity,
+                                                BigDecimal lineAmount,
+                                                int refundedQuantity,
+                                                BigDecimal refundedAmount) {
+        if (refundedQuantity <= 0 && refundedAmount.compareTo(BigDecimal.ZERO) <= 0) {
+            return ITEM_REFUND_STATUS_REFUND_FAILED;
+        }
+        return refundedQuantity >= totalQuantity || refundedAmount.compareTo(lineAmount) >= 0
+                ? ITEM_REFUND_STATUS_FULL_REFUNDED
+                : ITEM_REFUND_STATUS_PARTIAL_REFUNDED;
     }
 
     private BigDecimal calculateTotalAmount(List<CartItem> selectedItems) {
@@ -933,6 +1292,14 @@ public class OrderApplicationService {
         return writeJson(response);
     }
 
+    private String normalizeAfterSaleType(String raw) {
+        String normalized = normalize(raw);
+        if (!AFTER_SALE_TYPE_REFUND_ONLY.equals(normalized) && !AFTER_SALE_TYPE_RETURN_REFUND.equals(normalized)) {
+            throw new BusinessException(OrderErrorCode.AFTER_SALE_TYPE_INVALID);
+        }
+        return normalized;
+    }
+
     private String resolveOrderPayStatusAfterRefund(OrderRecord order, BigDecimal totalSuccessRefundAmount) {
         BigDecimal paidAmount = order.paidAmount() != null ? order.paidAmount() : order.payableAmount();
         if (paidAmount == null || totalSuccessRefundAmount == null) {
@@ -1013,6 +1380,13 @@ public class OrderApplicationService {
         } catch (JsonProcessingException ex) {
             throw new BusinessException(OrderErrorCode.CHECKOUT_SNAPSHOT_INVALID);
         }
+    }
+
+    private String writeNullableJson(Object value) {
+        if (value == null) {
+            return null;
+        }
+        return writeJson(value);
     }
 
     private long readLong(JsonNode node, String fieldName) {

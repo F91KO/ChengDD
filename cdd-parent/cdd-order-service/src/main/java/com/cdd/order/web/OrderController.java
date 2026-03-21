@@ -7,6 +7,10 @@ import com.cdd.api.order.model.CheckoutResponse;
 import com.cdd.api.order.model.CreateOrderRequest;
 import com.cdd.api.order.model.CreateOrderResponse;
 import com.cdd.api.order.model.OrderCancelRequest;
+import com.cdd.api.order.model.OrderAfterSaleCreateRequest;
+import com.cdd.api.order.model.OrderAfterSaleLifecycleResponse;
+import com.cdd.api.order.model.OrderAfterSaleReturnRequest;
+import com.cdd.api.order.model.OrderAfterSaleReviewRequest;
 import com.cdd.api.order.model.OrderDeliveryUpdateRequest;
 import com.cdd.api.order.model.OrderDetailResponse;
 import com.cdd.api.order.model.OrderLifecycleResponse;
@@ -96,6 +100,24 @@ public class OrderController {
     public ApiResponse<OrderRefundLifecycleResponse> handleRefundCallback(@PathVariable(name = "refund_no") String refundNo,
                                                                           @Valid @RequestBody OrderRefundCallbackRequest request) {
         return ApiResponses.success(orderApplicationService.handleRefundCallback(refundNo, request));
+    }
+
+    @PostMapping("/orders/{order_no}/after-sales")
+    public ApiResponse<OrderAfterSaleLifecycleResponse> createAfterSale(@PathVariable(name = "order_no") String orderNo,
+                                                                        @Valid @RequestBody OrderAfterSaleCreateRequest request) {
+        return ApiResponses.success(orderApplicationService.createAfterSale(orderNo, request));
+    }
+
+    @PostMapping("/after-sales/{after_sale_no}/review")
+    public ApiResponse<OrderAfterSaleLifecycleResponse> reviewAfterSale(@PathVariable(name = "after_sale_no") String afterSaleNo,
+                                                                        @Valid @RequestBody OrderAfterSaleReviewRequest request) {
+        return ApiResponses.success(orderApplicationService.reviewAfterSale(afterSaleNo, request));
+    }
+
+    @PostMapping("/after-sales/{after_sale_no}/return")
+    public ApiResponse<OrderAfterSaleLifecycleResponse> submitAfterSaleReturn(@PathVariable(name = "after_sale_no") String afterSaleNo,
+                                                                              @Valid @RequestBody OrderAfterSaleReturnRequest request) {
+        return ApiResponses.success(orderApplicationService.submitAfterSaleReturn(afterSaleNo, request));
     }
 
     @PostMapping("/orders/{order_no}/cancel")

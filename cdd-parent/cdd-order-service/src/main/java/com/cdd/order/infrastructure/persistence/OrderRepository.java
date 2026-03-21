@@ -35,6 +35,8 @@ public interface OrderRepository {
 
     List<OrderItemRecord> listOrderItems(long orderId);
 
+    Optional<OrderItemRecord> findOrderItem(long orderId, long orderItemId);
+
     List<OrderStatusLogRecord> listOrderStatusLogs(long orderId);
 
     Optional<PayRecord> findPayRecordByPayNo(String payNo);
@@ -76,6 +78,10 @@ public interface OrderRepository {
 
     BigDecimal sumRefundAmountByOrderIdAndStatuses(long orderId, List<String> refundStatuses);
 
+    BigDecimal sumRefundAmountByOrderItemIdAndStatuses(long orderItemId, List<String> refundStatuses);
+
+    int sumRefundQuantityByOrderItemIdAndStatuses(long orderItemId, List<String> refundStatuses);
+
     boolean updateRefundRecordToSuccess(long refundRecordId, String thirdPartyRefundNo, Instant successAt);
 
     boolean updateRefundRecordToFailed(long refundRecordId, String failureReason);
@@ -95,6 +101,31 @@ public interface OrderRepository {
     boolean updateOrderPayStatusAfterRefund(long orderId, String targetPayStatus);
 
     void updateOrderItemsRefundStatus(long orderId, String refundStatus);
+
+    void updateOrderItemRefundSnapshot(long orderItemId,
+                                       String refundStatus,
+                                       int refundedQuantity,
+                                       BigDecimal refundedAmount);
+
+    void createAfterSaleRecord(AfterSaleRecord afterSaleRecord);
+
+    Optional<AfterSaleRecord> findAfterSaleByAfterSaleNo(String afterSaleNo);
+
+    void updateAfterSaleStatus(long afterSaleId,
+                               String afterSaleStatus,
+                               String merchantResult,
+                               Long handledBy,
+                               Instant handledAt,
+                               Instant approvedAt,
+                               Instant completedAt,
+                               Instant closedAt);
+
+    void bindAfterSaleRefundRecord(long afterSaleId, Long refundRecordId, String refundNo);
+
+    void updateAfterSaleReturnInfo(long afterSaleId,
+                                   String returnCompany,
+                                   String returnLogisticsNo,
+                                   Instant returnedAt);
 
     boolean createCompensationTaskIfAbsent(CompensationTaskRecord compensationTaskRecord);
 
@@ -162,7 +193,9 @@ public interface OrderRepository {
             BigDecimal salePrice,
             int quantity,
             BigDecimal lineAmount,
-            String refundStatus) {
+            String refundStatus,
+            int refundedQuantity,
+            BigDecimal refundedAmount) {
     }
 
     record OrderStatusLogRecord(
@@ -213,16 +246,48 @@ public interface OrderRepository {
             long orderId,
             String orderNo,
             Long payRecordId,
+            Long afterSaleId,
+            Long orderItemId,
             long merchantId,
             long storeId,
             String refundReason,
             String refundStatus,
+            Integer refundQuantity,
             BigDecimal refundAmount,
             String thirdPartyRefundNo,
             Instant appliedAt,
             Instant successAt,
             String failureReason,
             String compensationTaskCode) {
+    }
+
+    record AfterSaleRecord(
+            long id,
+            String afterSaleNo,
+            long orderId,
+            String orderNo,
+            Long orderItemId,
+            long merchantId,
+            long storeId,
+            long userId,
+            String afterSaleType,
+            String afterSaleStatus,
+            String reasonCode,
+            String reasonDesc,
+            String proofUrlsJson,
+            Integer refundQuantity,
+            BigDecimal refundAmount,
+            String merchantResult,
+            Long refundRecordId,
+            String refundNo,
+            String returnCompany,
+            String returnLogisticsNo,
+            Instant returnedAt,
+            Instant approvedAt,
+            Instant completedAt,
+            Instant closedAt,
+            Long handledBy,
+            Instant handledAt) {
     }
 
     record RefundCallbackRecord(
