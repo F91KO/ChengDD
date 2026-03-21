@@ -16,6 +16,7 @@ import com.cdd.common.security.context.AuthContext;
 import com.cdd.common.security.context.AuthContextHolder;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class AuthApplicationService {
@@ -32,11 +33,13 @@ public class AuthApplicationService {
         this.jwtTokenService = jwtTokenService;
     }
 
+    @Transactional
     public TokenResponse login(String expectedAccountType, LoginRequest request) {
         AuthenticatedAccount account = runtimeAccountService.authenticate(expectedAccountType, request.accountName(), request.password());
-        return issueTokens(account.toAuthContext());
+        return issueTokens(account);
     }
 
+    @Transactional
     public TokenResponse refresh(RefreshTokenRequest request) {
         JwtParsedToken refreshToken = parseRefreshToken(request.refreshToken());
         RefreshTokenSession session = requireRefreshSession(refreshToken, request.refreshToken());
@@ -47,9 +50,10 @@ public class AuthApplicationService {
             throw new BusinessException(AuthErrorCode.REFRESH_TOKEN_INVALID);
         }
         refreshTokenSessionStore.revoke(refreshToken.tokenId());
-        return issueTokens(account.toAuthContext());
+        return issueTokens(account);
     }
 
+    @Transactional
     public void logout(LogoutRequest request) {
         JwtParsedToken refreshToken = parseRefreshToken(request.refreshToken());
         requireRefreshSession(refreshToken, request.refreshToken());
@@ -74,17 +78,19 @@ public class AuthApplicationService {
                 authContext.getTokenVersion());
     }
 
-    private TokenResponse issueTokens(AuthContext authContext) {
+    private TokenResponse issueTokens(AuthenticatedAccount account) {
+        AuthContext authContext = account.toAuthContext();
         String accessToken = jwtTokenService.createAccessToken(authContext);
         String refreshToken = jwtTokenService.createRefreshToken(authContext);
         JwtParsedToken parsedAccessToken = jwtTokenService.parseAccessToken(accessToken);
         JwtParsedToken parsedRefreshToken = jwtTokenService.parseRefreshToken(refreshToken);
-        refreshTokenSessionStore.save(new RefreshTokenSession(
+        refreshTokenSessionStore.save(
                 parsedRefreshToken.tokenId(),
+                account.accountId(),
                 authContext.getUserId(),
                 refreshToken,
                 authContext.getTokenVersion(),
-                parsedRefreshToken.expiresAt()));
+                parsedRefreshToken.expiresAt());
         return new TokenResponse(
                 RequestHeaders.BEARER_PREFIX.trim(),
                 authContext.getAccountType(),
@@ -96,7 +102,7 @@ public class AuthApplicationService {
 
     private RefreshTokenSession requireRefreshSession(JwtParsedToken refreshToken, String rawRefreshToken) {
         RefreshTokenSession session = refreshTokenSessionStore.find(refreshToken.tokenId());
-        if (session == null || !session.refreshToken().equals(rawRefreshToken)) {
+        if (session == null || !refreshTokenSessionStore.matches(session, rawRefreshToken)) {
             throw new BusinessException(AuthErrorCode.REFRESH_TOKEN_INVALID);
         }
         return session;

@@ -1,9 +1,9 @@
-package com.cdd.auth.service;
+package com.cdd.auth.infrastructure.persistence;
 
-import com.cdd.common.security.context.AuthContext;
+import com.cdd.auth.service.AuthenticatedAccount;
 import java.util.List;
 
-public record AuthenticatedAccount(
+public record StoredAccount(
         long accountId,
         String userId,
         String accountType,
@@ -13,15 +13,16 @@ public record AuthenticatedAccount(
         String storeId,
         String miniProgramId,
         List<String> roleCodes,
-        long tokenVersion) {
+        long tokenVersion,
+        String passwordHash) {
 
-    public AuthContext toAuthContext() {
-        return new AuthContext(
-                null,
+    public AuthenticatedAccount toAuthenticatedAccount() {
+        return new AuthenticatedAccount(
+                accountId,
                 userId,
+                accountType,
                 accountName,
                 displayName,
-                accountType,
                 merchantId,
                 storeId,
                 miniProgramId,

@@ -1,14 +1,10 @@
 spring:
   datasource:
-    url: jdbc:mysql://127.0.0.1:3306/chengdd?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false
-    username: root
-    password: change_me
-    driver-class-name: com.mysql.cj.jdbc.Driver
-
-cdd:
-  migration:
-    locations:
-      - filesystem:db/migration
-    validate-migration-naming: true
-    connect-retries: 3
-
+    url: ${CDD_DB_MIGRATION_URL:jdbc:mysql://127.0.0.1:${CDD_LOCAL_MYSQL_PORT:3306}/${CDD_LOCAL_MYSQL_DATABASE:chengdd}?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false}
+    username: ${CDD_DB_MIGRATION_USERNAME:root}
+    password: ${CDD_DB_MIGRATION_PASSWORD:${CDD_LOCAL_MYSQL_ROOT_PASSWORD:change_me}}
+    driver-class-name: ${CDD_DB_MIGRATION_DRIVER_CLASS_NAME:com.mysql.cj.jdbc.Driver}
+  liquibase:
+    enabled: true
+    change-log: ${CDD_DB_CHANGELOG:file:../../config/db-migration/db.changelog-master.yaml}
+    clear-checksums: false

@@ -42,6 +42,7 @@
 | [服务与表关系矩阵.md](./02-architecture/服务与表关系矩阵.md) | 设计基线 | 服务边界和主责表划分 |
 | [命名规范.md](./02-architecture/命名规范.md) | 设计基线 | 服务、模块、表、字段命名统一规范 |
 | [基础能力模块设计.md](./02-architecture/基础能力模块设计.md) | 设计基线 | `cdd-common-*` 的职责边界、首批能力与演进顺序 |
+| [Agent基础能力地图与落地路线图.md](./02-architecture/Agent基础能力地图与落地路线图.md) | 设计基线 | Agent 底座的能力地图、阶段路线与首批任务拆解 |
 | [Nacos配置命名与加载约定.md](./02-architecture/Nacos配置命名与加载约定.md) | 设计基线 | Nacos 的 namespace、group、dataId 与本地回退规则 |
 
 ### 3.4 接口与协议设计
@@ -93,6 +94,9 @@
 | [GitHub骨架任务执行说明.md](./05-delivery/GitHub骨架任务执行说明.md) | 执行说明 | 任务 list、GitHub issue、分支与执行顺序约束 |
 | [权限建议清单.md](./05-delivery/权限建议清单.md) | 执行说明 | `/permissions` 推荐持久化前缀与使用原则 |
 | [骨架验证与验收说明.md](./05-delivery/骨架验证与验收说明.md) | 执行说明 | 骨架边界、构建、启动与 CI 验收方式 |
+| [本地数据库与Nacos启动说明.md](./05-delivery/本地数据库与Nacos启动说明.md) | 执行说明 | 本地 MySQL、Nacos 启动与数据库迁移步骤 |
+| [MySQL版本基线决策说明.md](./05-delivery/MySQL版本基线决策说明.md) | 执行说明 | `MySQL 5.7` 与 `MySQL 8.0` 的基线取舍、影响与推荐口径 |
+| [生产环境K8s多商户部署建议.md](./05-delivery/生产环境K8s多商户部署建议.md) | 执行说明 | 生产环境 K8s、多商户、数据库与 Nacos 的部署建议 |
 
 ## 6. 当前建议的使用方式
 

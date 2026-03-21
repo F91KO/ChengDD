@@ -2,7 +2,6 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-cd "$repo_root"
 parent_root="$repo_root/cdd-parent"
 
 if command -v /usr/libexec/java_home >/dev/null 2>&1; then
@@ -10,13 +9,7 @@ if command -v /usr/libexec/java_home >/dev/null 2>&1; then
 fi
 
 if [[ -z "${JAVA_HOME:-}" ]]; then
-  echo "JAVA_HOME is not set and JDK 17 was not discovered." >&2
-  exit 1
-fi
-
-config_file="${CDD_DB_CONFIG:-$repo_root/config/db-migration/application-db-migration.yml}"
-if [[ ! -f "$config_file" ]]; then
-  echo "Database config file not found: $config_file" >&2
+  echo "未设置 JAVA_HOME，且未自动发现 JDK 17。" >&2
   exit 1
 fi
 
@@ -35,7 +28,7 @@ cleanup() {
 trap cleanup EXIT
 
 if [[ -z "$settings_file" ]]; then
-  settings_file="$(mktemp /tmp/chengdd-mvn-settings.XXXXXX)"
+  settings_file="$(mktemp /tmp/chengdd-gateway-mvn-settings.XXXXXX)"
   cleanup_files+=("$settings_file")
   cat >"$settings_file" <<'EOF'
 <settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
@@ -45,6 +38,6 @@ if [[ -z "$settings_file" ]]; then
 EOF
 fi
 
-mvn -q -s "$settings_file" "-Dmaven.repo.local=$work_repo" -f "${parent_root}/cdd-db-migration/pom.xml" \
+mvn -q -s "$settings_file" "-Dmaven.repo.local=$work_repo" -f "${parent_root}/cdd-gateway/pom.xml" \
   spring-boot:run \
-  -Dspring-boot.run.arguments="--spring.config.additional-location=optional:file:${config_file}"
+  -Dspring-boot.run.arguments="--server.port=${CDD_GATEWAY_SERVER_PORT:-8080}"
