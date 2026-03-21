@@ -197,10 +197,13 @@ def validate_project_boundaries(pom_path: Path) -> list[str]:
 
 def validate_migration_assets() -> list[str]:
     migration_dir = ROOT / "db" / "migration"
-    files = sorted(path.name for path in migration_dir.glob("V*.sql"))
+    files = sorted(
+        (path.name for path in migration_dir.glob("V*.sql")),
+        key=lambda name: int(name.split("__", 1)[0][1:]),
+    )
     if not files:
         return ["No db/migration/V*.sql files found"]
-    if files[0] != "V1__auth_and_config.sql" or files[-1] != "V9__idempotency_and_compensation.sql":
+    if files[0] != "V1__auth_and_config.sql" or files[-1] != "V10__auth_persistence.sql":
         return ["Unexpected migration file range under db/migration"]
     return []
 

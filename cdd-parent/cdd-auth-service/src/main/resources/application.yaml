@@ -7,6 +7,20 @@ spring:
 cdd:
   runtime:
     config-mode: ${CDD_CONFIG_MODE:file}
+  security:
+    permit-all: true
+    permit-paths:
+      - /actuator/health
+      - /actuator/info
+      - /api/auth/platform/login
+      - /api/auth/merchant/login
+      - /api/auth/token/refresh
+      - /api/auth/logout
+    jwt:
+      issuer: cdd-auth-service
+      secret: chengdd-jwt-secret-change-me-20260321-123456
+      access-token-ttl: 30m
+      refresh-token-ttl: 7d
 
 management:
   endpoint:

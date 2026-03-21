@@ -7,6 +7,8 @@ import com.cdd.common.web.ApiResponses;
 import jakarta.validation.ConstraintViolationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -18,34 +20,58 @@ public class CommonExceptionHandler {
     private static final Logger log = LoggerFactory.getLogger(CommonExceptionHandler.class);
 
     @ExceptionHandler(BusinessException.class)
-    public ApiResponse<Void> handleBusinessException(BusinessException ex) {
-        return ApiResponses.failure(ex.getErrorCode(), ex.getMessage());
+    public ResponseEntity<ApiResponse<Void>> handleBusinessException(BusinessException ex) {
+        return ResponseEntity.status(resolveStatus(ex.getErrorCode().getCode()))
+                .body(ApiResponses.failure(ex.getErrorCode(), ex.getMessage()));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ApiResponse<Void> handleMethodArgumentNotValidException(MethodArgumentNotValidException ex) {
+    public ResponseEntity<ApiResponse<Void>> handleMethodArgumentNotValidException(MethodArgumentNotValidException ex) {
         String message = ex.getBindingResult().getFieldError() != null
                 ? ex.getBindingResult().getFieldError().getDefaultMessage()
                 : CommonErrorCode.VALIDATION_FAILED.getMessage();
-        return ApiResponses.failure(CommonErrorCode.VALIDATION_FAILED, message);
+        return ResponseEntity.status(resolveStatus(CommonErrorCode.VALIDATION_FAILED.getCode()))
+                .body(ApiResponses.failure(CommonErrorCode.VALIDATION_FAILED, message));
     }
 
     @ExceptionHandler(BindException.class)
-    public ApiResponse<Void> handleBindException(BindException ex) {
+    public ResponseEntity<ApiResponse<Void>> handleBindException(BindException ex) {
         String message = ex.getBindingResult().getFieldError() != null
                 ? ex.getBindingResult().getFieldError().getDefaultMessage()
                 : CommonErrorCode.BAD_REQUEST.getMessage();
-        return ApiResponses.failure(CommonErrorCode.BAD_REQUEST, message);
+        return ResponseEntity.status(resolveStatus(CommonErrorCode.BAD_REQUEST.getCode()))
+                .body(ApiResponses.failure(CommonErrorCode.BAD_REQUEST, message));
     }
 
     @ExceptionHandler(ConstraintViolationException.class)
-    public ApiResponse<Void> handleConstraintViolationException(ConstraintViolationException ex) {
-        return ApiResponses.failure(CommonErrorCode.VALIDATION_FAILED, ex.getMessage());
+    public ResponseEntity<ApiResponse<Void>> handleConstraintViolationException(ConstraintViolationException ex) {
+        return ResponseEntity.status(resolveStatus(CommonErrorCode.VALIDATION_FAILED.getCode()))
+                .body(ApiResponses.failure(CommonErrorCode.VALIDATION_FAILED, ex.getMessage()));
     }
 
     @ExceptionHandler(Exception.class)
-    public ApiResponse<Void> handleException(Exception ex) {
+    public ResponseEntity<ApiResponse<Void>> handleException(Exception ex) {
         log.error("Unhandled exception", ex);
-        return ApiResponses.systemError();
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponses.systemError());
+    }
+
+    private HttpStatus resolveStatus(int code) {
+        if (code >= 40000 && code < 40100) {
+            return HttpStatus.BAD_REQUEST;
+        }
+        if (code >= 40100 && code < 40200) {
+            return HttpStatus.UNAUTHORIZED;
+        }
+        if (code >= 40300 && code < 40400) {
+            return HttpStatus.FORBIDDEN;
+        }
+        if (code >= 40400 && code < 40500) {
+            return HttpStatus.NOT_FOUND;
+        }
+        if (code >= 40900 && code < 41000) {
+            return HttpStatus.CONFLICT;
+        }
+        return HttpStatus.INTERNAL_SERVER_ERROR;
     }
 }

@@ -26,7 +26,8 @@ cleanup_files=()
 
 cleanup() {
   local code=$?
-  for file in "${cleanup_files[@]}"; do
+  for file in "${cleanup_files[@]:-}"; do
+    [[ -n "$file" ]] || continue
     rm -f "$file"
   done
   exit "$code"
@@ -34,7 +35,7 @@ cleanup() {
 trap cleanup EXIT
 
 if [[ -z "$settings_file" ]]; then
-  settings_file="$(mktemp /tmp/chengdd-mvn-settings.XXXXXX.xml)"
+  settings_file="$(mktemp /tmp/chengdd-mvn-settings.XXXXXX)"
   cleanup_files+=("$settings_file")
   cat >"$settings_file" <<'EOF'
 <settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"

@@ -1,0 +1,100 @@
+databaseChangeLog:
+  - changeSet:
+      id: V1__auth_and_config
+      author: codex
+      changes:
+        - sqlFile:
+            path: ../../db/migration/V1__auth_and_config.sql
+            relativeToChangelogFile: true
+            splitStatements: true
+            stripComments: false
+  - changeSet:
+      id: V2__merchant
+      author: codex
+      changes:
+        - sqlFile:
+            path: ../../db/migration/V2__merchant.sql
+            relativeToChangelogFile: true
+            splitStatements: true
+            stripComments: false
+  - changeSet:
+      id: V3__decoration
+      author: codex
+      changes:
+        - sqlFile:
+            path: ../../db/migration/V3__decoration.sql
+            relativeToChangelogFile: true
+            splitStatements: true
+            stripComments: false
+  - changeSet:
+      id: V4__product
+      author: codex
+      changes:
+        - sqlFile:
+            path: ../../db/migration/V4__product.sql
+            relativeToChangelogFile: true
+            splitStatements: true
+            stripComments: false
+  - changeSet:
+      id: V5__order
+      author: codex
+      changes:
+        - sqlFile:
+            path: ../../db/migration/V5__order.sql
+            relativeToChangelogFile: true
+            splitStatements: true
+            stripComments: false
+  - changeSet:
+      id: V6__release
+      author: codex
+      changes:
+        - sqlFile:
+            path: ../../db/migration/V6__release.sql
+            relativeToChangelogFile: true
+            splitStatements: true
+            stripComments: false
+  - changeSet:
+      id: V7__marketing_and_report
+      author: codex
+      changes:
+        - sqlFile:
+            path: ../../db/migration/V7__marketing_and_report.sql
+            relativeToChangelogFile: true
+            splitStatements: true
+            stripComments: false
+  - changeSet:
+      id: V8__seed_data
+      author: codex
+      changes:
+        - sqlFile:
+            path: ../../db/migration/V8__seed_data.sql
+            relativeToChangelogFile: true
+            splitStatements: true
+            stripComments: false
+  - changeSet:
+      id: V9__idempotency_and_compensation
+      author: codex
+      changes:
+        - sqlFile:
+            path: ../../db/migration/V9__idempotency_and_compensation.sql
+            relativeToChangelogFile: true
+            splitStatements: true
+            stripComments: false
+  - changeSet:
+      id: V10__auth_persistence
+      author: codex
+      changes:
+        - sqlFile:
+            path: ../../db/migration/V10__auth_persistence.sql
+            relativeToChangelogFile: true
+            splitStatements: true
+            stripComments: false
+  - changeSet:
+      id: V11__auth_seed_accounts
+      author: codex
+      changes:
+        - sqlFile:
+            path: ../../db/migration/V11__auth_seed_accounts.sql
+            relativeToChangelogFile: true
+            splitStatements: true
+            stripComments: false

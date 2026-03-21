@@ -1,0 +1,46 @@
+services:
+  mysql:
+    image: mysql:5.7.44
+    container_name: cdd-local-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${CDD_LOCAL_MYSQL_ROOT_PASSWORD:-change_me}
+      MYSQL_DATABASE: ${CDD_LOCAL_MYSQL_DATABASE:-chengdd}
+      TZ: Asia/Shanghai
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-time-zone=+08:00
+    ports:
+      - "${CDD_LOCAL_MYSQL_PORT:-3306}:3306"
+    volumes:
+      - cdd-local-mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  nacos:
+    image: nacos/nacos-server:v2.3.2
+    container_name: cdd-local-nacos
+    restart: unless-stopped
+    environment:
+      MODE: standalone
+      PREFER_HOST_MODE: hostname
+      NACOS_AUTH_ENABLE: "false"
+      JVM_XMS: 256m
+      JVM_XMX: 256m
+      JVM_XMN: 128m
+    ports:
+      - "${CDD_LOCAL_NACOS_PORT:-8848}:8848"
+      - "${CDD_LOCAL_NACOS_GRPC_PORT:-9848}:9848"
+      - "${CDD_LOCAL_NACOS_RAFT_PORT:-9849}:9849"
+    volumes:
+      - cdd-local-nacos-data:/home/nacos/data
+      - cdd-local-nacos-logs:/home/nacos/logs
+
+volumes:
+  cdd-local-mysql-data:
+  cdd-local-nacos-data:
+  cdd-local-nacos-logs:

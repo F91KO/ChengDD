@@ -1,5 +1,6 @@
 package com.cdd.common.web;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.cdd.common.core.error.CommonErrorCode;
 import com.cdd.common.core.error.ErrorCode;
 
@@ -45,6 +46,7 @@ public class ApiResponse<T> {
         return data;
     }
 
+    @JsonProperty("request_id")
     public String getRequestId() {
         return requestId;
     }
