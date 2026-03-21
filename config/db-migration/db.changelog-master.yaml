@@ -143,3 +143,12 @@ databaseChangeLog:
             relativeToChangelogFile: true
             splitStatements: true
             stripComments: false
+  - changeSet:
+      id: V17__order_item_level_after_sale_refund
+      author: codex
+      changes:
+        - sqlFile:
+            path: ../../db/migration/V17__order_item_level_after_sale_refund.sql
+            relativeToChangelogFile: true
+            splitStatements: true
+            stripComments: false

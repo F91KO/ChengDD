@@ -307,37 +307,44 @@ WHERE id = ?
 
 | 动作 | 当前状态 | 下一状态 | 更新表 | 事务 |
 | --- | --- | --- | --- | --- |
-| 发起售后 | 无 | `after_sale_status='applied'` | `cdd_order_after_sale`，必要时更新 `cdd_order_item.refund_status` | 本地事务 |
+| 发起售后 | 无 | `after_sale_status='pending_merchant'` | `cdd_order_after_sale`，必要时更新目标 `cdd_order_item.refund_status` | 本地事务 |
 
 ### 7.2 商家审核售后
 
 | 动作 | 当前状态 | 下一状态 | 更新表 | 事务 |
 | --- | --- | --- | --- | --- |
-| 商家受理 | `applied` | `reviewing` | `cdd_order_after_sale` | 单表事务 |
-| 商家同意 | `reviewing` | `approved` | `cdd_order_after_sale` | 单表事务 |
-| 商家拒绝 | `reviewing` | `rejected` 或 `closed` | `cdd_order_after_sale` | 单表事务 |
+| 商家同意仅退款 | `pending_merchant` | `refunding` | `cdd_order_after_sale`、`cdd_order_refund_record` | 本地事务 |
+| 商家同意退货退款 | `pending_merchant` | `waiting_return` | `cdd_order_after_sale` | 单表事务 |
+| 商家拒绝 | `pending_merchant` | `rejected` | `cdd_order_after_sale` | 单表事务 |
 
-### 7.3 创建退款单
-
-| 动作 | 当前状态 | 下一状态 | 更新表 | 事务 |
-| --- | --- | --- | --- | --- |
-| 进入退款 | `approved` | `refunding` | `cdd_order_after_sale`、`cdd_order_refund_record` | 本地事务 |
-
-### 7.4 退款成功
+### 7.3 用户提交退货物流
 
 | 动作 | 当前状态 | 下一状态 | 更新表 | 事务 |
 | --- | --- | --- | --- | --- |
-| 第三方退款成功 | `refund_status='processing'/'created'` | `refund_status='success'`、售后 `finished` | `cdd_order_refund_record`、`cdd_order_after_sale`、`cdd_order_info.pay_status` | 本地事务 |
+| 提交退货物流 | `waiting_return` | `refunding` | `cdd_order_after_sale`、`cdd_order_refund_record` | 本地事务 |
+
+### 7.4 创建退款单
+
+| 动作 | 当前状态 | 下一状态 | 更新表 | 事务 |
+| --- | --- | --- | --- | --- |
+| 仅退款进入退款 | `pending_merchant` 经商家同意 | `refunding` | `cdd_order_after_sale`、`cdd_order_refund_record` | 本地事务 |
+| 退货退款进入退款 | `waiting_return` 经用户回填物流 | `refunding` | `cdd_order_after_sale`、`cdd_order_refund_record` | 本地事务 |
+
+### 7.5 退款成功
+
+| 动作 | 当前状态 | 下一状态 | 更新表 | 事务 |
+| --- | --- | --- | --- | --- |
+| 第三方退款成功 | `refund_status='processing'/'created'` | `refund_status='success'`、售后 `completed` | `cdd_order_refund_record`、`cdd_order_after_sale`、`cdd_order_info.pay_status`、目标 `cdd_order_item` | 本地事务 |
 
 支付侧联动规则：
 - 全额退款：`cdd_order_info.pay_status='refund_full'`
 - 部分退款：`cdd_order_info.pay_status='refund_partial'`
 
-### 7.5 退款失败
+### 7.6 退款失败
 
 | 动作 | 当前状态 | 下一状态 | 更新表 | 事务 |
 | --- | --- | --- | --- | --- |
-| 第三方退款失败 | `refund_status='processing'` | `refund_status='failed'`、售后维持 `refunding` 或转人工 | `cdd_order_refund_record`、`cdd_order_after_sale` | 本地事务 |
+| 第三方退款失败 | `refund_status='processing'` | `refund_status='failed'`、售后维持 `refunding` 或转人工 | `cdd_order_refund_record`、`cdd_order_after_sale`、目标 `cdd_order_item` | 本地事务 |
 
 ## 8. 日志与审计写入规则
 

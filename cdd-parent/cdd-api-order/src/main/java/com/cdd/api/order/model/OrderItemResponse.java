@@ -21,5 +21,9 @@ public record OrderItemResponse(
         @JsonProperty("line_amount")
         BigDecimal lineAmount,
         @JsonProperty("refund_status")
-        String refundStatus) {
+        String refundStatus,
+        @JsonProperty("refunded_quantity")
+        Integer refundedQuantity,
+        @JsonProperty("refunded_amount")
+        BigDecimal refundedAmount) {
 }

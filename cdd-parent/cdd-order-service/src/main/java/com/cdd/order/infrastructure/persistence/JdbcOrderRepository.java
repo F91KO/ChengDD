@@ -26,6 +26,7 @@ public class JdbcOrderRepository implements OrderRepository {
     private static final RowMapper<PayCallbackRecord> PAY_CALLBACK_ROW_MAPPER = JdbcOrderRepository::mapPayCallbackRecord;
     private static final RowMapper<RefundRecord> REFUND_ROW_MAPPER = JdbcOrderRepository::mapRefundRecord;
     private static final RowMapper<RefundCallbackRecord> REFUND_CALLBACK_ROW_MAPPER = JdbcOrderRepository::mapRefundCallbackRecord;
+    private static final RowMapper<AfterSaleRecord> AFTER_SALE_ROW_MAPPER = JdbcOrderRepository::mapAfterSaleRecord;
     private static final RowMapper<CompensationTaskRecord> COMPENSATION_TASK_ROW_MAPPER = JdbcOrderRepository::mapCompensationTaskRecord;
 
     private final JdbcTemplate jdbcTemplate;
@@ -197,8 +198,9 @@ public class JdbcOrderRepository implements OrderRepository {
         jdbcTemplate.batchUpdate("""
                 INSERT INTO cdd_order_item (
                   id, order_id, merchant_id, store_id, product_id, sku_id, product_name, sku_name, sku_spec_json,
-                  sale_price, quantity, line_amount, refund_status, created_by, updated_by, deleted, version
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                  sale_price, quantity, line_amount, refund_status, refunded_quantity, refunded_amount,
+                  created_by, updated_by, deleted, version
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, items, items.size(), (ps, item) -> {
             ps.setLong(1, item.id());
             ps.setLong(2, item.orderId());
@@ -213,10 +215,12 @@ public class JdbcOrderRepository implements OrderRepository {
             ps.setInt(11, item.quantity());
             ps.setBigDecimal(12, item.lineAmount());
             ps.setString(13, item.refundStatus());
-            ps.setLong(14, item.merchantId());
-            ps.setLong(15, item.merchantId());
-            ps.setInt(16, 0);
-            ps.setLong(17, 0L);
+            ps.setInt(14, item.refundedQuantity());
+            ps.setBigDecimal(15, item.refundedAmount());
+            ps.setLong(16, item.merchantId());
+            ps.setLong(17, item.merchantId());
+            ps.setInt(18, 0);
+            ps.setLong(19, 0L);
         });
     }
 
@@ -317,12 +321,26 @@ public class JdbcOrderRepository implements OrderRepository {
     public List<OrderItemRecord> listOrderItems(long orderId) {
         return jdbcTemplate.query("""
                 SELECT id, order_id, merchant_id, store_id, product_id, sku_id, product_name, sku_name, sku_spec_json,
-                       sale_price, quantity, line_amount, refund_status
+                       sale_price, quantity, line_amount, refund_status, refunded_quantity, refunded_amount
                 FROM cdd_order_item
                 WHERE order_id = ?
                   AND deleted = 0
                 ORDER BY id ASC
                 """, ORDER_ITEM_ROW_MAPPER, orderId);
+    }
+
+    @Override
+    public Optional<OrderItemRecord> findOrderItem(long orderId, long orderItemId) {
+        List<OrderItemRecord> rows = jdbcTemplate.query("""
+                SELECT id, order_id, merchant_id, store_id, product_id, sku_id, product_name, sku_name, sku_spec_json,
+                       sale_price, quantity, line_amount, refund_status, refunded_quantity, refunded_amount
+                FROM cdd_order_item
+                WHERE order_id = ?
+                  AND id = ?
+                  AND deleted = 0
+                LIMIT 1
+                """, ORDER_ITEM_ROW_MAPPER, orderId, orderItemId);
+        return rows.stream().findFirst();
     }
 
     @Override
@@ -542,20 +560,23 @@ public class JdbcOrderRepository implements OrderRepository {
     public void createRefundRecord(RefundRecord refundRecord) {
         jdbcTemplate.update("""
                 INSERT INTO cdd_order_refund_record (
-                  id, refund_no, order_id, order_no, pay_record_id, merchant_id, store_id, refund_reason, refund_status,
-                  refund_amount, third_party_refund_no, applied_at, success_at, failure_reason, compensation_task_code,
-                  created_by, updated_by, deleted, version
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                  id, refund_no, order_id, order_no, pay_record_id, after_sale_id, order_item_id, merchant_id, store_id,
+                  refund_reason, refund_status, refund_quantity, refund_amount, third_party_refund_no, applied_at,
+                  success_at, failure_reason, compensation_task_code, created_by, updated_by, deleted, version
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 refundRecord.id(),
                 refundRecord.refundNo(),
                 refundRecord.orderId(),
                 refundRecord.orderNo(),
                 refundRecord.payRecordId(),
+                refundRecord.afterSaleId(),
+                refundRecord.orderItemId(),
                 refundRecord.merchantId(),
                 refundRecord.storeId(),
                 refundRecord.refundReason(),
                 refundRecord.refundStatus(),
+                refundRecord.refundQuantity(),
                 refundRecord.refundAmount(),
                 refundRecord.thirdPartyRefundNo(),
                 toTimestamp(refundRecord.appliedAt()),
@@ -571,8 +592,9 @@ public class JdbcOrderRepository implements OrderRepository {
     @Override
     public Optional<RefundRecord> findRefundRecordByRefundNo(String refundNo) {
         List<RefundRecord> rows = jdbcTemplate.query("""
-                SELECT id, refund_no, order_id, order_no, pay_record_id, merchant_id, store_id, refund_reason, refund_status,
-                       refund_amount, third_party_refund_no, applied_at, success_at, failure_reason, compensation_task_code
+                SELECT id, refund_no, order_id, order_no, pay_record_id, after_sale_id, order_item_id, merchant_id, store_id,
+                       refund_reason, refund_status, refund_quantity, refund_amount, third_party_refund_no, applied_at,
+                       success_at, failure_reason, compensation_task_code
                 FROM cdd_order_refund_record
                 WHERE refund_no = ?
                   AND deleted = 0
@@ -599,6 +621,46 @@ public class JdbcOrderRepository implements OrderRepository {
                 BigDecimal.class,
                 args.toArray());
         return total != null ? total : BigDecimal.ZERO;
+    }
+
+    @Override
+    public BigDecimal sumRefundAmountByOrderItemIdAndStatuses(long orderItemId, List<String> refundStatuses) {
+        if (refundStatuses == null || refundStatuses.isEmpty()) {
+            return BigDecimal.ZERO;
+        }
+        String placeholders = String.join(",", java.util.Collections.nCopies(refundStatuses.size(), "?"));
+        List<Object> args = new ArrayList<>();
+        args.add(orderItemId);
+        args.addAll(refundStatuses);
+        BigDecimal total = jdbcTemplate.queryForObject("""
+                SELECT COALESCE(SUM(refund_amount), 0.00)
+                FROM cdd_order_refund_record
+                WHERE order_item_id = ?
+                  AND deleted = 0
+                  AND refund_status IN (""" + placeholders + ")",
+                BigDecimal.class,
+                args.toArray());
+        return total != null ? total : BigDecimal.ZERO;
+    }
+
+    @Override
+    public int sumRefundQuantityByOrderItemIdAndStatuses(long orderItemId, List<String> refundStatuses) {
+        if (refundStatuses == null || refundStatuses.isEmpty()) {
+            return 0;
+        }
+        String placeholders = String.join(",", java.util.Collections.nCopies(refundStatuses.size(), "?"));
+        List<Object> args = new ArrayList<>();
+        args.add(orderItemId);
+        args.addAll(refundStatuses);
+        Integer total = jdbcTemplate.queryForObject("""
+                SELECT COALESCE(SUM(refund_quantity), 0)
+                FROM cdd_order_refund_record
+                WHERE order_item_id = ?
+                  AND deleted = 0
+                  AND refund_status IN (""" + placeholders + ")",
+                Integer.class,
+                args.toArray());
+        return total != null ? total : 0;
     }
 
     @Override
@@ -745,6 +807,152 @@ public class JdbcOrderRepository implements OrderRepository {
                 """,
                 refundStatus,
                 orderId);
+    }
+
+    @Override
+    public void updateOrderItemRefundSnapshot(long orderItemId,
+                                              String refundStatus,
+                                              int refundedQuantity,
+                                              BigDecimal refundedAmount) {
+        jdbcTemplate.update("""
+                UPDATE cdd_order_item
+                SET refund_status = ?,
+                    refunded_quantity = ?,
+                    refunded_amount = ?,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                  AND deleted = 0
+                """,
+                refundStatus,
+                refundedQuantity,
+                refundedAmount,
+                orderItemId);
+    }
+
+    @Override
+    public void createAfterSaleRecord(AfterSaleRecord afterSaleRecord) {
+        jdbcTemplate.update("""
+                INSERT INTO cdd_order_after_sale (
+                  id, after_sale_no, order_id, order_no, order_item_id, merchant_id, store_id, user_id, after_sale_type, after_sale_status,
+                  apply_reason, apply_desc, reason_code, reason_desc, proof_urls_json, refund_quantity, refund_amount,
+                  merchant_result, refund_record_id, refund_no, return_company, return_logistics_no, returned_at, approved_at,
+                  completed_at, closed_at, handled_by, handled_at, created_by, updated_by, deleted, version
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                afterSaleRecord.id(),
+                afterSaleRecord.afterSaleNo(),
+                afterSaleRecord.orderId(),
+                afterSaleRecord.orderNo(),
+                afterSaleRecord.orderItemId(),
+                afterSaleRecord.merchantId(),
+                afterSaleRecord.storeId(),
+                afterSaleRecord.userId(),
+                afterSaleRecord.afterSaleType(),
+                afterSaleRecord.afterSaleStatus(),
+                afterSaleRecord.reasonCode(),
+                afterSaleRecord.reasonDesc(),
+                afterSaleRecord.reasonCode(),
+                afterSaleRecord.reasonDesc(),
+                afterSaleRecord.proofUrlsJson(),
+                afterSaleRecord.refundQuantity(),
+                afterSaleRecord.refundAmount(),
+                afterSaleRecord.merchantResult(),
+                afterSaleRecord.refundRecordId(),
+                afterSaleRecord.refundNo(),
+                afterSaleRecord.returnCompany(),
+                afterSaleRecord.returnLogisticsNo(),
+                toTimestamp(afterSaleRecord.returnedAt()),
+                toTimestamp(afterSaleRecord.approvedAt()),
+                toTimestamp(afterSaleRecord.completedAt()),
+                toTimestamp(afterSaleRecord.closedAt()),
+                afterSaleRecord.handledBy(),
+                toTimestamp(afterSaleRecord.handledAt()),
+                afterSaleRecord.userId(),
+                afterSaleRecord.userId(),
+                0,
+                0L);
+    }
+
+    @Override
+    public Optional<AfterSaleRecord> findAfterSaleByAfterSaleNo(String afterSaleNo) {
+        List<AfterSaleRecord> rows = jdbcTemplate.query("""
+                SELECT id, after_sale_no, order_id, order_no, order_item_id, merchant_id, store_id, user_id, after_sale_type,
+                       after_sale_status, reason_code, reason_desc, proof_urls_json, refund_quantity, refund_amount,
+                       merchant_result, refund_record_id, refund_no, return_company, return_logistics_no, returned_at,
+                       approved_at, completed_at, closed_at, handled_by, handled_at
+                FROM cdd_order_after_sale
+                WHERE after_sale_no = ?
+                  AND deleted = 0
+                LIMIT 1
+                """, AFTER_SALE_ROW_MAPPER, afterSaleNo);
+        return rows.stream().findFirst();
+    }
+
+    @Override
+    public void updateAfterSaleStatus(long afterSaleId,
+                                      String afterSaleStatus,
+                                      String merchantResult,
+                                      Long handledBy,
+                                      Instant handledAt,
+                                      Instant approvedAt,
+                                      Instant completedAt,
+                                      Instant closedAt) {
+        jdbcTemplate.update("""
+                UPDATE cdd_order_after_sale
+                SET after_sale_status = ?,
+                    merchant_result = COALESCE(?, merchant_result),
+                    handled_by = COALESCE(?, handled_by),
+                    handled_at = COALESCE(?, handled_at),
+                    approved_at = COALESCE(?, approved_at),
+                    completed_at = COALESCE(?, completed_at),
+                    closed_at = COALESCE(?, closed_at),
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                  AND deleted = 0
+                """,
+                afterSaleStatus,
+                merchantResult,
+                handledBy,
+                toTimestamp(handledAt),
+                toTimestamp(approvedAt),
+                toTimestamp(completedAt),
+                toTimestamp(closedAt),
+                afterSaleId);
+    }
+
+    @Override
+    public void bindAfterSaleRefundRecord(long afterSaleId, Long refundRecordId, String refundNo) {
+        jdbcTemplate.update("""
+                UPDATE cdd_order_after_sale
+                SET refund_record_id = ?,
+                    refund_no = ?,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                  AND deleted = 0
+                """,
+                refundRecordId,
+                refundNo,
+                afterSaleId);
+    }
+
+    @Override
+    public void updateAfterSaleReturnInfo(long afterSaleId,
+                                          String returnCompany,
+                                          String returnLogisticsNo,
+                                          Instant returnedAt) {
+        jdbcTemplate.update("""
+                UPDATE cdd_order_after_sale
+                SET return_company = ?,
+                    return_logistics_no = ?,
+                    returned_at = ?,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                  AND deleted = 0
+                """,
+                returnCompany,
+                returnLogisticsNo,
+                toTimestamp(returnedAt),
+                afterSaleId);
     }
 
     @Override
@@ -899,7 +1107,9 @@ public class JdbcOrderRepository implements OrderRepository {
                 rs.getBigDecimal("sale_price"),
                 rs.getInt("quantity"),
                 rs.getBigDecimal("line_amount"),
-                rs.getString("refund_status"));
+                rs.getString("refund_status"),
+                rs.getInt("refunded_quantity"),
+                rs.getBigDecimal("refunded_amount"));
     }
 
     private static OrderStatusLogRecord mapOrderStatusLog(ResultSet rs, int rowNum) throws SQLException {
@@ -952,22 +1162,62 @@ public class JdbcOrderRepository implements OrderRepository {
 
     private static RefundRecord mapRefundRecord(ResultSet rs, int rowNum) throws SQLException {
         Long payRecordId = rs.getObject("pay_record_id", Long.class);
+        Long afterSaleId = rs.getObject("after_sale_id", Long.class);
+        Long orderItemId = rs.getObject("order_item_id", Long.class);
+        Integer refundQuantity = rs.getObject("refund_quantity", Integer.class);
         return new RefundRecord(
                 rs.getLong("id"),
                 rs.getString("refund_no"),
                 rs.getLong("order_id"),
                 rs.getString("order_no"),
                 payRecordId,
+                afterSaleId,
+                orderItemId,
                 rs.getLong("merchant_id"),
                 rs.getLong("store_id"),
                 rs.getString("refund_reason"),
                 rs.getString("refund_status"),
+                refundQuantity,
                 rs.getBigDecimal("refund_amount"),
                 rs.getString("third_party_refund_no"),
                 toInstant(rs.getTimestamp("applied_at")),
                 toInstant(rs.getTimestamp("success_at")),
                 rs.getString("failure_reason"),
                 rs.getString("compensation_task_code"));
+    }
+
+    private static AfterSaleRecord mapAfterSaleRecord(ResultSet rs, int rowNum) throws SQLException {
+        Long orderItemId = rs.getObject("order_item_id", Long.class);
+        Integer refundQuantity = rs.getObject("refund_quantity", Integer.class);
+        Long refundRecordId = rs.getObject("refund_record_id", Long.class);
+        Long handledBy = rs.getObject("handled_by", Long.class);
+        return new AfterSaleRecord(
+                rs.getLong("id"),
+                rs.getString("after_sale_no"),
+                rs.getLong("order_id"),
+                rs.getString("order_no"),
+                orderItemId,
+                rs.getLong("merchant_id"),
+                rs.getLong("store_id"),
+                rs.getLong("user_id"),
+                rs.getString("after_sale_type"),
+                rs.getString("after_sale_status"),
+                rs.getString("reason_code"),
+                rs.getString("reason_desc"),
+                rs.getString("proof_urls_json"),
+                refundQuantity,
+                rs.getBigDecimal("refund_amount"),
+                rs.getString("merchant_result"),
+                refundRecordId,
+                rs.getString("refund_no"),
+                rs.getString("return_company"),
+                rs.getString("return_logistics_no"),
+                toInstant(rs.getTimestamp("returned_at")),
+                toInstant(rs.getTimestamp("approved_at")),
+                toInstant(rs.getTimestamp("completed_at")),
+                toInstant(rs.getTimestamp("closed_at")),
+                handledBy,
+                toInstant(rs.getTimestamp("handled_at")));
     }
 
     private static RefundCallbackRecord mapRefundCallbackRecord(ResultSet rs, int rowNum) throws SQLException {
