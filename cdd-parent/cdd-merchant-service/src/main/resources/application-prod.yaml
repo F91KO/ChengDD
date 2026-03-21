@@ -1,7 +1,13 @@
+spring:
+  datasource:
+    url: ${CDD_MERCHANT_DB_URL}
+    username: ${CDD_MERCHANT_DB_USERNAME}
+    password: ${CDD_MERCHANT_DB_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
 cdd:
   runtime:
     env: prod
 
 server:
   port: 8082
-

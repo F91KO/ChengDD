@@ -1,7 +1,13 @@
+spring:
+  datasource:
+    url: ${CDD_MERCHANT_DB_URL:jdbc:h2:mem:cdd-merchant-test;MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE;DB_CLOSE_DELAY=-1}
+    username: ${CDD_MERCHANT_DB_USERNAME:sa}
+    password: ${CDD_MERCHANT_DB_PASSWORD:}
+    driver-class-name: ${CDD_MERCHANT_DB_DRIVER_CLASS_NAME:org.h2.Driver}
+
 cdd:
   runtime:
     env: test
 
 server:
   port: 8082
-
