@@ -41,6 +41,7 @@
 | [技术架构图.md](./02-architecture/技术架构图.md) | 设计基线 | 系统分层、服务拆分、调用关系 |
 | [服务与表关系矩阵.md](./02-architecture/服务与表关系矩阵.md) | 设计基线 | 服务边界和主责表划分 |
 | [命名规范.md](./02-architecture/命名规范.md) | 设计基线 | 服务、模块、表、字段命名统一规范 |
+| [基础能力模块设计.md](./02-architecture/基础能力模块设计.md) | 设计基线 | `cdd-common-*` 的职责边界、首批能力与演进顺序 |
 | [Nacos配置命名与加载约定.md](./02-architecture/Nacos配置命名与加载约定.md) | 设计基线 | Nacos 的 namespace、group、dataId 与本地回退规则 |
 
 ### 3.4 接口与协议设计

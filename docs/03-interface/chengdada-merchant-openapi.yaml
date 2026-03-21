@@ -93,7 +93,7 @@ components:
           example: 0
         message:
           type: string
-          example: success
+          example: 成功
         data:
           type: object
           nullable: true
@@ -417,7 +417,7 @@ paths:
               $ref: '#/components/schemas/MerchantApplicationSubmitRequest'
       responses:
         '200':
-          description: success
+          description: 成功
           content:
             application/json:
               schema:
@@ -437,7 +437,7 @@ paths:
               $ref: '#/components/schemas/MiniProgramBindingRequest'
       responses:
         '200':
-          description: success
+          description: 成功
           content:
             application/json:
               schema:
@@ -453,7 +453,7 @@ paths:
         - $ref: '#/components/parameters/MiniProgramIdPath'
       responses:
         '200':
-          description: success
+          description: 成功
           content:
             application/json:
               schema:
@@ -478,7 +478,7 @@ paths:
               $ref: '#/components/schemas/OnboardingPublishRequest'
       responses:
         '200':
-          description: success
+          description: 成功
           content:
             application/json:
               schema:
@@ -498,7 +498,7 @@ paths:
               $ref: '#/components/schemas/StoreUpsertRequest'
       responses:
         '200':
-          description: success
+          description: 成功
           content:
             application/json:
               schema:
@@ -520,7 +520,7 @@ paths:
               $ref: '#/components/schemas/StoreUpsertRequest'
       responses:
         '200':
-          description: success
+          description: 成功
           content:
             application/json:
               schema:
@@ -540,7 +540,7 @@ paths:
               $ref: '#/components/schemas/SubAccountCreateRequest'
       responses:
         '200':
-          description: success
+          description: 成功
           content:
             application/json:
               schema:
@@ -562,7 +562,7 @@ paths:
               $ref: '#/components/schemas/FeatureSwitchChangeRequest'
       responses:
         '200':
-          description: success
+          description: 成功
           content:
             application/json:
               schema:
@@ -582,7 +582,7 @@ paths:
               $ref: '#/components/schemas/CustomRequestCreateRequest'
       responses:
         '200':
-          description: success
+          description: 成功
           content:
             application/json:
               schema:
@@ -602,7 +602,7 @@ paths:
               $ref: '#/components/schemas/CategoryUpsertRequest'
       responses:
         '200':
-          description: success
+          description: 成功
           content:
             application/json:
               schema:
@@ -624,7 +624,7 @@ paths:
               $ref: '#/components/schemas/CategoryUpsertRequest'
       responses:
         '200':
-          description: success
+          description: 成功
           content:
             application/json:
               schema:
@@ -644,7 +644,7 @@ paths:
               $ref: '#/components/schemas/ProductUpsertRequest'
       responses:
         '200':
-          description: success
+          description: 成功
           content:
             application/json:
               schema:
@@ -666,7 +666,7 @@ paths:
               $ref: '#/components/schemas/ProductUpsertRequest'
       responses:
         '200':
-          description: success
+          description: 成功
           content:
             application/json:
               schema:
@@ -686,7 +686,7 @@ paths:
               $ref: '#/components/schemas/ProductPublishRequest'
       responses:
         '200':
-          description: success
+          description: 成功
           content:
             application/json:
               schema:
@@ -708,7 +708,7 @@ paths:
               $ref: '#/components/schemas/OrderShipRequest'
       responses:
         '200':
-          description: success
+          description: 成功
           content:
             application/json:
               schema:
@@ -730,7 +730,7 @@ paths:
               $ref: '#/components/schemas/AfterSaleAuditRequest'
       responses:
         '200':
-          description: success
+          description: 成功
           content:
             application/json:
               schema:
