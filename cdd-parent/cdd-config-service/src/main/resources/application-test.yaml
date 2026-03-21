@@ -1,7 +1,17 @@
+spring:
+  datasource:
+    url: ${CDD_CONFIG_DB_URL:jdbc:h2:mem:cdd-config-test;MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE;DB_CLOSE_DELAY=-1}
+    username: ${CDD_CONFIG_DB_USERNAME:sa}
+    password: ${CDD_CONFIG_DB_PASSWORD:}
+    driver-class-name: ${CDD_CONFIG_DB_DRIVER_CLASS_NAME:org.h2.Driver}
+  sql:
+    init:
+      mode: ${CDD_CONFIG_SQL_INIT_MODE:always}
+      schema-locations: ${CDD_CONFIG_SQL_SCHEMA_LOCATIONS:classpath:db/config/h2/schema.sql}
+
 cdd:
   runtime:
     env: test
 
 server:
   port: 8089
-

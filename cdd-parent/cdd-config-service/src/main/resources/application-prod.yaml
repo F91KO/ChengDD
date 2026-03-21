@@ -1,7 +1,16 @@
+spring:
+  datasource:
+    url: ${CDD_CONFIG_DB_URL:jdbc:mysql://127.0.0.1:3306/chengdd?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false}
+    username: ${CDD_CONFIG_DB_USERNAME:root}
+    password: ${CDD_CONFIG_DB_PASSWORD:change_me}
+    driver-class-name: ${CDD_CONFIG_DB_DRIVER_CLASS_NAME:com.mysql.cj.jdbc.Driver}
+  sql:
+    init:
+      mode: ${CDD_CONFIG_SQL_INIT_MODE:never}
+
 cdd:
   runtime:
     env: prod
 
 server:
   port: 8089
-
