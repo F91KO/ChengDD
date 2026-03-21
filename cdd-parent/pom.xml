@@ -36,6 +36,7 @@
         <module>cdd-common-redis</module>
         <module>cdd-common-security</module>
         <module>cdd-common-web</module>
+        <module>cdd-agent-core</module>
         <module>cdd-db-migration</module>
         <module>cdd-api-auth</module>
         <module>cdd-api-merchant</module>

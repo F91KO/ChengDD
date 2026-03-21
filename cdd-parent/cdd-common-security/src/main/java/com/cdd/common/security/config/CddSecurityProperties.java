@@ -9,6 +9,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class CddSecurityProperties {
 
     private boolean permitAll = true;
+    private boolean rbacEnabled = true;
+    private boolean scopeEnabled = true;
     private List<String> permitPaths = new ArrayList<>(List.of("/actuator/health", "/actuator/info"));
     private final Jwt jwt = new Jwt();
 
@@ -18,6 +20,22 @@ public class CddSecurityProperties {
 
     public void setPermitAll(boolean permitAll) {
         this.permitAll = permitAll;
+    }
+
+    public boolean isRbacEnabled() {
+        return rbacEnabled;
+    }
+
+    public void setRbacEnabled(boolean rbacEnabled) {
+        this.rbacEnabled = rbacEnabled;
+    }
+
+    public boolean isScopeEnabled() {
+        return scopeEnabled;
+    }
+
+    public void setScopeEnabled(boolean scopeEnabled) {
+        this.scopeEnabled = scopeEnabled;
     }
 
     public List<String> getPermitPaths() {

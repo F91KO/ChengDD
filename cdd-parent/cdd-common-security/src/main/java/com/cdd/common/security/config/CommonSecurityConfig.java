@@ -4,6 +4,8 @@ import com.cdd.common.security.authentication.JwtAccessDeniedHandler;
 import com.cdd.common.security.authentication.JwtAuthenticationEntryPoint;
 import com.cdd.common.security.authentication.JwtTokenService;
 import com.cdd.common.security.authentication.NimbusJwtTokenService;
+import com.cdd.common.security.authorization.RbacScopeAuthorizer;
+import com.cdd.common.security.authorization.RbacScopeInterceptor;
 import com.cdd.common.security.filter.AuthContextFilter;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.boot.actuate.autoconfigure.security.servlet.EndpointRequest;
@@ -15,9 +17,11 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.AuthenticationEntryPoint;
-import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.authentication.AnonymousAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.access.AccessDeniedHandler;
+import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 @AutoConfiguration
 @EnableConfigurationProperties(CddSecurityProperties.class)
@@ -46,6 +50,29 @@ public class CommonSecurityConfig {
     public AuthContextFilter authContextFilter(JwtTokenService jwtTokenService,
                                                AuthenticationEntryPoint authenticationEntryPoint) {
         return new AuthContextFilter(jwtTokenService, authenticationEntryPoint);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public RbacScopeAuthorizer rbacScopeAuthorizer(CddSecurityProperties securityProperties) {
+        return new RbacScopeAuthorizer(securityProperties);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public RbacScopeInterceptor rbacScopeInterceptor(RbacScopeAuthorizer rbacScopeAuthorizer) {
+        return new RbacScopeInterceptor(rbacScopeAuthorizer);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(name = "securityWebMvcConfigurer")
+    public WebMvcConfigurer securityWebMvcConfigurer(RbacScopeInterceptor rbacScopeInterceptor) {
+        return new WebMvcConfigurer() {
+            @Override
+            public void addInterceptors(InterceptorRegistry registry) {
+                registry.addInterceptor(rbacScopeInterceptor);
+            }
+        };
     }
 
     @Bean

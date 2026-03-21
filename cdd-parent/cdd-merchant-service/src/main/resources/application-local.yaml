@@ -1,7 +1,13 @@
+spring:
+  datasource:
+    url: ${CDD_MERCHANT_DB_URL:jdbc:mysql://127.0.0.1:3306/chengdd?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false}
+    username: ${CDD_MERCHANT_DB_USERNAME:root}
+    password: ${CDD_MERCHANT_DB_PASSWORD:change_me}
+    driver-class-name: ${CDD_MERCHANT_DB_DRIVER_CLASS_NAME:com.mysql.cj.jdbc.Driver}
+
 cdd:
   runtime:
     env: local
 
 server:
   port: 8082
-

@@ -338,6 +338,25 @@ READY -> CANCELED
 - 模块边界符合 `common-*` 约束
 - 中文提示信息约束明确
 
+当前落地（2026-03-21）：
+
+- 已新增模块：`cdd-parent/cdd-agent-core`
+- 已落地模型骨架：
+  - 任务定义与实例：`TaskDefinition`、`TaskInstance`
+  - 步骤定义与实例：`TaskStepDefinition`、`TaskStepInstance`
+  - 状态机：`TaskStatus`、`TaskStepStatus`
+  - 执行结果：`TaskExecutionResult`
+  - 执行上下文：`TaskContext`
+- 已落地接口骨架：
+  - 执行器：`TaskExecutor`、`TaskStepExecutor`
+  - 审计：`TaskAuditRecorder`
+  - 审批：`TaskApprovalGateway`
+  - 补偿：`TaskCompensationHandler`
+- 本次明确不包含：
+  - AI SDK 接入
+  - 具体业务处理实现
+  - 数据库迁移变更
+
 ### 10.2 Issue 2：任务表与审计表设计落地
 
 任务范围：

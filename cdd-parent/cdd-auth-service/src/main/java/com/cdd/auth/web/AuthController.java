@@ -6,6 +6,8 @@ import com.cdd.api.auth.model.LogoutRequest;
 import com.cdd.api.auth.model.RefreshTokenRequest;
 import com.cdd.api.auth.model.TokenResponse;
 import com.cdd.auth.service.AuthApplicationService;
+import com.cdd.common.security.authorization.RequireAccountTypes;
+import com.cdd.common.security.authorization.RequireScope;
 import com.cdd.common.web.ApiResponse;
 import com.cdd.common.web.ApiResponses;
 import jakarta.validation.Valid;
@@ -47,6 +49,8 @@ public class AuthController {
     }
 
     @GetMapping("/me")
+    @RequireAccountTypes({"platform", "merchant"})
+    @RequireScope
     public ApiResponse<CurrentAuthContextResponse> current() {
         return ApiResponses.success(authApplicationService.current());
     }

@@ -4,6 +4,7 @@ from __future__ import annotations
 import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
+import re
 
 
 NS = {"m": "http://maven.apache.org/POM/4.0.0"}
@@ -11,7 +12,7 @@ ROOT = Path(__file__).resolve().parents[2]
 PARENT_ROOT = ROOT / "cdd-parent"
 ROOT_POM = PARENT_ROOT / "pom.xml"
 
-EXPECTED_MODULES = {
+REQUIRED_MODULES = {
     "cdd-common-core",
     "cdd-common-db",
     "cdd-common-redis",
@@ -39,6 +40,9 @@ EXPECTED_MODULES = {
     "cdd-release-service",
     "cdd-report-service",
     "cdd-config-service",
+}
+OPTIONAL_MODULES = {
+    "cdd-agent-core",
 }
 
 EXPECTED_PROFILES = {"local", "dev", "test", "prod"}
@@ -112,6 +116,8 @@ def project_artifact_id(pom_path: Path) -> str:
 def module_category(module_name: str) -> str:
     if module_name.startswith("cdd-common-"):
         return "common"
+    if module_name == "cdd-agent-core":
+        return "agent"
     if module_name == "cdd-db-migration":
         return "tool"
     if module_name.startswith("cdd-api-"):
@@ -135,13 +141,12 @@ def validate_root_modules() -> list[str]:
         if text_of(module)
     }
     errors = []
-    if modules != EXPECTED_MODULES:
-        missing = sorted(EXPECTED_MODULES - modules)
-        extra = sorted(modules - EXPECTED_MODULES)
-        if missing:
-            errors.append(f"Root modules missing: {', '.join(missing)}")
-        if extra:
-            errors.append(f"Root modules unexpected: {', '.join(extra)}")
+    missing = sorted(REQUIRED_MODULES - modules)
+    extra = sorted(modules - REQUIRED_MODULES - OPTIONAL_MODULES)
+    if missing:
+        errors.append(f"根聚合模块缺失: {', '.join(missing)}")
+    if extra:
+        errors.append(f"根聚合模块存在未登记项: {', '.join(extra)}")
     return errors
 
 
@@ -154,7 +159,7 @@ def validate_root_profiles() -> list[str]:
     }
     missing = sorted(EXPECTED_PROFILES - profiles)
     if missing:
-        return [f"Root profiles missing: {', '.join(missing)}"]
+        return [f"根 profile 缺失: {', '.join(missing)}"]
     return []
 
 
@@ -169,42 +174,53 @@ def validate_project_boundaries(pom_path: Path) -> list[str]:
     for dep in deps:
         dep_category = module_category(dep)
         if category == "common" and dep_category in {"api", "service", "gateway", "pay-core"}:
-            errors.append(f"{artifact_id} must not depend on {dep}")
+            errors.append(f"{artifact_id} 不允许依赖 {dep}")
+        if category == "agent" and dep_category in {"api", "service", "gateway", "pay-core"}:
+            errors.append(f"{artifact_id} 不允许依赖 {dep}")
         if category == "api" and dep_category in {"service", "gateway", "pay-core"}:
-            errors.append(f"{artifact_id} must not depend on {dep}")
+            errors.append(f"{artifact_id} 不允许依赖 {dep}")
         if category == "pay-core" and dep_category in {"service", "gateway"}:
-            errors.append(f"{artifact_id} must not depend on {dep}")
+            errors.append(f"{artifact_id} 不允许依赖 {dep}")
         if category == "gateway" and dep_category == "service":
-            errors.append(f"{artifact_id} must not depend on {dep}")
+            errors.append(f"{artifact_id} 不允许依赖 {dep}")
         if category == "service" and dep_category in {"service", "gateway"}:
-            errors.append(f"{artifact_id} must not depend on {dep}")
+            errors.append(f"{artifact_id} 不允许依赖 {dep}")
 
     has_boot_plugin = "spring-boot-maven-plugin" in plugins
     repackage_enabled = properties.get("spring-boot.repackage.skip") == "false"
     if artifact_id in EXPECTED_EXECUTABLE_MODULES:
         if not has_boot_plugin:
-            errors.append(f"{artifact_id} must declare spring-boot-maven-plugin")
+            errors.append(f"{artifact_id} 必须声明 spring-boot-maven-plugin")
         if not repackage_enabled:
-            errors.append(f"{artifact_id} must set spring-boot.repackage.skip=false")
+            errors.append(f"{artifact_id} 必须设置 spring-boot.repackage.skip=false")
     else:
         if has_boot_plugin:
-            errors.append(f"{artifact_id} must not declare spring-boot-maven-plugin")
+            errors.append(f"{artifact_id} 不应声明 spring-boot-maven-plugin")
         if repackage_enabled:
-            errors.append(f"{artifact_id} must not enable Spring Boot repackage")
+            errors.append(f"{artifact_id} 不应启用 Spring Boot repackage")
 
     return errors
 
 
 def validate_migration_assets() -> list[str]:
     migration_dir = ROOT / "db" / "migration"
-    files = sorted(
-        (path.name for path in migration_dir.glob("V*.sql")),
-        key=lambda name: int(name.split("__", 1)[0][1:]),
-    )
-    if not files:
-        return ["No db/migration/V*.sql files found"]
-    if files[0] != "V1__auth_and_config.sql" or files[-1] != "V10__auth_persistence.sql":
-        return ["Unexpected migration file range under db/migration"]
+    entries: list[tuple[int, str]] = []
+    for path in migration_dir.glob("V*.sql"):
+        match = re.match(r"^V(\d+)__.+\.sql$", path.name)
+        if not match:
+            return [f"迁移脚本命名不合法: {path.name}"]
+        entries.append((int(match.group(1)), path.name))
+    if not entries:
+        return ["未找到 db/migration/V*.sql 迁移脚本"]
+    entries.sort(key=lambda item: item[0])
+    versions = [item[0] for item in entries]
+    if versions[0] != 1:
+        return ["迁移版本必须从 V1 开始"]
+    if len(versions) != len(set(versions)):
+        return ["db/migration 下存在重复迁移版本号"]
+    for current, nxt in zip(versions, versions[1:]):
+        if nxt != current + 1:
+            return [f"迁移版本不连续: 缺少 V{current + 1}"]
     return []
 
 
@@ -212,7 +228,7 @@ def validate_shared_config_assets() -> list[str]:
     expected = [ROOT / "config" / "db-migration" / "application-db-migration.yml"]
     missing = [str(path.relative_to(ROOT)) for path in expected if not path.exists()]
     if missing:
-        return [f"Missing config assets: {', '.join(missing)}"]
+        return [f"缺少配置文件: {', '.join(missing)}"]
     return []
 
 
@@ -229,7 +245,7 @@ def validate_service_config_assets() -> list[str]:
         ]
         missing = [str(path.relative_to(ROOT)) for path in expected if not path.exists()]
         if missing:
-            errors.append(f"Missing module config assets: {', '.join(missing)}")
+            errors.append(f"缺少模块配置文件: {', '.join(missing)}")
     return errors
 
 
@@ -245,12 +261,12 @@ def main() -> int:
         errors.extend(validate_project_boundaries(pom_path))
 
     if errors:
-        print("Module boundary validation failed:", file=sys.stderr)
+        print("模块边界校验失败:", file=sys.stderr)
         for error in errors:
             print(f"- {error}", file=sys.stderr)
         return 1
 
-    print("Module boundary validation passed.")
+    print("模块边界校验通过。")
     return 0
 
 

@@ -3,4 +3,5 @@
 /.vscode/
 /.m2/
 config/migration/application-migration.local.yml
+**/__pycache__/
 **/target/
