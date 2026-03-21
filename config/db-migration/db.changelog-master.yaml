@@ -98,3 +98,48 @@ databaseChangeLog:
             relativeToChangelogFile: true
             splitStatements: true
             stripComments: false
+  - changeSet:
+      id: V12__merchant_onboarding_baseline
+      author: codex
+      changes:
+        - sqlFile:
+            path: ../../db/migration/V12__merchant_onboarding_baseline.sql
+            relativeToChangelogFile: true
+            splitStatements: true
+            stripComments: false
+  - changeSet:
+      id: V13__release_governance_baseline
+      author: codex
+      changes:
+        - sqlFile:
+            path: ../../db/migration/V13__release_governance_baseline.sql
+            relativeToChangelogFile: true
+            splitStatements: true
+            stripComments: false
+  - changeSet:
+      id: V14__config_switches_baseline
+      author: codex
+      changes:
+        - sqlFile:
+            path: ../../db/migration/V14__config_switches_baseline.sql
+            relativeToChangelogFile: true
+            splitStatements: true
+            stripComments: false
+  - changeSet:
+      id: V15__product_catalog_baseline
+      author: codex
+      changes:
+        - sqlFile:
+            path: ../../db/migration/V15__product_catalog_baseline.sql
+            relativeToChangelogFile: true
+            splitStatements: true
+            stripComments: false
+  - changeSet:
+      id: V16__order_baseline
+      author: codex
+      changes:
+        - sqlFile:
+            path: ../../db/migration/V16__order_baseline.sql
+            relativeToChangelogFile: true
+            splitStatements: true
+            stripComments: false

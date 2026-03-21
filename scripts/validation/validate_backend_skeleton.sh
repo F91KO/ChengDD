@@ -10,7 +10,7 @@ if command -v /usr/libexec/java_home >/dev/null 2>&1; then
 fi
 
 if [[ -z "${JAVA_HOME:-}" ]]; then
-  echo "JAVA_HOME is not set and JDK 17 was not discovered." >&2
+  echo "未检测到 JAVA_HOME，且自动发现 JDK 17 失败。" >&2
   exit 1
 fi
 
@@ -63,42 +63,42 @@ run_boot_check() {
 
   for _ in $(seq 1 90); do
     if grep -q "Started ${main_class}" "$log_file"; then
-      echo "Boot check passed for ${module}"
+      echo "启动冒烟通过: ${module}"
       kill "$pid" >/dev/null 2>&1 || true
       wait "$pid" >/dev/null 2>&1 || true
       return 0
     fi
     if ! kill -0 "$pid" >/dev/null 2>&1; then
-      echo "Boot check failed for ${module}" >&2
+      echo "启动冒烟失败: ${module}" >&2
       cat "$log_file" >&2
       return 1
     fi
     sleep 1
   done
 
-  echo "Boot check timed out for ${module}" >&2
+  echo "启动冒烟超时: ${module}" >&2
   cat "$log_file" >&2
   return 1
 }
 
-echo "Validating module boundaries..."
+echo "开始校验模块边界..."
 python3 scripts/validation/check_module_boundaries.py
 
-echo "Running Maven validate..."
+echo "开始执行 Maven validate..."
 "${mvn_base[@]}" -f "${parent_root}/pom.xml" -DskipTests validate
 
-echo "Running Maven compile..."
+echo "开始执行 Maven compile..."
 "${mvn_base[@]}" -f "${parent_root}/pom.xml" -DskipTests compile
 
-echo "Running Maven install..."
+echo "开始执行 Maven install..."
 "${mvn_base[@]}" -f "${parent_root}/pom.xml" -DskipTests install
 
-echo "Checking migration config..."
+echo "开始检查迁移配置..."
 test -f config/db-migration/application-db-migration.yml
 
-echo "Running startup smoke checks..."
+echo "开始执行服务启动冒烟..."
 run_boot_check "cdd-auth-service" "AuthServiceApplication"
 run_boot_check "cdd-gateway" "GatewayApplication"
 run_boot_check "cdd-merchant-service" "MerchantServiceApplication"
 
-echo "Backend skeleton validation passed."
+echo "后端骨架校验通过。"
