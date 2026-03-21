@@ -117,7 +117,7 @@ components:
           example: 0
         message:
           type: string
-          example: success
+          example: 成功
         data:
           type: object
           nullable: true
@@ -550,7 +550,7 @@ paths:
               $ref: '#/components/schemas/MerchantApplicationSubmitRequest'
       responses:
         '200':
-          description: success
+          description: 成功
           content:
             application/json:
               schema:
@@ -570,7 +570,7 @@ paths:
               $ref: '#/components/schemas/MiniProgramBindingRequest'
       responses:
         '200':
-          description: success
+          description: 成功
           content:
             application/json:
               schema:
@@ -586,7 +586,7 @@ paths:
         - $ref: '#/components/parameters/MiniProgramIdPath'
       responses:
         '200':
-          description: success
+          description: 成功
           content:
             application/json:
               schema:
@@ -611,7 +611,7 @@ paths:
               $ref: '#/components/schemas/OnboardingPublishRequest'
       responses:
         '200':
-          description: success
+          description: 成功
           content:
             application/json:
               schema:
@@ -631,7 +631,7 @@ paths:
               $ref: '#/components/schemas/StoreUpsertRequest'
       responses:
         '200':
-          description: success
+          description: 成功
           content:
             application/json:
               schema:
@@ -653,7 +653,7 @@ paths:
               $ref: '#/components/schemas/StoreUpsertRequest'
       responses:
         '200':
-          description: success
+          description: 成功
           content:
             application/json:
               schema:
@@ -673,7 +673,7 @@ paths:
               $ref: '#/components/schemas/SubAccountCreateRequest'
       responses:
         '200':
-          description: success
+          description: 成功
           content:
             application/json:
               schema:
@@ -693,7 +693,7 @@ paths:
               $ref: '#/components/schemas/CategoryUpsertRequest'
       responses:
         '200':
-          description: success
+          description: 成功
           content:
             application/json:
               schema:
@@ -715,7 +715,7 @@ paths:
               $ref: '#/components/schemas/CategoryUpsertRequest'
       responses:
         '200':
-          description: success
+          description: 成功
           content:
             application/json:
               schema:
@@ -735,7 +735,7 @@ paths:
               $ref: '#/components/schemas/ProductUpsertRequest'
       responses:
         '200':
-          description: success
+          description: 成功
           content:
             application/json:
               schema:
@@ -757,7 +757,7 @@ paths:
               $ref: '#/components/schemas/ProductUpsertRequest'
       responses:
         '200':
-          description: success
+          description: 成功
           content:
             application/json:
               schema:
@@ -777,7 +777,7 @@ paths:
               $ref: '#/components/schemas/ProductPublishRequest'
       responses:
         '200':
-          description: success
+          description: 成功
           content:
             application/json:
               schema:
@@ -799,7 +799,7 @@ paths:
               $ref: '#/components/schemas/OrderShipRequest'
       responses:
         '200':
-          description: success
+          description: 成功
           content:
             application/json:
               schema:
@@ -821,7 +821,7 @@ paths:
               $ref: '#/components/schemas/AfterSaleAuditRequest'
       responses:
         '200':
-          description: success
+          description: 成功
           content:
             application/json:
               schema:
@@ -835,7 +835,7 @@ paths:
         - bearerAuth: []
       responses:
         '200':
-          description: success
+          description: 成功
           content:
             application/json:
               schema:
@@ -857,7 +857,7 @@ paths:
               $ref: '#/components/schemas/MerchantProcessRequest'
       responses:
         '200':
-          description: success
+          description: 成功
           content:
             application/json:
               schema:
@@ -873,7 +873,7 @@ paths:
         - $ref: '#/components/parameters/MerchantIdPath'
       responses:
         '200':
-          description: success
+          description: 成功
           content:
             application/json:
               schema:
@@ -893,7 +893,7 @@ paths:
               $ref: '#/components/schemas/CategoryTemplateCreateRequest'
       responses:
         '200':
-          description: success
+          description: 成功
           content:
             application/json:
               schema:
@@ -913,7 +913,7 @@ paths:
               $ref: '#/components/schemas/ReleaseCheckRequest'
       responses:
         '200':
-          description: success
+          description: 成功
           content:
             application/json:
               schema:
@@ -933,7 +933,7 @@ paths:
               $ref: '#/components/schemas/ReleaseTaskCreateRequest'
       responses:
         '200':
-          description: success
+          description: 成功
           content:
             application/json:
               schema:
@@ -949,7 +949,7 @@ paths:
         - $ref: '#/components/parameters/TaskIdPath'
       responses:
         '200':
-          description: success
+          description: 成功
           content:
             application/json:
               schema:
@@ -965,7 +965,7 @@ paths:
         - $ref: '#/components/parameters/TaskIdPath'
       responses:
         '200':
-          description: success
+          description: 成功
           content:
             application/json:
               schema:
@@ -987,7 +987,7 @@ paths:
               $ref: '#/components/schemas/CustomRequestReviewRequest'
       responses:
         '200':
-          description: success
+          description: 成功
           content:
             application/json:
               schema:
@@ -1007,7 +1007,7 @@ paths:
               $ref: '#/components/schemas/RoleCreateRequest'
       responses:
         '200':
-          description: success
+          description: 成功
           content:
             application/json:
               schema:
@@ -1029,7 +1029,7 @@ paths:
               $ref: '#/components/schemas/RolePermissionConfigRequest'
       responses:
         '200':
-          description: success
+          description: 成功
           content:
             application/json:
               schema:
@@ -1043,7 +1043,7 @@ paths:
         - bearerAuth: []
       responses:
         '200':
-          description: success
+          description: 成功
           content:
             application/json:
               schema:
@@ -1063,7 +1063,7 @@ paths:
               $ref: '#/components/schemas/PipelineCreateRequest'
       responses:
         '200':
-          description: success
+          description: 成功
           content:
             application/json:
               schema:
@@ -1085,7 +1085,7 @@ paths:
               $ref: '#/components/schemas/PipelineRunRequest'
       responses:
         '200':
-          description: success
+          description: 成功
           content:
             application/json:
               schema:
@@ -1101,7 +1101,7 @@ paths:
         - $ref: '#/components/parameters/PipelineIdPath'
       responses:
         '200':
-          description: success
+          description: 成功
           content:
             application/json:
               schema:

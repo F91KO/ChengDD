@@ -22,19 +22,23 @@ PIDS_TO_KILL=()
 
 cleanup() {
   local code=$?
-  for pid in "${PIDS_TO_KILL[@]}"; do
+  for pid in "${PIDS_TO_KILL[@]-}"; do
     kill "$pid" >/dev/null 2>&1 || true
     wait "$pid" >/dev/null 2>&1 || true
   done
-  for file in "${cleanup_files[@]}"; do
+  for file in "${cleanup_files[@]-}"; do
     rm -f "$file"
   done
   exit "$code"
 }
 trap cleanup EXIT
 
+mktemp_file() {
+  mktemp "${TMPDIR:-/tmp}/$1.XXXXXX"
+}
+
 if [[ -z "$settings_file" ]]; then
-  settings_file="$(mktemp /tmp/chengdd-mvn-settings.XXXXXX.xml)"
+  settings_file="$(mktemp_file chengdd-mvn-settings)"
   cleanup_files+=("$settings_file")
   cat >"$settings_file" <<'EOF'
 <settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
@@ -50,7 +54,7 @@ run_boot_check() {
   local module="$1"
   local main_class="$2"
   local log_file
-  log_file="$(mktemp "/tmp/${module}.XXXXXX.log")"
+  log_file="$(mktemp_file "$module")"
   cleanup_files+=("$log_file")
 
   "${mvn_base[@]}" -f "${parent_root}/${module}/pom.xml" spring-boot:run -Dspring-boot.run.arguments=--server.port=0 >"$log_file" 2>&1 &

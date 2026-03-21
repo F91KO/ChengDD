@@ -41,6 +41,7 @@
 | [技术架构图.md](./02-architecture/技术架构图.md) | 设计基线 | 系统分层、服务拆分、调用关系 |
 | [服务与表关系矩阵.md](./02-architecture/服务与表关系矩阵.md) | 设计基线 | 服务边界和主责表划分 |
 | [命名规范.md](./02-architecture/命名规范.md) | 设计基线 | 服务、模块、表、字段命名统一规范 |
+| [基础能力模块设计.md](./02-architecture/基础能力模块设计.md) | 设计基线 | `cdd-common-*` 的职责边界、首批能力与演进顺序 |
 | [Nacos配置命名与加载约定.md](./02-architecture/Nacos配置命名与加载约定.md) | 设计基线 | Nacos 的 namespace、group、dataId 与本地回退规则 |
 
 ### 3.4 接口与协议设计
@@ -89,7 +90,8 @@
 | 文档 | 阶段 | 说明 |
 | --- | --- | --- |
 | [交付套餐报价简版.md](./05-delivery/交付套餐报价简版.md) | 商务交付 | 交付方案与报价简版 |
-| [GitHub骨架任务执行说明.md](./05-delivery/GitHub骨架任务执行说明.md) | 执行说明 | 规划分支和 GitHub issue 的落地执行方式 |
+| [GitHub骨架任务执行说明.md](./05-delivery/GitHub骨架任务执行说明.md) | 执行说明 | 任务 list、GitHub issue、分支与执行顺序约束 |
+| [权限建议清单.md](./05-delivery/权限建议清单.md) | 执行说明 | `/permissions` 推荐持久化前缀与使用原则 |
 | [骨架验证与验收说明.md](./05-delivery/骨架验证与验收说明.md) | 执行说明 | 骨架边界、构建、启动与 CI 验收方式 |
 
 ## 6. 当前建议的使用方式

@@ -73,7 +73,7 @@ components:
           example: 0
         message:
           type: string
-          example: success
+          example: 成功
         data:
           type: object
           nullable: true
@@ -224,7 +224,7 @@ paths:
         - bearerAuth: []
       responses:
         '200':
-          description: success
+          description: 成功
           content:
             application/json:
               schema:
@@ -246,7 +246,7 @@ paths:
               $ref: '#/components/schemas/MerchantProcessRequest'
       responses:
         '200':
-          description: success
+          description: 成功
           content:
             application/json:
               schema:
@@ -262,7 +262,7 @@ paths:
         - $ref: '#/components/parameters/MerchantIdPath'
       responses:
         '200':
-          description: success
+          description: 成功
           content:
             application/json:
               schema:
@@ -282,7 +282,7 @@ paths:
               $ref: '#/components/schemas/CategoryTemplateCreateRequest'
       responses:
         '200':
-          description: success
+          description: 成功
           content:
             application/json:
               schema:
@@ -302,7 +302,7 @@ paths:
               $ref: '#/components/schemas/ReleaseCheckRequest'
       responses:
         '200':
-          description: success
+          description: 成功
           content:
             application/json:
               schema:
@@ -322,7 +322,7 @@ paths:
               $ref: '#/components/schemas/ReleaseTaskCreateRequest'
       responses:
         '200':
-          description: success
+          description: 成功
           content:
             application/json:
               schema:
@@ -338,7 +338,7 @@ paths:
         - $ref: '#/components/parameters/TaskIdPath'
       responses:
         '200':
-          description: success
+          description: 成功
           content:
             application/json:
               schema:
@@ -354,7 +354,7 @@ paths:
         - $ref: '#/components/parameters/TaskIdPath'
       responses:
         '200':
-          description: success
+          description: 成功
           content:
             application/json:
               schema:
@@ -376,7 +376,7 @@ paths:
               $ref: '#/components/schemas/CustomRequestReviewRequest'
       responses:
         '200':
-          description: success
+          description: 成功
           content:
             application/json:
               schema:
@@ -396,7 +396,7 @@ paths:
               $ref: '#/components/schemas/RoleCreateRequest'
       responses:
         '200':
-          description: success
+          description: 成功
           content:
             application/json:
               schema:
@@ -418,7 +418,7 @@ paths:
               $ref: '#/components/schemas/RolePermissionConfigRequest'
       responses:
         '200':
-          description: success
+          description: 成功
           content:
             application/json:
               schema:
@@ -432,7 +432,7 @@ paths:
         - bearerAuth: []
       responses:
         '200':
-          description: success
+          description: 成功
           content:
             application/json:
               schema:
@@ -452,7 +452,7 @@ paths:
               $ref: '#/components/schemas/PipelineCreateRequest'
       responses:
         '200':
-          description: success
+          description: 成功
           content:
             application/json:
               schema:
@@ -474,7 +474,7 @@ paths:
               $ref: '#/components/schemas/PipelineRunRequest'
       responses:
         '200':
-          description: success
+          description: 成功
           content:
             application/json:
               schema:
@@ -490,7 +490,7 @@ paths:
         - $ref: '#/components/parameters/PipelineIdPath'
       responses:
         '200':
-          description: success
+          description: 成功
           content:
             application/json:
               schema:
