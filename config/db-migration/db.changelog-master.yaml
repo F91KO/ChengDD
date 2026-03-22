@@ -152,3 +152,50 @@ databaseChangeLog:
             relativeToChangelogFile: true
             splitStatements: true
             stripComments: false
+  - changeSet:
+      id: V18__local_demo_product_order_seed
+      author: codex
+      validCheckSum:
+        - 9:b6a127cdde3144c68586c16459b1ba22
+      changes:
+        - sqlFile:
+            path: ../../db/migration/V18__local_demo_product_order_seed.sql
+            relativeToChangelogFile: true
+            splitStatements: true
+            stripComments: false
+  - changeSet:
+      id: V19__local_demo_product_seed_patch
+      author: codex
+      changes:
+        - sqlFile:
+            path: ../../db/migration/V19__local_demo_product_seed_patch.sql
+            relativeToChangelogFile: true
+            splitStatements: true
+            stripComments: false
+  - changeSet:
+      id: V20__local_demo_report_seed
+      author: codex
+      changes:
+        - sqlFile:
+            path: ../../db/migration/V20__local_demo_report_seed.sql
+            relativeToChangelogFile: true
+            splitStatements: true
+            stripComments: false
+  - changeSet:
+      id: V21__local_demo_dashboard_refresh
+      author: codex
+      changes:
+        - sqlFile:
+            path: ../../db/migration/V21__local_demo_dashboard_refresh.sql
+            relativeToChangelogFile: true
+            splitStatements: true
+            stripComments: false
+  - changeSet:
+      id: V22__local_demo_after_sale_seed
+      author: codex
+      changes:
+        - sqlFile:
+            path: ../../db/migration/V22__local_demo_after_sale_seed.sql
+            relativeToChangelogFile: true
+            splitStatements: true
+            stripComments: false

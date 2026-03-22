@@ -11,6 +11,7 @@ import com.cdd.api.order.model.OrderAfterSaleCreateRequest;
 import com.cdd.api.order.model.OrderAfterSaleLifecycleResponse;
 import com.cdd.api.order.model.OrderAfterSaleReturnRequest;
 import com.cdd.api.order.model.OrderAfterSaleReviewRequest;
+import com.cdd.api.order.model.OrderAfterSaleSummaryResponse;
 import com.cdd.api.order.model.OrderDeliveryUpdateRequest;
 import com.cdd.api.order.model.OrderDetailResponse;
 import com.cdd.api.order.model.OrderLifecycleResponse;
@@ -118,6 +119,14 @@ public class OrderController {
     public ApiResponse<OrderAfterSaleLifecycleResponse> submitAfterSaleReturn(@PathVariable(name = "after_sale_no") String afterSaleNo,
                                                                               @Valid @RequestBody OrderAfterSaleReturnRequest request) {
         return ApiResponses.success(orderApplicationService.submitAfterSaleReturn(afterSaleNo, request));
+    }
+
+    @GetMapping("/after-sales")
+    public ApiResponse<List<OrderAfterSaleSummaryResponse>> listAfterSales(
+            @RequestParam(name = "merchant_id") @NotNull(message = "商家ID不能为空") Long merchantId,
+            @RequestParam(name = "store_id") @NotNull(message = "店铺ID不能为空") Long storeId,
+            @RequestParam(name = "after_sale_status", required = false) String afterSaleStatus) {
+        return ApiResponses.success(orderApplicationService.listAfterSales(merchantId, storeId, afterSaleStatus));
     }
 
     @PostMapping("/orders/{order_no}/cancel")

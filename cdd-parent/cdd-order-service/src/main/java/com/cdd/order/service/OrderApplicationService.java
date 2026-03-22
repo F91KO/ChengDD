@@ -11,6 +11,7 @@ import com.cdd.api.order.model.OrderAfterSaleCreateRequest;
 import com.cdd.api.order.model.OrderAfterSaleLifecycleResponse;
 import com.cdd.api.order.model.OrderAfterSaleReturnRequest;
 import com.cdd.api.order.model.OrderAfterSaleReviewRequest;
+import com.cdd.api.order.model.OrderAfterSaleSummaryResponse;
 import com.cdd.api.order.model.OrderDeliveryUpdateRequest;
 import com.cdd.api.order.model.OrderDetailResponse;
 import com.cdd.api.order.model.OrderItemResponse;
@@ -30,6 +31,7 @@ import com.cdd.order.error.OrderErrorCode;
 import com.cdd.order.infrastructure.persistence.OrderRepository.CompensationTaskRecord;
 import com.cdd.order.infrastructure.persistence.OrderRepository;
 import com.cdd.order.infrastructure.persistence.OrderRepository.AfterSaleRecord;
+import com.cdd.order.infrastructure.persistence.OrderRepository.AfterSaleSummaryRecord;
 import com.cdd.order.infrastructure.persistence.OrderRepository.CartItem;
 import com.cdd.order.infrastructure.persistence.OrderRepository.CheckoutSnapshot;
 import com.cdd.order.infrastructure.persistence.OrderRepository.OrderItemRecord;
@@ -707,6 +709,13 @@ public class OrderApplicationService {
         return toAfterSaleLifecycleResponse(afterSaleRecord, order.orderNo(), order.payStatus());
     }
 
+    public List<OrderAfterSaleSummaryResponse> listAfterSales(long merchantId, long storeId, String afterSaleStatus) {
+        String normalizedStatus = normalizeAfterSaleStatus(afterSaleStatus);
+        return repository.listAfterSales(merchantId, storeId, normalizedStatus).stream()
+                .map(this::toAfterSaleSummaryResponse)
+                .toList();
+    }
+
     @Transactional
     public OrderAfterSaleLifecycleResponse reviewAfterSale(String afterSaleNo, OrderAfterSaleReviewRequest request) {
         AfterSaleRecord afterSale = requireAfterSale(afterSaleNo);
@@ -1094,6 +1103,34 @@ public class OrderApplicationService {
                 payStatus);
     }
 
+    private OrderAfterSaleSummaryResponse toAfterSaleSummaryResponse(AfterSaleSummaryRecord afterSale) {
+        return new OrderAfterSaleSummaryResponse(
+                afterSale.afterSaleNo(),
+                afterSale.orderNo(),
+                afterSale.orderItemId(),
+                afterSale.merchantId(),
+                afterSale.storeId(),
+                afterSale.userId(),
+                afterSale.afterSaleType(),
+                afterSale.afterSaleStatus(),
+                afterSale.productName(),
+                afterSale.skuName(),
+                afterSale.refundQuantity(),
+                afterSale.refundAmount(),
+                afterSale.reasonCode(),
+                afterSale.reasonDesc(),
+                afterSale.merchantResult(),
+                afterSale.refundNo(),
+                afterSale.returnCompany(),
+                afterSale.returnLogisticsNo(),
+                afterSale.handledBy(),
+                afterSale.handledAt(),
+                afterSale.approvedAt(),
+                afterSale.returnedAt(),
+                afterSale.completedAt(),
+                afterSale.updatedAt());
+    }
+
     private void validateAfterSalePayStatus(OrderRecord order) {
         if (!PAY_STATUS_PAID.equals(order.payStatus()) && !ORDER_PAY_STATUS_REFUND_PARTIAL.equals(order.payStatus())) {
             throw new BusinessException(OrderErrorCode.ORDER_STATUS_INVALID, "当前支付状态不允许发起售后");
@@ -1298,6 +1335,22 @@ public class OrderApplicationService {
             throw new BusinessException(OrderErrorCode.AFTER_SALE_TYPE_INVALID);
         }
         return normalized;
+    }
+
+    private String normalizeAfterSaleStatus(String raw) {
+        if (!StringUtils.hasText(raw)) {
+            return null;
+        }
+        String normalized = normalize(raw);
+        return switch (normalized) {
+            case AFTER_SALE_STATUS_PENDING_MERCHANT,
+                    AFTER_SALE_STATUS_AGREED,
+                    AFTER_SALE_STATUS_REJECTED,
+                    AFTER_SALE_STATUS_WAITING_RETURN,
+                    AFTER_SALE_STATUS_REFUNDING,
+                    AFTER_SALE_STATUS_COMPLETED -> normalized;
+            default -> throw new BusinessException(OrderErrorCode.AFTER_SALE_STATUS_INVALID);
+        };
     }
 
     private String resolveOrderPayStatusAfterRefund(OrderRecord order, BigDecimal totalSuccessRefundAmount) {

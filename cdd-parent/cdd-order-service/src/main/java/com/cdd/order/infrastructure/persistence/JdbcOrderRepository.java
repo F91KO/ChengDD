@@ -27,6 +27,7 @@ public class JdbcOrderRepository implements OrderRepository {
     private static final RowMapper<RefundRecord> REFUND_ROW_MAPPER = JdbcOrderRepository::mapRefundRecord;
     private static final RowMapper<RefundCallbackRecord> REFUND_CALLBACK_ROW_MAPPER = JdbcOrderRepository::mapRefundCallbackRecord;
     private static final RowMapper<AfterSaleRecord> AFTER_SALE_ROW_MAPPER = JdbcOrderRepository::mapAfterSaleRecord;
+    private static final RowMapper<AfterSaleSummaryRecord> AFTER_SALE_SUMMARY_ROW_MAPPER = JdbcOrderRepository::mapAfterSaleSummaryRecord;
     private static final RowMapper<CompensationTaskRecord> COMPENSATION_TASK_ROW_MAPPER = JdbcOrderRepository::mapCompensationTaskRecord;
 
     private final JdbcTemplate jdbcTemplate;
@@ -889,6 +890,52 @@ public class JdbcOrderRepository implements OrderRepository {
     }
 
     @Override
+    public List<AfterSaleSummaryRecord> listAfterSales(long merchantId, long storeId, String afterSaleStatus) {
+        StringBuilder sql = new StringBuilder("""
+                SELECT a.after_sale_no,
+                       a.order_no,
+                       a.order_item_id,
+                       a.merchant_id,
+                       a.store_id,
+                       a.user_id,
+                       a.after_sale_type,
+                       a.after_sale_status,
+                       i.product_name,
+                       i.sku_name,
+                       a.refund_quantity,
+                       a.refund_amount,
+                       a.reason_code,
+                       a.reason_desc,
+                       a.merchant_result,
+                       a.refund_no,
+                       a.return_company,
+                       a.return_logistics_no,
+                       a.handled_by,
+                       a.handled_at,
+                       a.approved_at,
+                       a.returned_at,
+                       a.completed_at,
+                       a.updated_at AS after_sale_updated_at
+                FROM cdd_order_after_sale a
+                LEFT JOIN cdd_order_item i
+                  ON a.order_item_id = i.id
+                 AND i.deleted = 0
+                WHERE a.merchant_id = ?
+                  AND a.store_id = ?
+                  AND a.deleted = 0
+                """);
+        List<Object> args = new ArrayList<>();
+        args.add(merchantId);
+        args.add(storeId);
+        if (StringUtils.hasText(afterSaleStatus)) {
+            sql.append(" AND a.after_sale_status = ?");
+            args.add(afterSaleStatus.trim().toLowerCase());
+        }
+        sql.append(" ORDER BY a.updated_at DESC, a.id DESC");
+        return jdbcTemplate.query(sql.toString(), AFTER_SALE_SUMMARY_ROW_MAPPER, args.toArray());
+    }
+
+    @Override
     public void updateAfterSaleStatus(long afterSaleId,
                                       String afterSaleStatus,
                                       String merchantResult,
@@ -1218,6 +1265,34 @@ public class JdbcOrderRepository implements OrderRepository {
                 toInstant(rs.getTimestamp("closed_at")),
                 handledBy,
                 toInstant(rs.getTimestamp("handled_at")));
+    }
+
+    private static AfterSaleSummaryRecord mapAfterSaleSummaryRecord(ResultSet rs, int rowNum) throws SQLException {
+        return new AfterSaleSummaryRecord(
+                rs.getString("after_sale_no"),
+                rs.getString("order_no"),
+                rs.getObject("order_item_id", Long.class),
+                rs.getLong("merchant_id"),
+                rs.getLong("store_id"),
+                rs.getLong("user_id"),
+                rs.getString("after_sale_type"),
+                rs.getString("after_sale_status"),
+                rs.getString("product_name"),
+                rs.getString("sku_name"),
+                rs.getObject("refund_quantity", Integer.class),
+                rs.getBigDecimal("refund_amount"),
+                rs.getString("reason_code"),
+                rs.getString("reason_desc"),
+                rs.getString("merchant_result"),
+                rs.getString("refund_no"),
+                rs.getString("return_company"),
+                rs.getString("return_logistics_no"),
+                rs.getObject("handled_by", Long.class),
+                toInstant(rs.getTimestamp("handled_at")),
+                toInstant(rs.getTimestamp("approved_at")),
+                toInstant(rs.getTimestamp("returned_at")),
+                toInstant(rs.getTimestamp("completed_at")),
+                toInstant(rs.getTimestamp("after_sale_updated_at")));
     }
 
     private static RefundCallbackRecord mapRefundCallbackRecord(ResultSet rs, int rowNum) throws SQLException {

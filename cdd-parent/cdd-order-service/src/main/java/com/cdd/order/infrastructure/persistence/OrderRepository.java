@@ -111,6 +111,8 @@ public interface OrderRepository {
 
     Optional<AfterSaleRecord> findAfterSaleByAfterSaleNo(String afterSaleNo);
 
+    List<AfterSaleSummaryRecord> listAfterSales(long merchantId, long storeId, String afterSaleStatus);
+
     void updateAfterSaleStatus(long afterSaleId,
                                String afterSaleStatus,
                                String merchantResult,
@@ -288,6 +290,33 @@ public interface OrderRepository {
             Instant closedAt,
             Long handledBy,
             Instant handledAt) {
+    }
+
+    record AfterSaleSummaryRecord(
+            String afterSaleNo,
+            String orderNo,
+            Long orderItemId,
+            long merchantId,
+            long storeId,
+            long userId,
+            String afterSaleType,
+            String afterSaleStatus,
+            String productName,
+            String skuName,
+            Integer refundQuantity,
+            BigDecimal refundAmount,
+            String reasonCode,
+            String reasonDesc,
+            String merchantResult,
+            String refundNo,
+            String returnCompany,
+            String returnLogisticsNo,
+            Long handledBy,
+            Instant handledAt,
+            Instant approvedAt,
+            Instant returnedAt,
+            Instant completedAt,
+            Instant updatedAt) {
     }
 
     record RefundCallbackRecord(

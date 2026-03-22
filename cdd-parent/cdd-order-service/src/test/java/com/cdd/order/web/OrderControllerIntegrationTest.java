@@ -438,6 +438,97 @@ class OrderControllerIntegrationTest {
                 .andExpect(jsonPath("$.data.items[0].refunded_amount").value(18.00));
     }
 
+    @Test
+    void shouldListAfterSalesAndSupportStatusFilter() throws Exception {
+        long merchantId = 3012L;
+        long storeId = 4012L;
+        long userId = 5012L;
+
+        String orderNo = createPaidOrderWithItems(
+                merchantId,
+                storeId,
+                userId,
+                "callback-after-sale-list",
+                new OrderItemSeed(93301L, 94301L, 1, new BigDecimal("15.00")),
+                new OrderItemSeed(93302L, 94302L, 1, new BigDecimal("28.00")));
+
+        JsonNode orderDetail = readData(mockMvc.perform(get("/api/order/orders/{order_no}", orderNo)
+                        .param("merchant_id", String.valueOf(merchantId))
+                        .param("store_id", String.valueOf(storeId))
+                        .param("user_id", String.valueOf(userId)))
+                .andExpect(status().isOk())
+                .andReturn());
+        JsonNode firstItem = orderDetail.path("items").get(0);
+        JsonNode secondItem = orderDetail.path("items").get(1);
+        long firstItemId = firstItem.path("id").asLong();
+        long secondItemId = secondItem.path("id").asLong();
+        String pendingAfterSaleNo = readData(mockMvc.perform(post("/api/order/orders/{order_no}/after-sales", orderNo)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(writeJson(Map.of(
+                                "merchant_id", merchantId,
+                                "store_id", storeId,
+                                "user_id", userId,
+                                "order_item_id", firstItemId,
+                                "after_sale_type", "refund_only",
+                                "refund_quantity", 1,
+                                "refund_amount", new BigDecimal("15.00"),
+                                "reason_code", "damaged",
+                                "reason_desc", "商品破损"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.after_sale_status").value("pending_merchant"))
+                .andReturn()).path("after_sale_no").asText();
+
+        String waitingReturnAfterSaleNo = readData(mockMvc.perform(post("/api/order/orders/{order_no}/after-sales", orderNo)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(writeJson(Map.of(
+                                "merchant_id", merchantId,
+                                "store_id", storeId,
+                                "user_id", userId,
+                                "order_item_id", secondItemId,
+                                "after_sale_type", "return_refund",
+                                "refund_quantity", 1,
+                                "refund_amount", new BigDecimal("28.00"),
+                                "reason_code", "quality_issue",
+                                "reason_desc", "商品质量问题"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.after_sale_status").value("pending_merchant"))
+                .andReturn()).path("after_sale_no").asText();
+
+        mockMvc.perform(post("/api/order/after-sales/{after_sale_no}/review", waitingReturnAfterSaleNo)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(writeJson(Map.of(
+                                "merchant_id", merchantId,
+                                "store_id", storeId,
+                                "operator_id", 90003L,
+                                "review_action", "agree",
+                                "merchant_result", "请寄回商品"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.after_sale_status").value("waiting_return"));
+
+        mockMvc.perform(get("/api/order/after-sales")
+                        .param("merchant_id", String.valueOf(merchantId))
+                        .param("store_id", String.valueOf(storeId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data[0].after_sale_no").value(waitingReturnAfterSaleNo))
+                .andExpect(jsonPath("$.data[0].after_sale_status").value("waiting_return"))
+                .andExpect(jsonPath("$.data[0].product_name").isNotEmpty())
+                .andExpect(jsonPath("$.data[0].sku_name").isNotEmpty())
+                .andExpect(jsonPath("$.data[0].refund_amount").value(28.00))
+                .andExpect(jsonPath("$.data[1].after_sale_no").value(pendingAfterSaleNo))
+                .andExpect(jsonPath("$.data[1].after_sale_status").value("pending_merchant"));
+
+        mockMvc.perform(get("/api/order/after-sales")
+                        .param("merchant_id", String.valueOf(merchantId))
+                        .param("store_id", String.valueOf(storeId))
+                        .param("after_sale_status", "waiting_return"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.length()").value(1))
+                .andExpect(jsonPath("$.data[0].after_sale_no").value(waitingReturnAfterSaleNo))
+                .andExpect(jsonPath("$.data[0].after_sale_status").value("waiting_return"));
+    }
+
     private String createPaidOrderByCallback(long merchantId,
                                              long storeId,
                                              long userId,
