@@ -61,8 +61,37 @@ class AuthControllerIntegrationTest {
                 .andExpect(jsonPath("$.message").value("刷新令牌无效或已失效"));
     }
 
+    @Test
+    void shouldKeepMerchantStoreIdInCurrentContextWhenScopeHeadersAreAbsent() throws Exception {
+        JsonNode loginData = merchantLogin("merchant_admin", "merchant123456");
+        String accessToken = loginData.path("access_token").asText();
+
+        mockMvc.perform(get("/api/auth/me")
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.user_id").value("m_1001"))
+                .andExpect(jsonPath("$.data.account_type").value("merchant"))
+                .andExpect(jsonPath("$.data.merchant_id").value("merchant_1001"))
+                .andExpect(jsonPath("$.data.store_id").value("store_1001"))
+                .andExpect(jsonPath("$.data.role_codes[0]").value("merchant_owner"));
+    }
+
     private JsonNode login(String accountName, String password) throws Exception {
         MvcResult result = mockMvc.perform(post("/api/auth/platform/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(writeJson(Map.of(
+                                "account_name", accountName,
+                                "password", password))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.token_type").value("Bearer"))
+                .andReturn();
+        return readData(result);
+    }
+
+    private JsonNode merchantLogin(String accountName, String password) throws Exception {
+        MvcResult result = mockMvc.perform(post("/api/auth/merchant/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(writeJson(Map.of(
                                 "account_name", accountName,

@@ -2,31 +2,37 @@ package com.cdd.product.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.cdd.api.product.model.AdjustStockRequest;
 import com.cdd.api.product.model.CreateProductRequest;
 import com.cdd.api.product.model.CreateSkuRequest;
 import com.cdd.api.product.model.InitializeCategoryTreeRequest;
 import com.cdd.common.core.error.BusinessException;
+import com.cdd.product.ProductServiceApplication;
 import com.cdd.product.error.ProductErrorCode;
-import com.cdd.product.infrastructure.memory.InMemoryProductCatalogStore;
 import java.math.BigDecimal;
 import java.util.List;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.transaction.annotation.Transactional;
 
+@SpringBootTest(classes = ProductServiceApplication.class)
+@ActiveProfiles("test")
+@Transactional
+@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 class ProductCatalogApplicationServiceTest {
 
     private static final long MERCHANT_ID = 3001L;
     private static final long STORE_ID = 4001L;
     private static final long DEFAULT_TEMPLATE_ID = 2_000_001L;
+    private static final String APPLE_SKU_CODE = "APPLE-001";
 
+    @Autowired
     private ProductCatalogApplicationService service;
-
-    @BeforeEach
-    void setUp() {
-        service = new ProductCatalogApplicationService(new InMemoryProductCatalogStore());
-    }
 
     @Test
     void shouldCreateProductAndSupportPublishUnpublishAndStockAdjust() {
@@ -44,7 +50,7 @@ class ProductCatalogApplicationServiceTest {
                 "鲜切苹果",
                 "当日现切",
                 List.of(new CreateSkuRequest(
-                        "APPLE-001",
+                        APPLE_SKU_CODE,
                         "500g装",
                         new BigDecimal("12.80"),
                         20))));
@@ -86,5 +92,16 @@ class ProductCatalogApplicationServiceTest {
                                 new BigDecimal("1.00"),
                                 1)))));
         assertEquals(ProductErrorCode.CATEGORY_NOT_FOUND.getCode(), ex.getErrorCode().getCode());
+    }
+
+    @Test
+    void shouldExposeDefaultMerchantCatalogForFrontendDemo() {
+        var products = service.listProducts(1001L, 1001L, null);
+
+        assertEquals(3, products.size());
+        assertEquals("赣南脐橙礼盒", products.get(0).productName());
+        assertEquals("on_shelf", products.get(0).status());
+        assertTrue(products.stream().anyMatch(product -> "draft".equals(product.status())));
+        assertTrue(products.stream().anyMatch(product -> "off_shelf".equals(product.status())));
     }
 }

@@ -60,10 +60,14 @@ public class AuthContext {
                 displayName,
                 accountType,
                 merchantId,
-                storeId,
-                miniProgramId,
+                hasText(storeId) ? storeId : this.storeId,
+                hasText(miniProgramId) ? miniProgramId : this.miniProgramId,
                 roleCodes,
                 tokenVersion);
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.trim().isEmpty();
     }
 
     public String getAuthorization() {

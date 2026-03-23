@@ -1,6 +1,6 @@
-# ChengDD Backend Skeleton
+# ChengDD Project Skeleton
 
-Java Spring 多模块后端骨架已经按 `cdd-parent` 聚合完成，技术基线固定为 `JDK 17`。
+Java Spring 多模块后端骨架已经按 `cdd-parent` 聚合完成，技术基线固定为 `JDK 17`；前端一期后台控制台已落地到 `cdd-frontend/`。
 
 ## Layout
 
@@ -8,6 +8,7 @@ Java Spring 多模块后端骨架已经按 `cdd-parent` 聚合完成，技术基
 
 ```text
 .
+├─ cdd-frontend/
 ├─ cdd-parent/
 │  ├─ pom.xml
 │  ├─ cdd-common-*
@@ -22,17 +23,65 @@ Java Spring 多模块后端骨架已经按 `cdd-parent` 聚合完成，技术基
 └─ scripts/
 ```
 
-## Build
+## Backend Build
 
 ```bash
 mvn -f cdd-parent/pom.xml clean install
 ```
 
-## Validation
+## Backend Validation
 
 ```bash
 bash scripts/validation/validate_backend_skeleton.sh
 ```
+
+## Backend Test
+
+统一测试基线使用本地 MySQL 测试库 `chengdd_test`。执行前先确保本地 MySQL 基础设施可用，再执行：
+
+```bash
+bash scripts/testing/run_phase1_acceptance.sh
+```
+
+如果只想单独准备测试库：
+
+```bash
+bash scripts/testing/prepare_mysql_test_db.sh
+```
+
+## Frontend
+
+前端采用 `Vue 3 + Vite + TypeScript + Pinia + Vue Router + Axios + CSS Modules`，当前已完成一期后台最小可运行骨架，并切到“真实接口优先 + mock fallback”模式。
+
+安装依赖：
+
+```bash
+cd cdd-frontend
+corepack pnpm install
+```
+
+本地开发：
+
+```bash
+corepack pnpm dev --host 127.0.0.1 --port 4173
+```
+
+生产构建：
+
+```bash
+corepack pnpm build
+```
+
+当前已提供的页面：
+
+- 登录页
+- 工作台
+- 商品管理
+- 订单管理
+- 售后处理
+- 配置中心
+
+前端作为一期后端交付的补充收口，自动化验收需要列出在 `docs/05-delivery/reports/frontend-acceptance.md` 中。完成 `pnpm install`、`pnpm build` 和一次 `pnpm dev` 探活后，报告会记录是否达标、失败项与风险，并同步到文档索引。当前工作台页面已接入 `report-service` 真实接口，配置中心页面已接入 `config-service` 真实接口，本地联调需同时确保 `8088` 与 `8089` 可用。
 
 ## Environment Convention
 

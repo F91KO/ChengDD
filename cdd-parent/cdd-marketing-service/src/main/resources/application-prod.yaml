@@ -1,7 +1,13 @@
+spring:
+  datasource:
+    url: ${CDD_MARKETING_DB_URL:jdbc:mysql://127.0.0.1:${CDD_LOCAL_MYSQL_PORT:3306}/${CDD_LOCAL_MYSQL_DATABASE:chengdd}?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false}
+    username: ${CDD_MARKETING_DB_USERNAME:${CDD_LOCAL_MYSQL_USERNAME:root}}
+    password: ${CDD_MARKETING_DB_PASSWORD:${CDD_LOCAL_MYSQL_ROOT_PASSWORD:change_me}}
+    driver-class-name: ${CDD_MARKETING_DB_DRIVER_CLASS_NAME:com.mysql.cj.jdbc.Driver}
+
 cdd:
   runtime:
     env: prod
 
 server:
   port: 8086
-

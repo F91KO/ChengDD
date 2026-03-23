@@ -10,6 +10,7 @@ modules_csv="${CDD_PHASE1_TEST_MODULES:-$default_modules}"
 report_file="${CDD_PHASE1_REPORT_FILE:-$repo_root/docs/05-delivery/reports/phase1-acceptance-latest.md}"
 run_skeleton=1
 reuse_reports=0
+prepare_mysql_test_db=1
 
 usage() {
   cat <<'EOF'
@@ -19,6 +20,7 @@ usage() {
 选项：
   --reuse-existing-results  复用当前 surefire 测试报告，不重新执行 mvn test
   --skip-skeleton           跳过骨架校验脚本 scripts/validation/validate_backend_skeleton.sh
+  --skip-prepare-mysql      跳过 MySQL 测试库重建与迁移准备
   --report-file <路径>      指定测试报告输出路径
   --help                    查看帮助
 
@@ -38,6 +40,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --skip-skeleton)
       run_skeleton=0
+      shift
+      ;;
+    --skip-prepare-mysql)
+      prepare_mysql_test_db=0
       shift
       ;;
     --report-file)
@@ -115,6 +121,15 @@ if [[ "$run_skeleton" -eq 1 ]]; then
   bash scripts/validation/validate_backend_skeleton.sh
 else
   echo "已按参数跳过骨架校验。"
+fi
+
+if [[ "$reuse_reports" -eq 0 && "$prepare_mysql_test_db" -eq 1 ]]; then
+  echo "准备 MySQL 测试库..."
+  executed_commands+=("source scripts/testing/prepare_mysql_test_db.sh")
+  # shellcheck disable=SC1091
+  source "$repo_root/scripts/testing/prepare_mysql_test_db.sh"
+elif [[ "$prepare_mysql_test_db" -eq 0 ]]; then
+  echo "已按参数跳过 MySQL 测试库准备。"
 fi
 
 if [[ "$reuse_reports" -eq 0 ]]; then

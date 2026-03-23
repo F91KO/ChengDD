@@ -1,13 +1,12 @@
 spring:
   datasource:
-    url: ${CDD_CONFIG_DB_URL:jdbc:h2:mem:cdd-config-test;MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE;DB_CLOSE_DELAY=-1}
-    username: ${CDD_CONFIG_DB_USERNAME:sa}
-    password: ${CDD_CONFIG_DB_PASSWORD:}
-    driver-class-name: ${CDD_CONFIG_DB_DRIVER_CLASS_NAME:org.h2.Driver}
+    url: ${CDD_CONFIG_DB_URL:${CDD_TEST_MYSQL_URL:jdbc:mysql://127.0.0.1:${CDD_LOCAL_MYSQL_PORT:3306}/${CDD_TEST_MYSQL_DATABASE:chengdd_test}?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false}}
+    username: ${CDD_CONFIG_DB_USERNAME:${CDD_TEST_MYSQL_USERNAME:root}}
+    password: ${CDD_CONFIG_DB_PASSWORD:${CDD_TEST_MYSQL_PASSWORD:${CDD_LOCAL_MYSQL_ROOT_PASSWORD:change_me}}}
+    driver-class-name: ${CDD_CONFIG_DB_DRIVER_CLASS_NAME:com.mysql.cj.jdbc.Driver}
   sql:
     init:
-      mode: ${CDD_CONFIG_SQL_INIT_MODE:always}
-      schema-locations: ${CDD_CONFIG_SQL_SCHEMA_LOCATIONS:classpath:db/config/h2/schema.sql}
+      mode: never
 
 cdd:
   runtime:

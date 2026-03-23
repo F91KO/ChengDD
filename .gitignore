@@ -5,3 +5,9 @@
 config/migration/application-migration.local.yml
 **/__pycache__/
 **/target/
+cdd-frontend/node_modules/
+cdd-frontend/dist/
+cdd-frontend/vite.config.js
+cdd-frontend/vite.config.d.ts
+cdd-frontend/src/**/*.vue.js
+cdd-frontend/src/**/*.vue.d.ts

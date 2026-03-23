@@ -1,5 +1,6 @@
 package com.cdd.product.infrastructure.memory;
 
+import com.cdd.product.infrastructure.ProductCatalogStore;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -9,11 +10,9 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
-import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
-@Component
-public class InMemoryProductCatalogStore {
+public class InMemoryProductCatalogStore implements ProductCatalogStore {
 
     private final AtomicLong templateIdGenerator = new AtomicLong(2_000_000L);
     private final AtomicLong templateNodeIdGenerator = new AtomicLong(2_050_000L);
@@ -31,8 +30,10 @@ public class InMemoryProductCatalogStore {
 
     public InMemoryProductCatalogStore() {
         seedDefaultTemplate();
+        seedDefaultMerchantCatalog();
     }
 
+    @Override
     public synchronized CategoryTemplateRecord createCategoryTemplate(String templateName,
                                                                       String industryCode,
                                                                       String templateVersion,
@@ -70,16 +71,19 @@ public class InMemoryProductCatalogStore {
         return created;
     }
 
+    @Override
     public Optional<CategoryTemplateRecord> findCategoryTemplate(long templateId) {
         return Optional.ofNullable(categoryTemplates.get(templateId));
     }
 
+    @Override
     public List<CategoryTemplateRecord> listCategoryTemplates() {
         return categoryTemplates.values().stream()
                 .sorted(Comparator.comparingLong(CategoryTemplateRecord::id))
                 .toList();
     }
 
+    @Override
     public List<CategoryTemplateNodeRecord> listTemplateNodes(long templateId) {
         CategoryTemplateRecord template = categoryTemplates.get(templateId);
         if (template == null) {
@@ -98,12 +102,14 @@ public class InMemoryProductCatalogStore {
         return result;
     }
 
+    @Override
     public boolean categoryTemplateExists(String templateName, String templateVersion) {
         return categoryTemplates.values().stream()
                 .anyMatch(template -> template.templateName().equals(templateName)
                         && template.templateVersion().equals(templateVersion));
     }
 
+    @Override
     public synchronized InitializeResult initializeCategoryTree(long merchantId, long storeId, long templateId) {
         CategoryTemplateRecord template = categoryTemplates.get(templateId);
         if (template == null) {
@@ -142,6 +148,7 @@ public class InMemoryProductCatalogStore {
         return new InitializeResult(templateId, initializedCount);
     }
 
+    @Override
     public synchronized CategoryRecord createCategory(long merchantId,
                                                       long storeId,
                                                       long parentId,
@@ -167,10 +174,12 @@ public class InMemoryProductCatalogStore {
         return record;
     }
 
+    @Override
     public Optional<CategoryRecord> findCategory(long categoryId) {
         return Optional.ofNullable(categories.get(categoryId));
     }
 
+    @Override
     public List<CategoryRecord> listCategories(long merchantId, long storeId) {
         return categories.values().stream()
                 .filter(category -> category.merchantId() == merchantId && category.storeId() == storeId)
@@ -180,6 +189,7 @@ public class InMemoryProductCatalogStore {
                 .toList();
     }
 
+    @Override
     public boolean categoryNameExists(long merchantId, long storeId, long parentId, String categoryName) {
         return categories.values().stream()
                 .anyMatch(category -> category.merchantId() == merchantId
@@ -188,6 +198,7 @@ public class InMemoryProductCatalogStore {
                         && category.categoryName().equals(categoryName));
     }
 
+    @Override
     public boolean categoryHasChildren(long merchantId, long storeId, long categoryId) {
         return categories.values().stream()
                 .anyMatch(category -> category.merchantId() == merchantId
@@ -195,6 +206,7 @@ public class InMemoryProductCatalogStore {
                         && category.parentId() == categoryId);
     }
 
+    @Override
     public boolean productExistsInCategory(long merchantId, long storeId, long categoryId) {
         return products.values().stream()
                 .anyMatch(product -> product.merchantId() == merchantId
@@ -202,6 +214,7 @@ public class InMemoryProductCatalogStore {
                         && product.categoryId() == categoryId);
     }
 
+    @Override
     public synchronized Optional<CategoryRecord> updateCategory(long categoryId,
                                                                 String categoryName,
                                                                 Integer sortOrder,
@@ -226,6 +239,7 @@ public class InMemoryProductCatalogStore {
         return Optional.of(updated);
     }
 
+    @Override
     public synchronized ProductRecord createProduct(long merchantId,
                                                     long storeId,
                                                     long categoryId,
@@ -262,10 +276,12 @@ public class InMemoryProductCatalogStore {
         return product;
     }
 
+    @Override
     public Optional<ProductRecord> findProduct(long productId) {
         return Optional.ofNullable(products.get(productId));
     }
 
+    @Override
     public List<ProductRecord> listProducts(long merchantId, long storeId, String status) {
         return products.values().stream()
                 .filter(product -> product.merchantId() == merchantId && product.storeId() == storeId)
@@ -274,10 +290,12 @@ public class InMemoryProductCatalogStore {
                 .toList();
     }
 
+    @Override
     public boolean skuCodeExists(long merchantId, String skuCode) {
         return merchantSkuCodeIndex.containsKey(merchantSkuCodeKey(merchantId, skuCode));
     }
 
+    @Override
     public synchronized Optional<ProductRecord> updateProductStatus(long productId, String status) {
         ProductRecord current = products.get(productId);
         if (current == null) {
@@ -296,6 +314,7 @@ public class InMemoryProductCatalogStore {
         return Optional.of(updated);
     }
 
+    @Override
     public List<SkuRecord> listSkusByProductId(long productId) {
         ProductRecord product = products.get(productId);
         if (product == null) {
@@ -312,14 +331,17 @@ public class InMemoryProductCatalogStore {
         return result;
     }
 
+    @Override
     public Optional<SkuRecord> findSku(long skuId) {
         return Optional.ofNullable(skus.get(skuId));
     }
 
+    @Override
     public Optional<StockRecord> findStock(long skuId) {
         return Optional.ofNullable(stocks.get(skuId));
     }
 
+    @Override
     public synchronized Optional<StockRecord> adjustStock(long skuId, int delta, String reason) {
         StockRecord current = stocks.get(skuId);
         if (current == null) {
@@ -364,6 +386,51 @@ public class InMemoryProductCatalogStore {
         createCategoryTemplate("默认零售模板", "retail", "v1.0.0", 3, "一期默认分类模板", drafts);
     }
 
+    private void seedDefaultMerchantCatalog() {
+        long merchantId = 1001L;
+        long storeId = 1001L;
+        initializeCategoryTree(merchantId, storeId, 2_000_001L);
+        List<CategoryRecord> defaultCategories = listCategories(merchantId, storeId);
+        long fruitCategoryId = defaultCategories.stream()
+                .filter(category -> category.categoryLevel() == 2 && "水果".equals(category.categoryName()))
+                .findFirst()
+                .map(CategoryRecord::id)
+                .orElseThrow();
+        long drinkCategoryId = defaultCategories.stream()
+                .filter(category -> category.categoryLevel() == 2 && "茶饮".equals(category.categoryName()))
+                .findFirst()
+                .map(CategoryRecord::id)
+                .orElseThrow();
+
+        ProductRecord citrus = createProduct(
+                merchantId,
+                storeId,
+                fruitCategoryId,
+                "赣南脐橙礼盒",
+                "当季现发 12 枚装",
+                List.of(
+                        new SkuDraft("CDD-ORANGE-001", "标准装", new BigDecimal("59.90"), 128),
+                        new SkuDraft("CDD-ORANGE-002", "家庭装", new BigDecimal("89.90"), 64)));
+        updateProductStatus(citrus.id(), "on_shelf");
+
+        createProduct(
+                merchantId,
+                storeId,
+                drinkCategoryId,
+                "冷萃茉莉花茶",
+                "低糖配方 6 瓶装",
+                List.of(new SkuDraft("CDD-TEA-001", "尝鲜装", new BigDecimal("29.90"), 36)));
+
+        ProductRecord coffee = createProduct(
+                merchantId,
+                storeId,
+                drinkCategoryId,
+                "挂耳美式咖啡组合",
+                "工作日醒神装 20 包",
+                List.of(new SkuDraft("CDD-COFFEE-001", "经典装", new BigDecimal("49.90"), 12)));
+        updateProductStatus(coffee.id(), "off_shelf");
+    }
+
     private static String merchantSkuCodeKey(long merchantId, String skuCode) {
         return merchantId + "#" + skuCode;
     }
@@ -372,103 +439,4 @@ public class InMemoryProductCatalogStore {
         return availableStock > 0 ? "in_stock" : "out_of_stock";
     }
 
-    public record CategoryTemplateRecord(
-            long id,
-            String templateName,
-            String industryCode,
-            String templateVersion,
-            int maxLevel,
-            String status,
-            String templateDesc,
-            List<Long> nodeIds) {
-    }
-
-    public record CategoryTemplateNodeRecord(
-            long id,
-            long templateId,
-            String templateCategoryCode,
-            String parentTemplateCategoryCode,
-            String categoryName,
-            int categoryLevel,
-            int sortOrder,
-            boolean enabled,
-            boolean visible,
-            String status) {
-    }
-
-    public record TemplateNodeDraft(
-            String templateCategoryCode,
-            String parentTemplateCategoryCode,
-            String categoryName,
-            int categoryLevel,
-            int sortOrder,
-            boolean enabled,
-            boolean visible) {
-    }
-
-    public record InitializeResult(
-            long templateId,
-            int initializedCategoryCount) {
-    }
-
-    public record CategoryRecord(
-            long id,
-            long merchantId,
-            long storeId,
-            Long templateId,
-            long parentId,
-            String categoryName,
-            int categoryLevel,
-            int sortOrder,
-            boolean enabled,
-            boolean visible) {
-    }
-
-    public record ProductRecord(
-            long id,
-            long merchantId,
-            long storeId,
-            long categoryId,
-            String productName,
-            String productSubTitle,
-            String status,
-            List<Long> skuIds) {
-    }
-
-    public record SkuRecord(
-            long id,
-            long productId,
-            long merchantId,
-            long storeId,
-            String skuCode,
-            String skuName,
-            BigDecimal salePrice) {
-    }
-
-    public record StockRecord(
-            long skuId,
-            long productId,
-            long merchantId,
-            long storeId,
-            int availableStock,
-            int lockedStock,
-            String stockStatus,
-            String lastReason) {
-        public StockRecord(long skuId,
-                           long productId,
-                           long merchantId,
-                           long storeId,
-                           int availableStock,
-                           int lockedStock,
-                           String stockStatus) {
-            this(skuId, productId, merchantId, storeId, availableStock, lockedStock, stockStatus, null);
-        }
-    }
-
-    public record SkuDraft(
-            String skuCode,
-            String skuName,
-            BigDecimal salePrice,
-            int availableStock) {
-    }
 }

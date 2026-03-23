@@ -1,7 +1,16 @@
+spring:
+  datasource:
+    url: ${CDD_REPORT_DB_URL:${CDD_PROD_MYSQL_URL:jdbc:mysql://127.0.0.1:${CDD_LOCAL_MYSQL_PORT:3306}/${CDD_PROD_MYSQL_DATABASE:chengdd}?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false}}
+    username: ${CDD_REPORT_DB_USERNAME:${CDD_PROD_MYSQL_USERNAME:root}}
+    password: ${CDD_REPORT_DB_PASSWORD:${CDD_PROD_MYSQL_PASSWORD:${CDD_LOCAL_MYSQL_ROOT_PASSWORD:change_me}}}
+    driver-class-name: ${CDD_REPORT_DB_DRIVER_CLASS_NAME:com.mysql.cj.jdbc.Driver}
+  sql:
+    init:
+      mode: never
+
 cdd:
   runtime:
     env: prod
 
 server:
   port: 8088
-

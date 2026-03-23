@@ -40,10 +40,11 @@ fi
 
 mysql_port="${CDD_LOCAL_MYSQL_PORT:-3306}"
 mysql_database="${CDD_LOCAL_MYSQL_DATABASE:-chengdd}"
+mysql_username="${CDD_LOCAL_MYSQL_USERNAME:-root}"
 mysql_password="${CDD_LOCAL_MYSQL_ROOT_PASSWORD:-change_me}"
 
 export CDD_AUTH_DB_URL="${CDD_AUTH_DB_URL:-jdbc:mysql://127.0.0.1:${mysql_port}/${mysql_database}?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false}"
-export CDD_AUTH_DB_USERNAME="${CDD_AUTH_DB_USERNAME:-root}"
+export CDD_AUTH_DB_USERNAME="${CDD_AUTH_DB_USERNAME:-$mysql_username}"
 export CDD_AUTH_DB_PASSWORD="${CDD_AUTH_DB_PASSWORD:-$mysql_password}"
 export CDD_AUTH_DB_DRIVER_CLASS_NAME="${CDD_AUTH_DB_DRIVER_CLASS_NAME:-com.mysql.cj.jdbc.Driver}"
 export CDD_AUTH_SQL_INIT_MODE="${CDD_AUTH_SQL_INIT_MODE:-never}"

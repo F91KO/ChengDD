@@ -15,13 +15,11 @@ import com.cdd.release.infrastructure.persistence.JdbcReleaseGovernanceRepositor
 import com.cdd.release.infrastructure.persistence.ReleaseGovernanceRepository;
 import com.cdd.release.support.IdGenerator;
 import com.cdd.release.support.TimeBasedIdGenerator;
-import org.h2.jdbcx.JdbcDataSource;
+import com.mysql.cj.jdbc.MysqlDataSource;
+import java.sql.SQLException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.datasource.init.DatabasePopulatorUtils;
-import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
-import org.springframework.core.io.ClassPathResource;
 
 class ReleaseGovernanceApplicationServiceTest {
 
@@ -30,16 +28,21 @@ class ReleaseGovernanceApplicationServiceTest {
     private JdbcTemplate jdbcTemplate;
 
     @BeforeEach
-    void setUp() {
-        JdbcDataSource dataSource = new JdbcDataSource();
-        dataSource.setURL("jdbc:h2:mem:cdd-release-test-" + System.nanoTime()
-                + ";MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE;DB_CLOSE_DELAY=-1");
-        dataSource.setUser("sa");
-        dataSource.setPassword("");
-        DatabasePopulatorUtils.execute(new ResourceDatabasePopulator(
-                new ClassPathResource("db/release/h2/schema.sql"),
-                new ClassPathResource("db/release/h2/data-test.sql")), dataSource);
+    void setUp() throws SQLException {
+        MysqlDataSource dataSource = new MysqlDataSource();
+        dataSource.setURL(System.getProperty(
+                "CDD_RELEASE_DB_URL",
+                System.getenv().getOrDefault(
+                        "CDD_RELEASE_DB_URL",
+                        "jdbc:mysql://127.0.0.1:3306/chengdd_test?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false")));
+        dataSource.setUser(System.getProperty(
+                "CDD_RELEASE_DB_USERNAME",
+                System.getenv().getOrDefault("CDD_RELEASE_DB_USERNAME", "root")));
+        dataSource.setPassword(System.getProperty(
+                "CDD_RELEASE_DB_PASSWORD",
+                System.getenv().getOrDefault("CDD_RELEASE_DB_PASSWORD", "change_me")));
         this.jdbcTemplate = new JdbcTemplate(dataSource);
+        resetReleaseFixtures();
         ReleaseGovernanceRepository repository = new JdbcReleaseGovernanceRepository(jdbcTemplate);
         IdGenerator idGenerator = new TimeBasedIdGenerator();
         this.service = new ReleaseGovernanceApplicationService(repository, idGenerator);
@@ -155,5 +158,38 @@ class ReleaseGovernanceApplicationServiceTest {
                 LIMIT 1
                 """, Integer.class, taskNo, stepCode);
         return retryCount == null ? 0 : retryCount;
+    }
+
+    private void resetReleaseFixtures() {
+        jdbcTemplate.update("DELETE FROM cdd_release_log");
+        jdbcTemplate.update("DELETE FROM cdd_release_rollback_record");
+        jdbcTemplate.update("DELETE FROM cdd_release_version_mapping");
+        jdbcTemplate.update("DELETE FROM cdd_release_task_detail");
+        jdbcTemplate.update("DELETE FROM cdd_release_task");
+        jdbcTemplate.update("DELETE FROM cdd_merchant_mini_program");
+        jdbcTemplate.update("DELETE FROM cdd_template_version");
+
+        jdbcTemplate.update("""
+                INSERT INTO cdd_template_version (
+                  id, template_code, template_name, template_version, template_type,
+                  status, created_by, updated_by
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """, 40001L, "tpl_shop", "商城模板", "1.0.0", "wechat_mini_program", "released", 0L, 0L);
+        jdbcTemplate.update("""
+                INSERT INTO cdd_template_version (
+                  id, template_code, template_name, template_version, template_type,
+                  status, created_by, updated_by
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """, 40002L, "tpl_shop", "商城模板", "0.9.0", "wechat_mini_program", "deprecated", 0L, 0L);
+        jdbcTemplate.update("""
+                INSERT INTO cdd_merchant_mini_program (
+                  id, merchant_id, store_id, app_id, app_secret_masked,
+                  payment_mch_id, server_domain, binding_status, current_template_version,
+                  last_detect_result_json, created_by, updated_by
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                30001L, 10001L, 20001L, "wx-test-30001", "abc******xyz",
+                "mch-test-001", "test.example.com", "active", null,
+                "{\"passed\":true,\"issues\":[]}", 0L, 0L);
     }
 }
