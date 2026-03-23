@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "surface-variant": "#d1e4fb",
+              "on-secondary-fixed": "#351000",
+              "error": "#ba1a1a",
+              "surface-container-lowest": "#ffffff",
+              "on-background": "#091d2e",
+              "tertiary-fixed": "#d0e4ff",
+              "primary": "#a04100",
+              "on-secondary-container": "#763006",
+              "surface-container": "#e3efff",
+              "secondary-fixed": "#ffdbcc",
+              "outline-variant": "#e2bfb0",
+              "on-surface": "#091d2e",
+              "on-surface-variant": "#5a4136",
+              "on-error": "#ffffff",
+              "surface-container-high": "#d9eaff",
+              "surface-bright": "#f7f9ff",
+              "surface-dim": "#c9dcf3",
+              "tertiary-fixed-dim": "#9ccaff",
+              "tertiary": "#0062a1",
+              "secondary-fixed-dim": "#ffb693",
+              "on-primary-container": "#572000",
+              "inverse-on-surface": "#e8f2ff",
+              "on-primary-fixed-variant": "#7a3000",
+              "on-primary": "#ffffff",
+              "on-primary-fixed": "#351000",
+              "secondary": "#96481e",
+              "surface-container-highest": "#d1e4fb",
+              "background": "#f7f9ff",
+              "inverse-surface": "#203243",
+              "secondary-container": "#fe9a69",
+              "on-secondary": "#ffffff",
+              "tertiary-container": "#059eff",
+              "inverse-primary": "#ffb693",
+              "error-container": "#ffdad6",
+              "outline": "#8e7164",
+              "on-tertiary-container": "#003357",
+              "on-tertiary": "#ffffff",
+              "on-secondary-fixed-variant": "#783207",
+              "on-error-container": "#93000a",
+              "primary-fixed": "#ffdbcc",
+              "primary-container": "#ff6b00",
+              "on-tertiary-fixed-variant": "#00497b",
+              "surface-tint": "#a04100",
+              "on-tertiary-fixed": "#001d35",
+              "surface-container-low": "#edf4ff",
+              "surface": "#f7f9ff",
+              "primary-fixed-dim": "#ffb693"
+            },
+            fontFamily: {
+              "headline": ["Manrope"],
+              "body": ["Manrope"],
+              "label": ["Manrope"]
+            },
+            borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            display: inline-block;
+            line-height: 1;
+            text-transform: none;
+            letter-spacing: normal;
+            word-wrap: normal;
+            white-space: nowrap;
+            direction: ltr;
+        }
+        ::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head>
+<body class="bg-background font-body text-on-surface antialiased pb-24">
+<!-- TopAppBar Shell (Execution from JSON) -->
+<header class="bg-white/80 dark:bg-[#091D2E]/80 backdrop-blur-xl fixed top-0 w-full z-50 shadow-[0_24px_24px_-12px_rgba(9,29,46,0.04)]">
+<div class="flex items-center justify-between px-6 h-16 w-full">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-[#FF6B00]" data-icon="search">search</span>
+<h1 class="font-['Manrope'] font-bold text-lg tracking-tight text-[#091D2E]">订单管理 (确认版)</h1>
+</div>
+<button class="hover:bg-[#EDF4FF] dark:hover:bg-slate-800 transition-colors p-2 rounded-lg scale-95 active:opacity-80 transition-all">
+<span class="material-symbols-outlined text-[#5A4136]" data-icon="tune">tune</span>
+</button>
+</div>
+</header>
+<!-- Sticky Search & Filter Section -->
+<div class="mt-16 bg-white z-40 sticky top-16">
+<div class="px-4 py-3">
+<div class="relative group">
+<input class="w-full h-12 pl-12 pr-4 bg-surface-container-low border-none rounded-xl focus:ring-2 focus:ring-primary-container/20 focus:bg-white transition-all text-sm" placeholder="搜索订单号、用户、手机" type="text"/>
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant/50" data-icon="search">search</span>
+</div>
+</div>
+<!-- Status Tabs (Execution from JSON: NavigationDrawer labels applied to Horizontal Pivot) -->
+<div class="flex overflow-x-auto no-scrollbar px-4 pb-3 space-x-6 items-center">
+<div class="flex-none pb-2 text-[#FF6B00] border-b-2 border-[#FF6B00] font-bold text-sm whitespace-nowrap">全部</div>
+<div class="flex-none pb-2 text-[#5A4136] font-semibold text-sm whitespace-nowrap">待付款 (12)</div>
+<div class="flex-none pb-2 text-[#5A4136] font-semibold text-sm whitespace-nowrap">待发货 (8)</div>
+<div class="flex-none pb-2 text-[#5A4136] font-semibold text-sm whitespace-nowrap">已发货 (42)</div>
+<div class="flex-none pb-2 text-[#5A4136] font-semibold text-sm whitespace-nowrap">售后中 (3)</div>
+<div class="flex-none pb-2 text-[#5A4136] font-semibold text-sm whitespace-nowrap">已完成</div>
+</div>
+</div>
+<!-- Main Content: High-Efficiency Order List -->
+<main class="px-4 pt-4 space-y-4">
+<!-- Order Card 1: Urgent Pending Ship -->
+<div class="bg-surface-container-lowest rounded-xl p-4 shadow-sm border-l-4 border-primary-container">
+<div class="flex justify-between items-start mb-4">
+<div class="space-y-1">
+<div class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">订单号: 8291044231</div>
+<div class="text-xs text-on-surface-variant/70">2023-10-24 14:22:10</div>
+</div>
+<span class="px-3 py-1 rounded-full bg-primary-fixed text-on-primary-fixed-variant text-[11px] font-bold">待发货</span>
+</div>
+<div class="flex gap-4 mb-4">
+<div class="w-16 h-16 rounded-lg bg-surface-container overflow-hidden flex-shrink-0">
+<img alt="Product" class="w-full h-full object-cover" data-alt="Minimalist skincare ceramic bottle design" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAT3oQqooN_kgr76eSC-WzN5AcM4JFc6B9JYm7_WKBd_nXNUKS6Rgflh_lgnh9H0043dImRVTHdrqrMgbpK7iEZV8ttrVSSkSmN4H1BCZ0qMzryMzEKVy46v2kdGAt9Pw84O3n3RDIn2OMlWkX-psqg2iJYb09vL5c0qJUF0Pj_KlrE5sfhjKYK6kutv3It_nI1lHaqMAkLsEKNNYZ8mAZS5p0RHEwNkn3LMF7j4Xq6R0PYRS3eAbJDLZXvwDJItZNaWkX8O9-UXbps"/>
+</div>
+<div class="flex-1">
+<h3 class="text-sm font-bold text-on-surface line-clamp-1">臻萃舒缓修护面霜 - 50ml 限量版</h3>
+<div class="flex items-center gap-2 mt-2">
+<div class="w-5 h-5 rounded-full bg-surface-container overflow-hidden">
+<img alt="Avatar" class="w-full h-full object-cover" data-alt="User profile photo avatar" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDCo1zVSukf3yOrHIzJK7mbEXWcWhNXa_ZI5u-wfFTYmadTOiCIPfWacL_WorSbHWBRX17pwGt5PRohcKruflVv0CHumkAmz9_v8bHNrQwooz2QVKBuStLRPIy-ONQPzBlOCEcYdtlFxl6wlFNHmfYv4kTIqNGxTc-Kz1_JwdR1hgdfAgVLz70Ihn4OGlP-EORbbFAz4wSdZKzgZH6Ai8EkgwiojmCaA5MF0UzD9py2eKUwFyP6ajuRF-w6ITEKsLpud78pfu2wWOJK"/>
+</div>
+<span class="text-xs text-on-surface-variant">张小明 · 138****8899</span>
+</div>
+</div>
+<div class="text-right">
+<div class="text-primary-container font-extrabold">¥499.00</div>
+<div class="text-[10px] text-on-surface-variant/60">共1件商品</div>
+</div>
+</div>
+<!-- Priority Alert -->
+<div class="bg-error-container/40 rounded-lg px-3 py-2 flex items-center gap-2 mb-4">
+<span class="material-symbols-outlined text-error text-sm" data-icon="timer">timer</span>
+<span class="text-[11px] font-bold text-on-error-container">发货截止倒计时: 04:22:15</span>
+</div>
+<!-- Quick Actions -->
+<div class="flex gap-2">
+<button class="flex-1 py-2.5 bg-primary-container text-white rounded-lg text-sm font-bold scale-95 active:opacity-80 transition-all">立即发货</button>
+<button class="flex-1 py-2.5 bg-surface-container-low text-on-surface-variant rounded-lg text-sm font-bold hover:bg-[#EDF4FF] transition-all">联系买家</button>
+</div>
+</div>
+<!-- Order Card 2: Regular Pending Pay -->
+<div class="bg-surface-container-lowest rounded-xl p-4 shadow-sm">
+<div class="flex justify-between items-start mb-4">
+<div class="space-y-1">
+<div class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">订单号: 8291044567</div>
+<div class="text-xs text-on-surface-variant/70">2023-10-24 15:45:00</div>
+</div>
+<span class="px-3 py-1 rounded-full bg-surface-container-high text-on-surface-variant text-[11px] font-bold">待付款</span>
+</div>
+<div class="flex gap-4 mb-4">
+<div class="w-16 h-16 rounded-lg bg-surface-container overflow-hidden flex-shrink-0">
+<img alt="Product" class="w-full h-full object-cover" data-alt="Modern geometric ceramic vase product" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDRj4PtkKKA_NrWtnmn6xwmNW1qahtdRIeChjDjZax1cjdPXc1VWIeBsbyZb1Xn3TWNVD_4QfDHkbQlPQ2QPXVvue4Na574y4k5I-s9RE-a47Ta7TJmoP8Aet2ZEcNCwx_LSkznj6wCutm0CDuzCXZrQE4-iUkuDQ1r0a9FgS4xJXmVD06LWBj0DAPmas4i1dKORq2amAL0fGfBX1b3lOJLm5rFj8cLSkWfFxi_5dHH_nGGL2zjZaqCyNOi_7fkGLtBZb0GJ997OFcr"/>
+</div>
+<div class="flex-1">
+<h3 class="text-sm font-bold text-on-surface line-clamp-1">北欧极简手工几何花瓶 (大号)</h3>
+<div class="flex items-center gap-2 mt-2">
+<div class="w-5 h-5 rounded-full bg-surface-container overflow-hidden">
+<img alt="Avatar" class="w-full h-full object-cover" data-alt="User profile photo avatar female" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD3M6R7FM1yh7dnL4ZJjX8LcVRaPJha475ASvjqwAHVz2oHs6y96mYQnHW8DmBph1BrF-SMMmeKFcWK7Yax2wepdoo2ndBWBNyB2aU8bnwyFvbmfqHu98YwZkJXq6bW_S3jEvsSKm7_5agELNEwdDwGMaVyc3qgQF2DnlRKpl5VbzaHaI1Ulh7IWfY6Ro-6TIEqWyKSURdjp_Kob3d8Nd3DDlBnqGRDDsLGd4MW00sY02JQ5e3KwO5E6wZYPCIz4oVzOrMCJkWK1uFf"/>
+</div>
+<span class="text-xs text-on-surface-variant">李诗雅 · 155****0012</span>
+</div>
+</div>
+<div class="text-right">
+<div class="text-on-surface font-extrabold">¥1,280.00</div>
+<div class="text-[10px] text-on-surface-variant/60">共2件商品</div>
+</div>
+</div>
+<div class="flex gap-2">
+<button class="flex-1 py-2.5 bg-surface-container-low text-on-surface-variant rounded-lg text-sm font-bold hover:bg-[#EDF4FF] transition-all">修改价格</button>
+<button class="flex-1 py-2.5 bg-surface-container-low text-on-surface-variant rounded-lg text-sm font-bold hover:bg-[#EDF4FF] transition-all">联系买家</button>
+</div>
+</div>
+<!-- Order Card 3: Shipped -->
+<div class="bg-surface-container-lowest rounded-xl p-4 shadow-sm opacity-80">
+<div class="flex justify-between items-start mb-4">
+<div class="space-y-1">
+<div class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">订单号: 8291043110</div>
+<div class="text-xs text-on-surface-variant/70">2023-10-23 09:10:00</div>
+</div>
+<span class="px-3 py-1 rounded-full bg-tertiary-fixed text-on-tertiary-fixed-variant text-[11px] font-bold">已发货</span>
+</div>
+<div class="flex gap-4 mb-4">
+<div class="w-16 h-16 rounded-lg bg-surface-container overflow-hidden flex-shrink-0">
+<img alt="Product" class="w-full h-full object-cover" data-alt="Premium essential oils bottles set" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBoODa2Dg3P_EmX6Zkho3fprs8IWyrziXSxZPy1q7tpf1aPAHpvCGAw9aF4PVbmRcREX8mUJxqX5_e592EK7Aep_5wMHIKSYtR0OB2KOQc8XZJbtyvPufoL8zMYDqd9k_osybYgv_g5mJuUTykATwotL3SKcZBjwR2xYTGKDHJ_yfyFsDQHR3Q6tZRdg0buJzIsGaQovZIWBxSve1Rls2R8tXL95MIMfqzxfHxeyXkB85-eF3BuTkrAte2T0At_XqjVTINibHL8_JjW"/>
+</div>
+<div class="flex-1">
+<h3 class="text-sm font-bold text-on-surface line-clamp-1">程哒哒定制草本精油套装 (10ml*3)</h3>
+<div class="flex items-center gap-2 mt-2">
+<div class="w-5 h-5 rounded-full bg-surface-container overflow-hidden">
+<img alt="Avatar" class="w-full h-full object-cover" data-alt="User profile photo avatar male" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAEXfNepsBS3Nw0kZzxUP4855PRyC61aKErCUyqWRZBD2GhutpZyOFRNcA8lXXWpVCrmDtP-dC10Q7saDMrukz3Z9BkcrXACQy3lMdxRnE8ZsHFYm_9ywXIqWdilzx20QXt-_NpfAeOP2FBTSvkNorkraFx8dmhAFU-EDJ2RFiuPByXXpX8oUqJbamyYeGSBe5-O6aSxthpvf5mAVfaKqK2wynTkZYCG9wgRUi6fvKlZ3BiZ2aIWOAAy11yZeSewpu1_IWeyx_FDyQf"/>
+</div>
+<span class="text-xs text-on-surface-variant">王强 · 131****4432</span>
+</div>
+</div>
+<div class="text-right">
+<div class="text-on-surface font-extrabold">¥358.00</div>
+</div>
+</div>
+<div class="flex gap-2">
+<button class="flex-1 py-2.5 bg-surface-container-low text-on-surface-variant rounded-lg text-sm font-bold hover:bg-[#EDF4FF] transition-all">查看物流</button>
+<button class="flex-1 py-2.5 bg-surface-container-low text-on-surface-variant rounded-lg text-sm font-bold hover:bg-[#EDF4FF] transition-all">详情</button>
+</div>
+</div>
+</main>
+<!-- BottomNavBar Shell (Execution from JSON) -->
+<nav class="fixed bottom-0 left-0 w-full h-20 bg-white dark:bg-[#091D2E] flex justify-around items-center px-4 pb-safe z-50 border-t-[0.5px] border-slate-200 dark:border-slate-800 shadow-[0_-4px_12px_rgba(0,0,0,0.03)]">
+<!-- Dashboard -->
+<a class="flex flex-col items-center justify-center text-[#5A4136] dark:text-slate-500 hover:text-[#A04100] active:scale-90 transition-all duration-300" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="grid_view">grid_view</span>
+<span class="font-['Manrope'] text-[10px] font-bold uppercase tracking-widest">Dashboard</span>
+</a>
+<!-- Orders (Active State Logic) -->
+<a class="flex flex-col items-center justify-center text-[#FF6B00] scale-110 active:scale-90 transition-all duration-300" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="shopping_bag" style="font-variation-settings: 'FILL' 1;">shopping_bag</span>
+<span class="font-['Manrope'] text-[10px] font-bold uppercase tracking-widest">Orders</span>
+</a>
+<!-- Inventory -->
+<a class="flex flex-col items-center justify-center text-[#5A4136] dark:text-slate-500 hover:text-[#A04100] active:scale-90 transition-all duration-300" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="inventory_2">inventory_2</span>
+<span class="font-['Manrope'] text-[10px] font-bold uppercase tracking-widest">Inventory</span>
+</a>
+<!-- Profile -->
+<a class="flex flex-col items-center justify-center text-[#5A4136] dark:text-slate-500 hover:text-[#A04100] active:scale-90 transition-all duration-300" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="person">person</span>
+<span class="font-['Manrope'] text-[10px] font-bold uppercase tracking-widest">Profile</span>
+</a>
+</nav>
+<!-- FAB (Contextual Placement for Order Add) -->
+<button class="fixed right-6 bottom-24 w-14 h-14 bg-primary-container text-white rounded-full shadow-lg flex items-center justify-center scale-95 active:scale-90 transition-all z-40">
+<span class="material-symbols-outlined text-3xl" data-icon="add">add</span>
+</button>
+</body></html>

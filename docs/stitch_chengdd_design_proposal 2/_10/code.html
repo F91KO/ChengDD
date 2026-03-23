@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+
+<html class="light" lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>平台模板版本管理 (确认版) - ChengDD Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "tertiary": "#0062a1",
+              "on-tertiary-fixed-variant": "#00497b",
+              "background": "#ffffff",
+              "surface-container-highest": "#d1e4fb",
+              "surface-container-high": "#d9eaff",
+              "on-secondary-container": "#763006",
+              "tertiary-fixed": "#d0e4ff",
+              "on-primary-fixed-variant": "#7a3000",
+              "on-primary": "#ffffff",
+              "surface-bright": "#f7f9ff",
+              "on-tertiary-container": "#003357",
+              "inverse-surface": "#203243",
+              "surface-container": "#e3efff",
+              "secondary": "#96481e",
+              "on-surface-variant": "#44596e",
+              "primary-fixed": "#ffdbcc",
+              "primary": "#FF6B00",
+              "tertiary-fixed-dim": "#9ccaff",
+              "outline": "#8e7164",
+              "on-primary-fixed": "#351000",
+              "on-error-container": "#93000a",
+              "surface": "#ffffff",
+              "secondary-fixed-dim": "#ffb693",
+              "surface-tint": "#FF6B00",
+              "surface-container-lowest": "#ffffff",
+              "error": "#ba1a1a",
+              "outline-variant": "#e2bfb0",
+              "on-secondary-fixed-variant": "#783207",
+              "secondary-container": "#FF6B00",
+              "on-tertiary-fixed": "#001d35",
+              "on-surface": "#091D2E",
+              "on-background": "#091D2E",
+              "surface-container-low": "#f1f5f9",
+              "on-secondary-fixed": "#351000",
+              "inverse-primary": "#ffb693",
+              "on-secondary": "#ffffff",
+              "surface-dim": "#c9dcf3",
+              "surface-variant": "#d1e4fb",
+              "error-container": "#ffdad6",
+              "secondary-fixed": "#ffdbcc",
+              "primary-container": "#FF6B00",
+              "on-tertiary": "#ffffff",
+              "primary-fixed-dim": "#ffb693",
+              "on-primary-container": "#ffffff",
+              "inverse-on-surface": "#e8f2ff",
+              "tertiary-container": "#059eff",
+              "on-error": "#ffffff"
+            },
+            fontFamily: {
+              "headline": ["Manrope"],
+              "body": ["Manrope"],
+              "label": ["Manrope"]
+            },
+            borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+          },
+        },
+      }
+    </script>
+<style>
+      .material-symbols-outlined {
+        font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        vertical-align: middle;
+      }
+      .glass-effect {
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+      }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head>
+<body class="bg-white font-body text-on-surface antialiased">
+<!-- Sidebar Shell -->
+<aside class="fixed left-0 top-0 h-screen w-64 border-r border-slate-200 bg-slate-50 flex flex-col py-8 z-40">
+<div class="px-8 mb-10">
+<h1 class="text-lg font-black text-on-surface">ChengDD Admin</h1>
+</div>
+<nav class="flex-1 px-4 space-y-1">
+<a class="flex items-center px-4 py-3 rounded-xl text-on-surface-variant hover:bg-slate-200 transition-all duration-150 ease-in-out" href="#">
+<span class="material-symbols-outlined mr-3" data-icon="dashboard_customize">dashboard_customize</span>
+<span class="text-sm font-medium">Templates</span>
+</a>
+<a class="flex items-center px-4 py-3 rounded-xl text-primary border-l-4 border-primary bg-orange-50 transition-all duration-150 ease-in-out font-bold" href="#">
+<span class="material-symbols-outlined mr-3" data-icon="history">history</span>
+<span class="text-sm font-medium">Versions</span>
+</a>
+<a class="flex items-center px-4 py-3 rounded-xl text-on-surface-variant hover:bg-slate-200 transition-all duration-150 ease-in-out" href="#">
+<span class="material-symbols-outlined mr-3" data-icon="verified">verified</span>
+<span class="text-sm font-medium">Compatibility</span>
+</a>
+<a class="flex items-center px-4 py-3 rounded-xl text-on-surface-variant hover:bg-slate-200 transition-all duration-150 ease-in-out" href="#">
+<span class="material-symbols-outlined mr-3" data-icon="settings">settings</span>
+<span class="text-sm font-medium">Settings</span>
+</a>
+</nav>
+</aside>
+<!-- Top App Bar -->
+<header class="fixed top-0 right-0 left-64 z-30 bg-white/90 backdrop-blur-xl border-b border-slate-200 h-16 flex items-center px-8">
+<div class="flex items-center space-x-4">
+<span class="material-symbols-outlined text-on-surface-variant cursor-pointer hover:text-on-surface transition-colors" data-icon="arrow_back">arrow_back</span>
+<h2 class="font-manrope text-on-surface font-extrabold tracking-tight text-xl">平台模板版本管理 (确认版)</h2>
+</div>
+<div class="ml-auto flex items-center space-x-4">
+<button class="px-6 py-2 bg-primary text-white font-bold rounded-xl active:scale-95 duration-200 shadow-md shadow-primary/20">
+                Publish
+            </button>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="ml-64 pt-24 pb-12 px-8 max-w-7xl mx-auto bg-white">
+<!-- Bento Grid Statistics -->
+<section class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+<!-- Stats Card 1: Active -->
+<div class="bg-slate-50 border border-slate-100 p-8 rounded-xl relative overflow-hidden group">
+<div class="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+<span class="material-symbols-outlined text-6xl" data-icon="check_circle">check_circle</span>
+</div>
+<p class="text-on-surface-variant font-label text-xs font-bold uppercase tracking-widest mb-2">已生效版本</p>
+<div class="flex items-end space-x-2">
+<h3 class="text-4xl font-extrabold text-on-surface leading-none">12</h3>
+<span class="text-primary font-bold text-sm mb-1">+2%</span>
+</div>
+<div class="mt-6 w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
+<div class="h-full bg-primary w-[75%]"></div>
+</div>
+</div>
+<!-- Stats Card 2: Pending -->
+<div class="bg-slate-50 border border-slate-100 p-8 rounded-xl relative overflow-hidden group">
+<div class="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+<span class="material-symbols-outlined text-6xl" data-icon="pending">pending</span>
+</div>
+<p class="text-on-surface-variant font-label text-xs font-bold uppercase tracking-widest mb-2">待发布</p>
+<div class="flex items-end space-x-2">
+<h3 class="text-4xl font-extrabold text-on-surface leading-none">05</h3>
+<span class="text-on-surface-variant font-bold text-sm mb-1">保持</span>
+</div>
+<div class="mt-6 w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
+<div class="h-full bg-orange-300 w-[40%]"></div>
+</div>
+</div>
+<!-- Stats Card 3: Void -->
+<div class="bg-slate-50 border border-slate-100 p-8 rounded-xl relative overflow-hidden group">
+<div class="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+<span class="material-symbols-outlined text-6xl" data-icon="cancel">cancel</span>
+</div>
+<p class="text-on-surface-variant font-label text-xs font-bold uppercase tracking-widest mb-2">已作废</p>
+<div class="flex items-end space-x-2">
+<h3 class="text-4xl font-extrabold text-on-surface leading-none">08</h3>
+<span class="text-error font-bold text-sm mb-1">-4%</span>
+</div>
+<div class="mt-6 w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
+<div class="h-full bg-slate-400 w-[15%]"></div>
+</div>
+</div>
+</section>
+<!-- Filter & Action Bar -->
+<section class="bg-slate-50 rounded-xl p-4 mb-6 flex flex-wrap items-center justify-between gap-4 border border-slate-200">
+<div class="flex items-center space-x-4">
+<div class="relative">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant" data-icon="search">search</span>
+<input class="pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-sm w-64 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none" placeholder="搜索版本号或描述..." type="text"/>
+</div>
+<div class="flex bg-slate-200 p-1 rounded-lg">
+<button class="px-4 py-1 text-xs font-bold bg-white text-on-surface rounded shadow-sm">全部</button>
+<button class="px-4 py-1 text-xs font-bold text-on-surface-variant hover:text-on-surface transition-colors">进行中</button>
+</div>
+</div>
+<div class="flex items-center space-x-3">
+<button class="flex items-center space-x-2 px-4 py-2 text-on-surface font-bold border border-slate-300 rounded-xl hover:bg-white transition-colors">
+<span class="material-symbols-outlined text-sm" data-icon="filter_list">filter_list</span>
+<span class="text-sm">筛选</span>
+</button>
+<button class="flex items-center space-x-2 px-4 py-2 bg-primary text-white rounded-xl font-bold shadow-lg shadow-primary/10 active:scale-95 duration-200">
+<span class="material-symbols-outlined text-sm" data-icon="add">add</span>
+<span class="text-sm">创建版本</span>
+</button>
+</div>
+</section>
+<!-- Versions List (Cards) -->
+<section class="space-y-4">
+<!-- Row 1: Stable -->
+<div class="bg-white border border-slate-100 hover:border-primary/30 hover:shadow-lg transition-all duration-300 p-6 rounded-xl group relative overflow-hidden">
+<div class="absolute left-0 top-0 bottom-0 w-1.5 bg-blue-600 transition-opacity"></div>
+<div class="grid grid-cols-12 items-center gap-6">
+<div class="col-span-3">
+<div class="flex items-center space-x-4">
+<div class="w-12 h-12 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600">
+<span class="material-symbols-outlined" data-icon="auto_stories">auto_stories</span>
+</div>
+<div>
+<h4 class="font-extrabold text-on-surface text-base">V2.4.0</h4>
+<p class="text-xs text-on-surface-variant font-medium">零售终端旗舰模板</p>
+</div>
+</div>
+</div>
+<div class="col-span-2">
+<p class="text-[10px] font-black text-on-surface-variant uppercase mb-1">支持终端</p>
+<div class="flex space-x-1.5">
+<span class="material-symbols-outlined text-sm text-on-surface" data-icon="smartphone">smartphone</span>
+<span class="material-symbols-outlined text-sm text-on-surface" data-icon="tablet_mac">tablet_mac</span>
+<span class="material-symbols-outlined text-sm text-on-surface" data-icon="desktop_windows">desktop_windows</span>
+</div>
+</div>
+<div class="col-span-2">
+<p class="text-[10px] font-black text-on-surface-variant uppercase mb-1">发布时间</p>
+<p class="text-sm font-bold text-on-surface">2023-11-20 14:22</p>
+</div>
+<div class="col-span-2">
+<span class="inline-flex items-center px-3 py-1 rounded-full bg-blue-600 text-white text-[10px] font-black uppercase tracking-wider shadow-sm">
+                            Stable
+                        </span>
+</div>
+<div class="col-span-3 flex justify-end space-x-2">
+<button class="p-2 text-on-surface-variant hover:text-primary hover:bg-orange-50 rounded-lg transition-colors" title="查看兼容性">
+<span class="material-symbols-outlined" data-icon="verified">verified</span>
+</button>
+<button class="p-2 text-on-surface-variant hover:text-primary hover:bg-orange-50 rounded-lg transition-colors" title="变更状态">
+<span class="material-symbols-outlined" data-icon="published_with_changes">published_with_changes</span>
+</button>
+<button class="p-2 text-on-surface-variant hover:text-on-surface hover:bg-slate-100 rounded-lg transition-colors">
+<span class="material-symbols-outlined" data-icon="more_vert">more_vert</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Row 2: Beta -->
+<div class="bg-white border border-slate-100 hover:border-primary/30 hover:shadow-lg transition-all duration-300 p-6 rounded-xl group relative overflow-hidden">
+<div class="absolute left-0 top-0 bottom-0 w-1.5 bg-primary transition-opacity"></div>
+<div class="grid grid-cols-12 items-center gap-6">
+<div class="col-span-3">
+<div class="flex items-center space-x-4">
+<div class="w-12 h-12 rounded-lg bg-orange-50 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined" data-icon="developer_mode">developer_mode</span>
+</div>
+<div>
+<h4 class="font-extrabold text-on-surface text-base">V2.5.0</h4>
+<p class="text-xs text-on-surface-variant font-medium">暗黑模式实验室版本</p>
+</div>
+</div>
+</div>
+<div class="col-span-2">
+<p class="text-[10px] font-black text-on-surface-variant uppercase mb-1">支持终端</p>
+<div class="flex space-x-1.5">
+<span class="material-symbols-outlined text-sm text-on-surface" data-icon="smartphone">smartphone</span>
+</div>
+</div>
+<div class="col-span-2">
+<p class="text-[10px] font-black text-on-surface-variant uppercase mb-1">发布时间</p>
+<p class="text-sm font-bold text-on-surface">2023-12-01 09:10</p>
+</div>
+<div class="col-span-2">
+<span class="inline-flex items-center px-3 py-1 rounded-full bg-primary text-white text-[10px] font-black uppercase tracking-wider shadow-sm">
+                            Beta
+                        </span>
+</div>
+<div class="col-span-3 flex justify-end space-x-2">
+<button class="p-2 text-on-surface-variant hover:text-primary hover:bg-orange-50 rounded-lg transition-colors">
+<span class="material-symbols-outlined" data-icon="verified">verified</span>
+</button>
+<button class="p-2 text-on-surface-variant hover:text-primary hover:bg-orange-50 rounded-lg transition-colors">
+<span class="material-symbols-outlined" data-icon="rocket_launch">rocket_launch</span>
+</button>
+<button class="p-2 text-on-surface-variant hover:text-on-surface hover:bg-slate-100 rounded-lg transition-colors">
+<span class="material-symbols-outlined" data-icon="more_vert">more_vert</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Row 3: Legacy -->
+<div class="bg-white border border-slate-100 hover:border-slate-300 hover:shadow-lg transition-all duration-300 p-6 rounded-xl group relative overflow-hidden">
+<div class="absolute left-0 top-0 bottom-0 w-1.5 bg-slate-400 transition-opacity"></div>
+<div class="grid grid-cols-12 items-center gap-6">
+<div class="col-span-3">
+<div class="flex items-center space-x-4">
+<div class="w-12 h-12 rounded-lg bg-slate-100 flex items-center justify-center text-slate-500">
+<span class="material-symbols-outlined" data-icon="inventory_2">inventory_2</span>
+</div>
+<div>
+<h4 class="font-extrabold text-slate-500 text-base">V2.3.1</h4>
+<p class="text-xs text-on-surface-variant font-medium">旧版兼容补丁</p>
+</div>
+</div>
+</div>
+<div class="col-span-2">
+<p class="text-[10px] font-black text-on-surface-variant uppercase mb-1">支持终端</p>
+<div class="flex space-x-1.5">
+<span class="material-symbols-outlined text-sm text-slate-400" data-icon="desktop_windows">desktop_windows</span>
+</div>
+</div>
+<div class="col-span-2">
+<p class="text-[10px] font-black text-on-surface-variant uppercase mb-1">发布时间</p>
+<p class="text-sm font-bold text-slate-500">2023-10-15 18:00</p>
+</div>
+<div class="col-span-2">
+<span class="inline-flex items-center px-3 py-1 rounded-full bg-slate-400 text-white text-[10px] font-black uppercase tracking-wider shadow-sm">
+                            Legacy
+                        </span>
+</div>
+<div class="col-span-3 flex justify-end space-x-2">
+<button class="p-2 text-slate-400 hover:text-on-surface hover:bg-slate-100 rounded-lg transition-colors">
+<span class="material-symbols-outlined" data-icon="history">history</span>
+</button>
+<button class="p-2 text-slate-400 hover:text-error hover:bg-red-50 rounded-lg transition-colors">
+<span class="material-symbols-outlined" data-icon="delete">delete</span>
+</button>
+</div>
+</div>
+</div>
+</section>
+<!-- Version Roadmap / Aesthetic Element -->
+<section class="mt-12">
+<h3 class="font-extrabold text-on-surface text-lg mb-6 flex items-center">
+<span class="w-2 h-6 bg-primary rounded-full mr-3"></span>
+                版本路线图预览
+            </h3>
+<div class="grid grid-cols-1 lg:grid-cols-4 gap-4">
+<div class="aspect-video bg-on-surface rounded-xl p-6 text-white relative overflow-hidden shadow-xl">
+<div class="relative z-10">
+<p class="text-[10px] font-black text-primary mb-1 tracking-widest uppercase">Q1 Next</p>
+<h5 class="font-extrabold text-xl">AI 智能排版</h5>
+<p class="text-xs text-slate-300 mt-2 font-medium">基于 LLM 的响应式模板自动生成引擎</p>
+</div>
+<div class="absolute -bottom-4 -right-4 opacity-20">
+<span class="material-symbols-outlined text-8xl" data-icon="psychology">psychology</span>
+</div>
+</div>
+<div class="lg:col-span-3 bg-slate-50 rounded-xl p-6 flex items-center justify-between border border-slate-200">
+<div class="flex items-center space-x-12">
+<div class="text-center">
+<p class="text-[10px] text-on-surface-variant font-black uppercase tracking-widest mb-1">稳定性</p>
+<p class="text-2xl font-black text-on-surface">99.9%</p>
+</div>
+<div class="w-[1px] h-10 bg-slate-300"></div>
+<div class="text-center">
+<p class="text-[10px] text-on-surface-variant font-black uppercase tracking-widest mb-1">并发处理</p>
+<p class="text-2xl font-black text-on-surface">15k/s</p>
+</div>
+<div class="w-[1px] h-10 bg-slate-300"></div>
+<div class="text-center">
+<p class="text-[10px] text-on-surface-variant font-black uppercase tracking-widest mb-1">平均延时</p>
+<p class="text-2xl font-black text-on-surface">42ms</p>
+</div>
+</div>
+<div class="h-16 w-48 relative">
+<svg class="w-full h-full" viewbox="0 0 100 40">
+<path d="M0 35 Q 10 30, 20 32 T 40 10 T 60 25 T 80 5 T 100 20" fill="none" stroke="#FF6B00" stroke-linecap="round" stroke-width="3"></path>
+</svg>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- Floating Action Button -->
+<div class="fixed bottom-8 right-8 z-50">
+<button class="w-14 h-14 bg-primary text-white rounded-full flex items-center justify-center shadow-2xl shadow-primary/40 hover:scale-110 active:scale-95 transition-all">
+<span class="material-symbols-outlined" data-icon="add" style="font-size: 28px;">add</span>
+</button>
+</div>
+</body></html>

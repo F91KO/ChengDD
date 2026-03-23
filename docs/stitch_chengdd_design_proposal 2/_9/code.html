@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+
+<html class="light" lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>ChengDD Admin - 回滚记录页 (确认版)</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "inverse-surface": "#203243",
+              "inverse-primary": "#ffb693",
+              "surface-container-low": "#edf4ff",
+              "on-surface-variant": "#5a4136",
+              "secondary-fixed-dim": "#ffb693",
+              "surface-variant": "#d1e4fb",
+              "outline-variant": "#e2bfb0",
+              "secondary-fixed": "#ffdbcc",
+              "on-primary-container": "#572000",
+              "secondary-container": "#fe9a69",
+              "on-tertiary": "#ffffff",
+              "on-secondary": "#ffffff",
+              "surface": "#f7f9ff",
+              "surface-container-highest": "#d1e4fb",
+              "on-secondary-fixed-variant": "#783207",
+              "tertiary-fixed": "#d0e4ff",
+              "outline": "#8e7164",
+              "on-error": "#ffffff",
+              "primary-fixed-dim": "#ffb693",
+              "tertiary-container": "#059eff",
+              "error-container": "#ffdad6",
+              "tertiary": "#0062a1",
+              "on-tertiary-fixed": "#001d35",
+              "on-secondary-container": "#763006",
+              "on-tertiary-fixed-variant": "#00497b",
+              "error": "#ba1a1a",
+              "surface-dim": "#c9dcf3",
+              "surface-container-high": "#d9eaff",
+              "on-background": "#091d2e",
+              "tertiary-fixed-dim": "#9ccaff",
+              "on-secondary-fixed": "#351000",
+              "background": "#f7f9ff",
+              "on-error-container": "#93000a",
+              "primary-container": "#ff6b00",
+              "surface-container": "#e3efff",
+              "inverse-on-surface": "#e8f2ff",
+              "on-surface": "#091d2e",
+              "surface-tint": "#a04100",
+              "on-tertiary-container": "#003357",
+              "on-primary-fixed": "#351000",
+              "primary": "#a04100",
+              "primary-fixed": "#ffdbcc",
+              "surface-bright": "#f7f9ff",
+              "secondary": "#96481e",
+              "surface-container-lowest": "#ffffff",
+              "on-primary-fixed-variant": "#7a3000",
+              "on-primary": "#ffffff"
+            },
+            fontFamily: {
+              "headline": ["Manrope"],
+              "body": ["Manrope"],
+              "label": ["Manrope"]
+            },
+            borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .bg-glass {
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+        }
+        .progress-pulse {
+            animation: pulse-width 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes pulse-width {
+            0%, 100% { opacity: 1; }
+            50% { opacity: .7; }
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head>
+<body class="bg-surface font-body text-on-surface min-h-screen pb-24">
+<!-- TopAppBar -->
+<header class="bg-white/80 dark:bg-[#091D2E]/80 backdrop-blur-md fixed top-0 w-full z-50 shadow-sm shadow-[#091D2E]/5">
+<div class="flex items-center justify-between px-6 h-16 w-full">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-[#FF6B00]">terminal</span>
+<h1 class="text-[#091D2E] font-extrabold font-['Manrope'] font-bold text-lg tracking-tight">ChengDD Admin</h1>
+</div>
+<div class="flex items-center gap-4">
+<button class="p-2 rounded-full hover:bg-[#EDF4FF] transition-colors active:scale-95 duration-200 text-[#5A4136]">
+<span class="material-symbols-outlined">history</span>
+</button>
+<div class="w-8 h-8 rounded-full bg-primary-fixed flex items-center justify-center overflow-hidden">
+<img alt="Admin User Profile" class="w-full h-full object-cover" data-alt="User profile avatar placeholder" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDq8p5jcAbsWZJQwIsmk08z2EF_xc014k5D69GqU-PJ56d28pQYNW3uLLpaLCW0fmTzyLR_31cp_jRfEjfYf22xB1UpY48lYVa8xx3kqlekCqyg66jphXoeaiavHbUpY30ud4nowkZQI5T2M7y2uuvPFB0UkknW6_YE4CRJrl1eMSCqp5TJISt2HY-oVDOClH46iBRzhxyD0hmehNz6CypPE5MoWxCRsEr6E84DzNncTJRJ8JGqPACTKJC8QshYqBRYcEZiIe-oMnhn"/>
+</div>
+</div>
+</div>
+<div class="bg-[#EDF4FF] dark:bg-[#091D2E]/50 h-[1px]"></div>
+</header>
+<main class="pt-24 px-6 max-w-7xl mx-auto space-y-8">
+<!-- Page Title Section -->
+<div class="flex flex-col gap-1">
+<h2 class="text-3xl font-extrabold tracking-tight text-on-surface">回滚记录页 (确认版)</h2>
+<p class="text-on-surface-variant text-sm">监控与治理发布回滚任务的实时状态</p>
+</div>
+<!-- Statistics Bento Grid -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+<!-- Stats Card: Success -->
+<div class="bg-surface-container-lowest p-6 rounded-xl shadow-sm flex flex-col justify-between h-32 relative overflow-hidden">
+<div class="flex justify-between items-start">
+<span class="text-on-surface-variant font-label text-sm font-semibold uppercase tracking-wider">回滚成功数</span>
+<span class="material-symbols-outlined text-tertiary">check_circle</span>
+</div>
+<div class="flex items-baseline gap-2 self-end">
+<span class="text-4xl font-headline font-bold text-on-surface">128</span>
+<span class="text-tertiary text-xs font-bold">+12%</span>
+</div>
+<div class="absolute bottom-0 left-0 w-full h-1 bg-tertiary/10">
+<div class="h-full bg-tertiary w-full"></div>
+</div>
+</div>
+<!-- Stats Card: Processing -->
+<div class="bg-surface-container-lowest p-6 rounded-xl shadow-sm flex flex-col justify-between h-32 relative overflow-hidden">
+<div class="flex justify-between items-start">
+<span class="text-on-surface-variant font-label text-sm font-semibold uppercase tracking-wider">正在进行中</span>
+<span class="material-symbols-outlined text-primary-container animate-spin-slow" style="animation-duration: 3s;">sync</span>
+</div>
+<div class="flex items-baseline gap-2 self-end">
+<span class="text-4xl font-headline font-bold text-on-surface">3</span>
+<span class="text-primary-container text-xs font-bold">Active</span>
+</div>
+<div class="absolute bottom-0 left-0 w-full h-1 bg-primary-container/10">
+<div class="h-full bg-primary-container progress-pulse" style="width: 65%;"></div>
+</div>
+</div>
+<!-- Stats Card: Failed -->
+<div class="bg-surface-container-lowest p-6 rounded-xl shadow-sm flex flex-col justify-between h-32 relative overflow-hidden">
+<div class="flex justify-between items-start">
+<span class="text-on-surface-variant font-label text-sm font-semibold uppercase tracking-wider">回滚失败数</span>
+<span class="material-symbols-outlined text-error">dangerous</span>
+</div>
+<div class="flex items-baseline gap-2 self-end">
+<span class="text-4xl font-headline font-bold text-on-surface">2</span>
+<span class="text-error text-xs font-bold">-5%</span>
+</div>
+<div class="absolute bottom-0 left-0 w-full h-1 bg-error/10">
+<div class="h-full bg-error" style="width: 15%;"></div>
+</div>
+</div>
+</div>
+<!-- Filter Bar -->
+<div class="bg-surface-container-lowest p-4 rounded-xl flex flex-wrap gap-4 items-center shadow-sm">
+<div class="relative flex-1 min-w-[280px]">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-lg">search</span>
+<input class="w-full pl-10 pr-4 py-2.5 bg-surface-container-low border-none rounded-lg focus:ring-2 focus:ring-primary-container/20 text-sm placeholder:text-on-surface-variant/50" placeholder="搜索任务ID (例如 RB-2024...)" type="text"/>
+</div>
+<button class="flex items-center gap-2 px-5 py-2.5 bg-surface-container-low hover:bg-surface-container-high transition-colors rounded-lg text-sm font-semibold text-on-surface">
+<span class="material-symbols-outlined text-sm">filter_list</span>
+<span>筛选</span>
+</button>
+<button class="flex items-center gap-2 px-5 py-2.5 bg-primary-container text-white rounded-lg text-sm font-bold shadow-md shadow-primary-container/20 active:scale-95 transition-all">
+<span class="material-symbols-outlined text-sm">add</span>
+<span>新建回滚任务</span>
+</button>
+</div>
+<!-- Task List Header -->
+<div class="px-2 flex justify-between items-end border-b border-outline-variant/10 pb-4">
+<h3 class="text-lg font-bold text-on-surface">任务列表</h3>
+<span class="text-xs text-on-surface-variant">共 133 条记录</span>
+</div>
+<!-- Task Grid/List -->
+<div class="grid grid-cols-1 gap-4">
+<!-- Task Card: Processing -->
+<div class="group bg-surface-container-lowest rounded-xl p-6 shadow-sm border-l-4 border-primary-container transition-all hover:shadow-md">
+<div class="flex flex-col lg:flex-row justify-between gap-6">
+<div class="flex-1 space-y-4">
+<div class="flex items-center gap-3">
+<span class="text-lg font-extrabold text-on-surface">RB-2024081501</span>
+<span class="bg-primary-fixed text-on-primary-fixed-variant px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
+<span class="w-1.5 h-1.5 bg-primary-container rounded-full animate-ping"></span>
+                                回滚中
+                            </span>
+</div>
+<div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+<div class="space-y-1">
+<p class="text-[10px] text-on-surface-variant uppercase font-bold tracking-tight">关联发布ID</p>
+<p class="text-sm font-medium">PUB-99821</p>
+</div>
+<div class="space-y-1">
+<p class="text-[10px] text-on-surface-variant uppercase font-bold tracking-tight">目标版本号</p>
+<p class="text-sm font-medium font-mono">v2.4.1-stable</p>
+</div>
+<div class="space-y-1">
+<p class="text-[10px] text-on-surface-variant uppercase font-bold tracking-tight">操作人</p>
+<p class="text-sm font-medium">Zhang San</p>
+</div>
+<div class="space-y-1">
+<p class="text-[10px] text-on-surface-variant uppercase font-bold tracking-tight">执行时间</p>
+<p class="text-sm font-medium">2024-08-15 14:20</p>
+</div>
+</div>
+<div class="bg-surface-container-low p-3 rounded-lg border-l-2 border-outline-variant/30">
+<p class="text-xs text-on-surface-variant"><span class="font-bold">回滚原因:</span> 生产环境 OOM 异常，紧急恢复至上一个稳定版本以保障业务连续性。</p>
+</div>
+</div>
+<div class="flex flex-col justify-between items-end min-w-[140px]">
+<div class="w-full space-y-2">
+<div class="flex justify-between text-[10px] font-bold text-on-surface-variant">
+<span>进度</span>
+<span>65%</span>
+</div>
+<div class="h-1.5 w-full bg-surface-container-high rounded-full overflow-hidden">
+<div class="h-full bg-primary-container progress-pulse" style="width: 65%;"></div>
+</div>
+</div>
+<button class="text-primary font-bold text-sm flex items-center gap-1 hover:gap-2 transition-all">
+                            查看详情 <span class="material-symbols-outlined text-sm">arrow_forward</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Task Card: Success -->
+<div class="group bg-surface-container-lowest rounded-xl p-6 shadow-sm border-l-4 border-tertiary transition-all hover:shadow-md">
+<div class="flex flex-col lg:flex-row justify-between gap-6">
+<div class="flex-1 space-y-4">
+<div class="flex items-center gap-3">
+<span class="text-lg font-extrabold text-on-surface">RB-2024081488</span>
+<span class="bg-tertiary-fixed text-on-tertiary-fixed-variant px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider">
+                                成功
+                            </span>
+</div>
+<div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+<div class="space-y-1">
+<p class="text-[10px] text-on-surface-variant uppercase font-bold tracking-tight">关联发布ID</p>
+<p class="text-sm font-medium text-on-surface-variant">PUB-99710</p>
+</div>
+<div class="space-y-1">
+<p class="text-[10px] text-on-surface-variant uppercase font-bold tracking-tight">目标版本号</p>
+<p class="text-sm font-medium font-mono text-on-surface-variant">v2.3.8-patch</p>
+</div>
+<div class="space-y-1">
+<p class="text-[10px] text-on-surface-variant uppercase font-bold tracking-tight">操作人</p>
+<p class="text-sm font-medium text-on-surface-variant">Li Si</p>
+</div>
+<div class="space-y-1">
+<p class="text-[10px] text-on-surface-variant uppercase font-bold tracking-tight">执行时间</p>
+<p class="text-sm font-medium text-on-surface-variant">2024-08-14 09:15</p>
+</div>
+</div>
+<div class="bg-surface-container-low/50 p-3 rounded-lg">
+<p class="text-xs text-on-surface-variant/70"><span class="font-bold">回滚原因:</span> 静态资源加载路径配置错误，导致前端页面白屏。</p>
+</div>
+</div>
+<div class="flex flex-col justify-end items-end min-w-[140px]">
+<button class="text-on-surface-variant font-bold text-sm flex items-center gap-1 hover:text-primary transition-all">
+                            查看详情 <span class="material-symbols-outlined text-sm">arrow_forward</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Task Card: Failed -->
+<div class="group bg-surface-container-lowest rounded-xl p-6 shadow-sm border-l-4 border-error transition-all hover:shadow-md">
+<div class="flex flex-col lg:flex-row justify-between gap-6">
+<div class="flex-1 space-y-4">
+<div class="flex items-center gap-3">
+<span class="text-lg font-extrabold text-on-surface">RB-2024081305</span>
+<span class="bg-error-container text-on-error-container px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider">
+                                失败
+                            </span>
+</div>
+<div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+<div class="space-y-1">
+<p class="text-[10px] text-on-surface-variant uppercase font-bold tracking-tight">关联发布ID</p>
+<p class="text-sm font-medium">PUB-99605</p>
+</div>
+<div class="space-y-1">
+<p class="text-[10px] text-on-surface-variant uppercase font-bold tracking-tight">目标版本号</p>
+<p class="text-sm font-medium font-mono">v2.3.0-final</p>
+</div>
+<div class="space-y-1">
+<p class="text-[10px] text-on-surface-variant uppercase font-bold tracking-tight">操作人</p>
+<p class="text-sm font-medium">Wang Wu</p>
+</div>
+<div class="space-y-1">
+<p class="text-[10px] text-on-surface-variant uppercase font-bold tracking-tight">执行时间</p>
+<p class="text-sm font-medium">2024-08-13 22:45</p>
+</div>
+</div>
+<div class="bg-error-container/20 p-3 rounded-lg border-l-2 border-error/30">
+<p class="text-xs text-error"><span class="font-bold">错误信息:</span> 目标镜像不存在，Docker Registry 响应 404。请检查制品库配置。</p>
+</div>
+</div>
+<div class="flex flex-col justify-end items-end min-w-[140px]">
+<button class="text-error font-bold text-sm flex items-center gap-1 hover:underline transition-all">
+                            查看日志 <span class="material-symbols-outlined text-sm">terminal</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Pagination (Implicit) -->
+<div class="flex justify-center pt-8">
+<nav class="flex items-center gap-2">
+<button class="w-10 h-10 flex items-center justify-center rounded-lg bg-surface-container-low text-on-surface-variant hover:bg-surface-container-high transition-colors">
+<span class="material-symbols-outlined">chevron_left</span>
+</button>
+<button class="w-10 h-10 flex items-center justify-center rounded-lg bg-primary-container text-white font-bold">1</button>
+<button class="w-10 h-10 flex items-center justify-center rounded-lg bg-surface-container-lowest text-on-surface hover:bg-surface-container-low transition-colors font-bold">2</button>
+<button class="w-10 h-10 flex items-center justify-center rounded-lg bg-surface-container-lowest text-on-surface hover:bg-surface-container-low transition-colors font-bold">3</button>
+<span class="px-2 text-on-surface-variant">...</span>
+<button class="w-10 h-10 flex items-center justify-center rounded-lg bg-surface-container-low text-on-surface-variant hover:bg-surface-container-high transition-colors">
+<span class="material-symbols-outlined">chevron_right</span>
+</button>
+</nav>
+</div>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 w-full z-50 border-t-0 rounded-t-2xl bg-white dark:bg-[#091D2E] shadow-[0_-4px_24px_rgba(9,29,46,0.04)] md:hidden">
+<div class="flex justify-around items-center h-20 px-4 pb-safe w-full">
+<a class="flex flex-col items-center justify-center text-[#FF6B00] bg-[#FFDBCC] dark:bg-[#FF6B00]/10 rounded-xl px-4 py-1.5 transition-all duration-300 ease-in-out" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">history</span>
+<span class="font-['Manrope'] text-[11px] font-semibold tracking-wide">Rollback</span>
+</a>
+<a class="flex flex-col items-center justify-center text-[#5A4136] dark:text-slate-400 opacity-70 hover:opacity-100 transition-all duration-300 ease-in-out" href="#">
+<span class="material-symbols-outlined">code</span>
+<span class="font-['Manrope'] text-[11px] font-semibold tracking-wide">Console</span>
+</a>
+<a class="flex flex-col items-center justify-center text-[#5A4136] dark:text-slate-400 opacity-70 hover:opacity-100 transition-all duration-300 ease-in-out" href="#">
+<span class="material-symbols-outlined">toggle_on</span>
+<span class="font-['Manrope'] text-[11px] font-semibold tracking-wide">Toggles</span>
+</a>
+</div>
+</nav>
+<!-- Desktop Sidebar/Nav Placeholder for Alignment -->
+<div class="hidden md:block fixed left-0 top-16 h-full w-20 bg-white/50 border-r border-outline-variant/10">
+<div class="flex flex-col items-center py-8 gap-8">
+<span class="material-symbols-outlined text-primary-container" style="font-variation-settings: 'FILL' 1;">history</span>
+<span class="material-symbols-outlined text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer">dashboard</span>
+<span class="material-symbols-outlined text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer">settings</span>
+<span class="material-symbols-outlined text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer">help</span>
+</div>
+</div>
+</body></html>

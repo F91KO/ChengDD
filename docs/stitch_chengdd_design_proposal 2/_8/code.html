@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+
+<html class="light" lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>发布任务详情页 (确认版)</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "inverse-primary": "#ffb693",
+                        "error-container": "#ffdad6",
+                        "tertiary-fixed": "#d0e4ff",
+                        "on-secondary": "#ffffff",
+                        "inverse-on-surface": "#e8f2ff",
+                        "surface-dim": "#c9dcf3",
+                        "surface-container-high": "#d9eaff",
+                        "surface-bright": "#f7f9ff",
+                        "secondary-container": "#fe9a69",
+                        "on-primary-container": "#572000",
+                        "surface-variant": "#d1e4fb",
+                        "surface-tint": "#a04100",
+                        "on-primary-fixed": "#351000",
+                        "surface-container-low": "#edf4ff",
+                        "inverse-surface": "#203243",
+                        "primary-fixed-dim": "#ffb693",
+                        "on-tertiary-container": "#003357",
+                        "on-tertiary-fixed": "#001d35",
+                        "surface-container-lowest": "#ffffff",
+                        "on-primary": "#ffffff",
+                        "background": "#f7f9ff",
+                        "on-secondary-container": "#763006",
+                        "outline-variant": "#e2bfb0",
+                        "secondary": "#96481e",
+                        "primary-container": "#ff6b00",
+                        "surface-container-highest": "#d1e4fb",
+                        "on-secondary-fixed-variant": "#783207",
+                        "on-error-container": "#93000a",
+                        "primary-fixed": "#ffdbcc",
+                        "on-secondary-fixed": "#351000",
+                        "error": "#ba1a1a",
+                        "secondary-fixed-dim": "#ffb693",
+                        "secondary-fixed": "#ffdbcc",
+                        "on-error": "#ffffff",
+                        "surface": "#f7f9ff",
+                        "on-surface-variant": "#5a4136",
+                        "outline": "#8e7164",
+                        "on-background": "#091d2e",
+                        "tertiary": "#0062a1",
+                        "surface-container": "#e3efff",
+                        "on-tertiary": "#ffffff",
+                        "tertiary-fixed-dim": "#9ccaff",
+                        "tertiary-container": "#059eff",
+                        "on-surface": "#091d2e",
+                        "on-primary-fixed-variant": "#7a3000",
+                        "primary": "#a04100",
+                        "on-tertiary-fixed-variant": "#00497b"
+                    },
+                    fontFamily: {
+                        "headline": ["Manrope"],
+                        "body": ["Manrope"],
+                        "label": ["Manrope"]
+                    },
+                    borderRadius: { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" },
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body { font-family: 'Manrope', sans-serif; }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head>
+<body class="bg-background text-on-surface min-h-screen pb-32">
+<!-- TopAppBar -->
+<header class="sticky top-0 z-50 w-full bg-white/80 dark:bg-[#091D2E]/80 backdrop-blur-xl shadow-sm shadow-[#091D2E]/5 font-['Manrope'] antialiased text-[#091D2E]">
+<div class="flex items-center justify-between px-6 py-4 w-full">
+<div class="flex items-center gap-4">
+<button class="active:scale-95 duration-200 hover:bg-[#EDF4FF] p-2 rounded-full transition-colors">
+<span class="material-symbols-outlined text-[#FF6B00]">arrow_back</span>
+</button>
+<h1 class="text-xl font-bold tracking-tight text-[#091D2E]">发布任务详情页 (确认版)</h1>
+</div>
+<button class="active:scale-95 duration-200 hover:bg-[#EDF4FF] p-2 rounded-full transition-colors">
+<span class="material-symbols-outlined text-[#5A4136]">more_vert</span>
+</button>
+</div>
+</header>
+<main class="max-w-4xl mx-auto px-6 py-8 space-y-6">
+<!-- Task Overview Card -->
+<section class="bg-surface-container-lowest rounded-xl p-6 shadow-sm ring-1 ring-on-surface/5">
+<div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+<div class="space-y-1">
+<div class="flex items-center gap-3">
+<span class="text-xs font-bold uppercase tracking-widest text-on-surface-variant">Task Identity</span>
+<span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-secondary-fixed text-on-secondary-fixed-variant">V1.2.4</span>
+</div>
+<h2 class="text-2xl font-extrabold tracking-tight text-on-surface">任务ID: PUB-20240815001</h2>
+<p class="text-sm text-on-surface-variant">模板版本: V1.2.4</p>
+</div>
+<div class="flex items-center gap-2 px-4 py-2 bg-error-container text-on-error-container rounded-lg self-start">
+<span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' 1;">error</span>
+<span class="font-bold text-sm">部分失败</span>
+</div>
+</div>
+</section>
+<!-- Statistics Bento Grid -->
+<section class="grid grid-cols-1 md:grid-cols-3 gap-4">
+<div class="bg-surface-container-lowest p-5 rounded-xl shadow-sm flex items-center justify-between group transition-all hover:translate-y-[-2px]">
+<div>
+<p class="text-xs font-bold text-on-surface-variant mb-1 uppercase tracking-tighter">成功</p>
+<p class="text-3xl font-extrabold text-on-surface">124</p>
+</div>
+<div class="w-12 h-12 rounded-full bg-emerald-50 flex items-center justify-center">
+<span class="material-symbols-outlined text-emerald-600" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</div>
+</div>
+<div class="bg-surface-container-lowest p-5 rounded-xl shadow-sm flex items-center justify-between group transition-all hover:translate-y-[-2px]">
+<div>
+<p class="text-xs font-bold text-on-surface-variant mb-1 uppercase tracking-tighter">失败</p>
+<p class="text-3xl font-extrabold text-on-surface text-error">4</p>
+</div>
+<div class="w-12 h-12 rounded-full bg-error-container flex items-center justify-center">
+<span class="material-symbols-outlined text-error" style="font-variation-settings: 'FILL' 1;">cancel</span>
+</div>
+</div>
+<div class="bg-surface-container-lowest p-5 rounded-xl shadow-sm flex items-center justify-between group transition-all hover:translate-y-[-2px]">
+<div>
+<p class="text-xs font-bold text-on-surface-variant mb-1 uppercase tracking-tighter">回滚中</p>
+<p class="text-3xl font-extrabold text-on-surface">0</p>
+</div>
+<div class="w-12 h-12 rounded-full bg-surface-container-low flex items-center justify-center">
+<span class="material-symbols-outlined text-on-surface-variant" style="font-variation-settings: 'FILL' 1;">history</span>
+</div>
+</div>
+</section>
+<!-- Timeline & Diagnostics Grid -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+<!-- Step Progress (Timeline) -->
+<section class="lg:col-span-7 bg-surface-container-lowest rounded-xl p-8 shadow-sm">
+<h3 class="text-lg font-bold text-on-surface mb-8 flex items-center gap-2">
+<span class="material-symbols-outlined text-primary-container">alt_route</span>
+                    发布流程
+                </h3>
+<div class="relative space-y-12">
+<!-- Line -->
+<div class="absolute left-4 top-2 bottom-2 w-0.5 bg-surface-container"></div>
+<!-- Step 1 -->
+<div class="relative flex items-start gap-6 group">
+<div class="relative z-10 w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center ring-4 ring-white">
+<span class="material-symbols-outlined text-sm">check</span>
+</div>
+<div class="flex-1">
+<div class="flex items-center justify-between">
+<h4 class="font-bold text-on-surface">数据校验</h4>
+<span class="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">成功</span>
+</div>
+<div class="flex items-center gap-2 mt-1">
+<span class="material-symbols-outlined text-xs text-on-surface-variant">schedule</span>
+<span class="text-xs text-on-surface-variant">耗时 2s</span>
+</div>
+</div>
+</div>
+<!-- Step 2 -->
+<div class="relative flex items-start gap-6 group">
+<div class="relative z-10 w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center ring-4 ring-white">
+<span class="material-symbols-outlined text-sm">check</span>
+</div>
+<div class="flex-1">
+<div class="flex items-center justify-between">
+<h4 class="font-bold text-on-surface">资源打包</h4>
+<span class="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">成功</span>
+</div>
+<div class="flex items-center gap-2 mt-1">
+<span class="material-symbols-outlined text-xs text-on-surface-variant">schedule</span>
+<span class="text-xs text-on-surface-variant">耗时 15s</span>
+</div>
+</div>
+</div>
+<!-- Step 3 -->
+<div class="relative flex items-start gap-6 group">
+<div class="relative z-10 w-8 h-8 rounded-full bg-error text-white flex items-center justify-center ring-4 ring-white">
+<span class="material-symbols-outlined text-sm">close</span>
+</div>
+<div class="flex-1">
+<div class="flex items-center justify-between">
+<h4 class="font-bold text-on-surface">全量同步</h4>
+<span class="text-xs font-bold text-error bg-error-container px-2 py-0.5 rounded">失败</span>
+</div>
+<div class="flex items-center gap-2 mt-1">
+<span class="material-symbols-outlined text-xs text-on-surface-variant">schedule</span>
+<span class="text-xs text-on-surface-variant">耗时 45s</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Error Diagnostics -->
+<section class="lg:col-span-5 space-y-4">
+<div class="bg-error-container/40 rounded-xl p-6 border border-error/10 shadow-sm relative overflow-hidden">
+<div class="absolute -right-4 -top-4 opacity-5 pointer-events-none">
+<span class="material-symbols-outlined text-8xl text-error">warning</span>
+</div>
+<h3 class="text-sm font-bold text-error uppercase tracking-widest mb-4 flex items-center gap-2">
+<span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' 1;">report</span>
+                        错误诊断
+                    </h3>
+<div class="space-y-4">
+<div>
+<p class="text-xs font-bold text-on-error-container/60 mb-1">错误代码</p>
+<code class="text-sm font-bold text-error bg-white/50 px-2 py-1 rounded">ERR_SYNC_092</code>
+</div>
+<div>
+<p class="text-xs font-bold text-on-error-container/60 mb-1">详细信息</p>
+<p class="text-sm leading-relaxed text-on-error-container font-medium">
+                                目标节点响应超时，请检查网络连接或尝试手动重试。
+                            </p>
+</div>
+<div class="pt-2">
+<button class="w-full py-2.5 rounded-lg bg-error text-white text-xs font-bold hover:bg-error/90 transition-colors flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-sm">history_edu</span>
+                                查看错误日志
+                            </button>
+</div>
+</div>
+</div>
+<div class="bg-surface-container-low rounded-xl p-6 border border-on-surface/5 shadow-sm">
+<p class="text-xs font-bold text-on-surface-variant mb-3 uppercase">运维建议</p>
+<ul class="space-y-3">
+<li class="flex items-start gap-3 text-xs text-on-surface font-medium">
+<div class="w-1.5 h-1.5 rounded-full bg-primary-container mt-1.5"></div>
+                            确认目标集群 [Asia-East-1] 连通性
+                        </li>
+<li class="flex items-start gap-3 text-xs text-on-surface font-medium">
+<div class="w-1.5 h-1.5 rounded-full bg-primary-container mt-1.5"></div>
+                            检查同步代理服务运行状态
+                        </li>
+</ul>
+</div>
+</section>
+</div>
+</main>
+<!-- Bottom Action Bar -->
+<footer class="fixed bottom-0 left-0 w-full z-50 bg-white dark:bg-[#091D2E] shadow-[0_-4px_24px_rgba(9,29,46,0.04)] px-6 py-4 border-t border-on-surface/5">
+<div class="max-w-4xl mx-auto flex items-center justify-between gap-4">
+<div class="hidden md:block">
+<p class="text-xs font-bold text-on-surface-variant uppercase tracking-widest">Task ID: PUB-20240815001</p>
+<p class="text-[10px] text-on-surface/40 mt-0.5">Last updated: 2024-08-15 14:23:01</p>
+</div>
+<div class="flex items-center gap-3 w-full md:w-auto">
+<button class="flex-1 md:flex-none px-8 py-3 rounded-xl bg-surface-container-low text-on-surface-variant font-bold text-sm hover:bg-surface-container transition-all active:scale-95 duration-200">
+                    立即回滚
+                </button>
+<button class="flex-1 md:flex-none px-12 py-3 rounded-xl bg-gradient-to-br from-[#A04100] to-[#FF6B00] text-white font-bold text-sm shadow-lg shadow-primary-container/20 hover:shadow-primary-container/40 transition-all active:scale-95 duration-200">
+                    重新发布
+                </button>
+</div>
+</div>
+</footer>
+</body></html>

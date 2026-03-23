@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN"><head><title>登录页 (确认版)</title>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "secondary-fixed-dim": "#ffb693",
+              "primary-fixed": "#ffdbcc",
+              "surface-container-high": "#d9eaff",
+              "surface-variant": "#d1e4fb",
+              "on-surface": "#091d2e",
+              "error-container": "#ffdad6",
+              "on-error": "#ffffff",
+              "surface-container-lowest": "#ffffff",
+              "inverse-surface": "#203243",
+              "on-tertiary": "#ffffff",
+              "on-secondary-container": "#763006",
+              "outline": "#8e7164",
+              "surface-bright": "#f7f9ff",
+              "surface": "#f7f9ff",
+              "surface-tint": "#a04100",
+              "background": "#f7f9ff",
+              "surface-container-highest": "#d1e4fb",
+              "on-secondary-fixed-variant": "#783207",
+              "on-primary-fixed-variant": "#7a3000",
+              "on-secondary-fixed": "#351000",
+              "inverse-primary": "#ffb693",
+              "on-background": "#091d2e",
+              "primary": "#FF6B00",
+              "surface-dim": "#c9dcf3",
+              "secondary-container": "#fe9a69",
+              "surface-container-low": "#edf4ff",
+              "inverse-on-surface": "#e8f2ff",
+              "on-secondary": "#ffffff",
+              "error": "#ba1a1a",
+              "on-tertiary-fixed-variant": "#00497b",
+              "on-tertiary-container": "#003357",
+              "secondary": "#96481e",
+              "on-error-container": "#93000a",
+              "outline-variant": "#e2bfb0",
+              "on-primary-container": "#572000",
+              "on-surface-variant": "#5a4136",
+              "tertiary": "#0062a1",
+              "tertiary-container": "#059eff",
+              "on-tertiary-fixed": "#001d35",
+              "primary-container": "#FF6B00",
+              "secondary-fixed": "#ffdbcc",
+              "on-primary": "#ffffff",
+              "surface-container": "#e3efff",
+              "primary-fixed-dim": "#ffb693",
+              "tertiary-fixed-dim": "#9ccaff",
+              "on-primary-fixed": "#351000",
+              "tertiary-fixed": "#d0e4ff"
+            },
+            fontFamily: {
+              "headline": ["Manrope"],
+              "body": ["Manrope"],
+              "label": ["Manrope"]
+            },
+            borderRadius: {"DEFAULT": "0.5rem", "lg": "0.75rem", "xl": "1rem", "full": "9999px"},
+          },
+        },
+      }
+    </script>
+<style>
+        body { font-family: 'Manrope', sans-serif; }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .hero-pattern {
+            background-color: #091d2e;
+            background-image: radial-gradient(circle at 2px 2px, rgba(255,107,0,0.05) 1px, transparent 0);
+            background-size: 32px 32px;
+        }
+    </style>
+</head>
+<body class="bg-surface text-on-surface min-h-screen flex flex-col">
+<main class="flex-grow flex flex-col md:flex-row">
+<!-- Left Section: Brand Introduction -->
+<section class="relative w-full md:w-1/2 lg:w-3/5 hero-pattern flex items-center justify-center p-8 md:p-16 overflow-hidden">
+<!-- Background Decoration -->
+<div class="absolute inset-0 overflow-hidden pointer-events-none">
+<div class="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] bg-primary/10 rounded-full blur-[120px]"></div>
+<div class="absolute bottom-[-20%] right-[-10%] w-[500px] h-[500px] bg-tertiary/10 rounded-full blur-[100px]"></div>
+<!-- Abstract Mesh Gradient Overlay -->
+<div class="absolute inset-0 opacity-30 bg-[radial-gradient(circle_at_50%_50%,rgba(255,107,0,0.1),transparent_50%)]"></div>
+</div>
+<div class="relative z-10 max-w-lg text-white">
+<div class="flex items-center gap-5 mb-10">
+<div class="w-14 h-14 bg-primary rounded-2xl flex items-center justify-center shadow-2xl shadow-primary/40 ring-4 ring-primary/20">
+<span class="material-symbols-outlined text-white text-3xl" data-icon="rocket_launch">rocket_launch</span>
+</div>
+<div>
+<h1 class="text-3xl font-extrabold tracking-tight text-white">程哒哒 <span class="text-primary">ChengDD</span></h1>
+<p class="text-white/50 text-xs font-semibold tracking-widest uppercase mt-0.5">Merchant Administration System</p>
+</div>
+</div>
+<h2 class="text-4xl md:text-5xl lg:text-6xl font-extrabold leading-[1.15] mb-8 tracking-tight">
+                    智享高效 <br/>
+<span class="text-primary bg-clip-text">重塑商家运营新篇章</span>
+</h2>
+<div class="space-y-6 mb-12">
+<div class="flex items-start gap-4">
+<div class="bg-primary/20 p-1 rounded-full">
+<span class="material-symbols-outlined text-primary text-xl" data-icon="verified">verified</span>
+</div>
+<p class="text-white/80 text-lg leading-relaxed font-medium">全流程自动化订单管理，提升处理效能 <span class="text-primary">40%</span></p>
+</div>
+<div class="flex items-start gap-4">
+<div class="bg-primary/20 p-1 rounded-full">
+<span class="material-symbols-outlined text-primary text-xl" data-icon="insights">insights</span>
+</div>
+<p class="text-white/80 text-lg leading-relaxed font-medium">实时数据看板，洞察市场动态与经营核心</p>
+</div>
+</div>
+<div class="inline-flex items-center gap-3 px-5 py-2.5 bg-white/5 backdrop-blur-xl rounded-full border border-white/10 shadow-inner">
+<span class="w-2 h-2 bg-primary rounded-full animate-pulse shadow-[0_0_8px_rgba(255,107,0,0.8)]"></span>
+<span class="text-xs font-bold tracking-[0.2em] text-white/70 uppercase">Version 2.4.0 Enterprise</span>
+</div>
+</div>
+<!-- Abstract Visual Element -->
+<div class="absolute bottom-10 right-10 w-1/3 aspect-square hidden lg:block opacity-20 pointer-events-none">
+<div class="w-full h-full border border-white/20 rounded-full flex items-center justify-center">
+<div class="w-3/4 h-3/4 border border-white/10 rounded-full flex items-center justify-center">
+<div class="w-1/2 h-1/2 border border-white/5 rounded-full"></div>
+</div>
+</div>
+</div>
+</section>
+<!-- Right Section: Login Card -->
+<section class="w-full md:w-1/2 lg:w-2/5 flex items-center justify-center p-6 md:p-12 bg-surface-container-low">
+<div class="w-full max-w-[440px] bg-white rounded-2xl shadow-[0_20px_50px_rgba(9,29,46,0.08)] border border-white p-8 md:p-12">
+<div class="mb-10 text-center">
+<h3 class="text-3xl font-extrabold text-on-surface mb-3 tracking-tight">欢迎回来</h3>
+<p class="text-on-surface-variant/70 text-sm font-medium">请输入您的商户账号以进入管理后台</p>
+</div>
+<form class="space-y-6">
+<!-- Account Input -->
+<div class="space-y-2">
+<label class="block text-xs font-bold text-on-surface-variant/80 uppercase tracking-wider ml-1" for="username">商户账号</label>
+<div class="relative group">
+<div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+<span class="material-symbols-outlined text-on-surface-variant/40 group-focus-within:text-primary transition-colors duration-300" data-icon="alternate_email">alternate_email</span>
+</div>
+<input class="block w-full pl-12 pr-4 py-4 bg-surface-container-low border border-transparent rounded-xl text-on-surface font-medium placeholder:text-on-surface-variant/30 focus:ring-0 focus:border-primary/30 focus:bg-white hover:bg-surface-container transition-all duration-300 shadow-sm" id="username" name="username" placeholder="手机号 / 邮箱" type="text"/>
+</div>
+</div>
+<!-- Password Input -->
+<div class="space-y-2">
+<div class="flex justify-between items-center ml-1">
+<label class="block text-xs font-bold text-on-surface-variant/80 uppercase tracking-wider" for="password">登录密码</label>
+<a class="text-xs font-bold text-primary hover:opacity-80 transition-opacity" href="#">忘记密码？</a>
+</div>
+<div class="relative group">
+<div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+<span class="material-symbols-outlined text-on-surface-variant/40 group-focus-within:text-primary transition-colors duration-300" data-icon="lock_open">lock_open</span>
+</div>
+<input class="block w-full pl-12 pr-12 py-4 bg-surface-container-low border border-transparent rounded-xl text-on-surface font-medium placeholder:text-on-surface-variant/30 focus:ring-0 focus:border-primary/30 focus:bg-white hover:bg-surface-container transition-all duration-300 shadow-sm" id="password" name="password" placeholder="请输入密码" type="password"/>
+<button class="absolute inset-y-0 right-0 pr-4 flex items-center text-on-surface-variant/30 hover:text-on-surface transition-colors" type="button">
+<span class="material-symbols-outlined text-xl" data-icon="visibility">visibility</span>
+</button>
+</div>
+</div>
+<!-- Options -->
+<div class="flex items-center">
+<label class="flex items-center gap-3 cursor-pointer group">
+<div class="relative flex items-center">
+<input class="peer appearance-none w-5 h-5 border-2 border-outline-variant/30 rounded-md checked:bg-primary checked:border-primary transition-all cursor-pointer" type="checkbox"/>
+<span class="material-symbols-outlined absolute text-white opacity-0 peer-checked:opacity-100 text-[14px] font-bold left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none" data-icon="check">check</span>
+</div>
+<span class="text-sm font-semibold text-on-surface-variant/80 group-hover:text-on-surface transition-colors">7天内自动登录</span>
+</label>
+</div>
+<!-- Submit Button -->
+<button class="w-full bg-primary text-white font-bold py-4.5 rounded-xl shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 transform active:scale-[0.98] transition-all duration-300 flex items-center justify-center gap-3 relative overflow-hidden group" type="submit">
+<span class="relative z-10">登录后台</span>
+<span class="material-symbols-outlined relative z-10 group-hover:translate-x-1 transition-transform" data-icon="chevron_right">chevron_right</span>
+<div class="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+</button>
+</form>
+<!-- Alternative Login -->
+<div class="mt-12">
+<div class="relative flex items-center justify-center">
+<div class="w-full border-t border-on-surface-variant/5"></div>
+<span class="absolute bg-white px-4 text-[10px] font-bold text-on-surface-variant/40 tracking-[0.2em] uppercase">其他验证方式</span>
+</div>
+<div class="mt-8 flex justify-center gap-5">
+<button class="w-14 h-14 flex items-center justify-center rounded-2xl bg-surface-container-low hover:bg-primary/5 hover:text-primary border border-transparent hover:border-primary/20 transition-all duration-300 text-on-surface-variant/60 shadow-sm" title="扫码登录">
+<span class="material-symbols-outlined text-2xl" data-icon="qr_code_2">qr_code_2</span>
+</button>
+<button class="w-14 h-14 flex items-center justify-center rounded-2xl bg-surface-container-low hover:bg-primary/5 hover:text-primary border border-transparent hover:border-primary/20 transition-all duration-300 text-on-surface-variant/60 shadow-sm" title="指纹验证">
+<span class="material-symbols-outlined text-2xl" data-icon="fingerprint">fingerprint</span>
+</button>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- Footer -->
+<footer class="bg-surface py-8 px-8 border-t border-on-surface-variant/5">
+<div class="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
+<div class="flex flex-col md:flex-row items-center gap-2 md:gap-8">
+<span class="text-[10px] font-bold text-on-surface-variant/30 tracking-[0.15em] uppercase">© 2024 CHENGDD ENTERPRISE. ALL RIGHTS RESERVED.</span>
+<div class="flex gap-6 mt-2 md:mt-0">
+<a class="text-[11px] font-bold text-on-surface-variant/50 hover:text-primary transition-colors tracking-wide" href="#">服务协议</a>
+<a class="text-[11px] font-bold text-on-surface-variant/50 hover:text-primary transition-colors tracking-wide" href="#">隐私政策</a>
+</div>
+</div>
+<div class="flex items-center gap-2.5 px-4 py-1.5 bg-surface-container rounded-full border border-on-surface-variant/5">
+<span class="material-symbols-outlined text-primary text-sm" data-icon="verified_user">verified_user</span>
+<span class="text-[11px] font-bold text-on-surface-variant/60 tracking-tight uppercase">SSL 加密保护中 | 银行级数据安全</span>
+</div>
+</div>
+</footer>
+</body></html>

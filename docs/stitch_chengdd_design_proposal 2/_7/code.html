@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+
+<html class="light" lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>售后处理 (确认版) - ChengDD Admin</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "brand-orange": "#FF6B00",
+              "text-primary": "#1A1A1A", // Darker primary text for WCAG
+              "text-secondary": "#6B7280", // Slightly lightened secondary text
+              "surface-white": "#FFFFFF",
+              "surface-off": "#F9FAFB",
+              "secondary-fixed": "#ffdbcc",
+              "primary-container": "#ff6b00",
+              "on-primary-container": "#572000",
+              "tertiary-container": "#059eff",
+              "tertiary": "#0062a1",
+              "on-tertiary-fixed": "#001d35",
+              "on-surface-variant": "#5a4136",
+              "outline-variant": "#e2bfb0",
+              "on-error-container": "#93000a",
+              "tertiary-fixed": "#d0e4ff",
+              "tertiary-fixed-dim": "#9ccaff",
+              "surface-container": "#e3efff",
+              "primary-fixed-dim": "#ffb693",
+              "on-primary-fixed": "#351000",
+              "on-primary": "#ffffff",
+              "primary": "#a04100",
+              "surface-dim": "#c9dcf3",
+              "on-background": "#091d2e",
+              "on-secondary-fixed": "#351000",
+              "inverse-primary": "#ffb693",
+              "on-tertiary-container": "#003357",
+              "secondary": "#96481e",
+              "on-tertiary-fixed-variant": "#00497b",
+              "on-secondary": "#ffffff",
+              "error": "#ba1a1a",
+              "surface-container-low": "#edf4ff",
+              "inverse-on-surface": "#e8f2ff",
+              "secondary-container": "#fe9a69",
+              "surface-tint": "#a04100",
+              "surface-bright": "#f7f9ff",
+              "surface": "#f7f9ff",
+              "outline": "#8e7164",
+              "on-secondary-container": "#763006",
+              "on-primary-fixed-variant": "#7a3000",
+              "on-secondary-fixed-variant": "#783207",
+              "surface-container-highest": "#d1e4fb",
+              "background": "#f7f9ff",
+              "surface-container-high": "#d9eaff",
+              "primary-fixed": "#ffdbcc",
+              "secondary-fixed-dim": "#ffb693",
+              "inverse-surface": "#203243",
+              "on-tertiary": "#ffffff",
+              "surface-container-lowest": "#ffffff",
+              "on-error": "#ffffff",
+              "error-container": "#ffdad6",
+              "on-surface": "#091d2e"
+            },
+            fontFamily: {
+              "headline": ["Manrope"],
+              "body": ["Manrope"],
+              "label": ["Manrope"]
+            },
+            borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body { font-family: 'Manrope', sans-serif; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="bg-surface-off text-text-primary antialiased">
+<!-- Navigation Drawer (Shell Component) -->
+<aside class="h-full w-64 fixed left-0 top-0 bg-slate-50 dark:bg-slate-950 hidden lg:flex flex-col border-r border-slate-200 z-40">
+<div class="px-6 py-8">
+<h1 class="text-2xl font-black text-brand-orange tracking-tight">ChengDD Admin</h1>
+</div>
+<nav class="flex-1 px-2 space-y-1">
+<a class="text-text-secondary mx-2 my-1 px-4 py-3 flex items-center gap-3 hover:bg-slate-200 transition-all ease-in-out" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span class="font-medium text-sm">Dashboard</span>
+</a>
+<a class="text-text-secondary mx-2 my-1 px-4 py-3 flex items-center gap-3 hover:bg-slate-200 transition-all ease-in-out" href="#">
+<span class="material-symbols-outlined" data-icon="shopping_cart">shopping_cart</span>
+<span class="font-medium text-sm">Orders</span>
+</a>
+<a class="bg-brand-orange text-white rounded-lg mx-2 my-1 px-4 py-3 flex items-center gap-3 transition-all ease-in-out" href="#">
+<span class="material-symbols-outlined" data-icon="assignment_return">assignment_return</span>
+<span class="font-medium text-sm">After-sales</span>
+</a>
+<a class="text-text-secondary mx-2 my-1 px-4 py-3 flex items-center gap-3 hover:bg-slate-200 transition-all ease-in-out" href="#">
+<span class="material-symbols-outlined" data-icon="inventory_2">inventory_2</span>
+<span class="font-medium text-sm">Products</span>
+</a>
+<a class="text-text-secondary mx-2 my-1 px-4 py-3 flex items-center gap-3 hover:bg-slate-200 transition-all ease-in-out" href="#">
+<span class="material-symbols-outlined" data-icon="group">group</span>
+<span class="font-medium text-sm">Customers</span>
+</a>
+<a class="text-text-secondary mx-2 my-1 px-4 py-3 flex items-center gap-3 hover:bg-slate-200 transition-all ease-in-out" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span class="font-medium text-sm">Settings</span>
+</a>
+</nav>
+</aside>
+<!-- Main Canvas -->
+<main class="lg:ml-64 min-h-screen flex flex-col pb-20 lg:pb-0 bg-surface-white">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full lg:w-[calc(100%-16rem)] z-50 bg-white/95 backdrop-blur-xl border-b border-slate-100 flex items-center justify-between px-6 py-4">
+<div class="flex items-center gap-4">
+<button class="lg:hidden text-text-primary active:scale-95 duration-200">
+<span class="material-symbols-outlined" data-icon="menu">menu</span>
+</button>
+<h2 class="font-manrope text-text-primary antialiased font-bold text-lg tracking-tight">售后处理 (确认版)</h2>
+</div>
+<div class="flex items-center gap-4">
+<div class="hidden md:flex items-center bg-slate-50 px-3 py-1.5 rounded-full gap-2 border border-slate-200 focus-within:bg-white focus-within:ring-1 focus-within:ring-brand-orange transition-all">
+<span class="material-symbols-outlined text-text-secondary text-sm" data-icon="search">search</span>
+<input class="bg-transparent border-none text-sm focus:ring-0 w-48 font-label" placeholder="售后单号/订单号" type="text"/>
+</div>
+<div class="w-10 h-10 rounded-full bg-slate-100 overflow-hidden border border-slate-200">
+<img alt="Merchant Profile" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB3Lzfo-m8M-UWGMujvZonPX6TaX0HT_WzAzppor1pCSdumXYODjew1IuWS9PPHsnJ-N1DhGm8-qaX2rtHxVnSof5Ty4sSjyOWXffewhQWDjkM6ENuJrWGPFRJa_EI2vxNMhAqCcjsqueM53m9BvgRiFZfHbM2Iz3XF2XpKOkDuQ1E6HVkuOFI6lyMAjDvqXD7UkiwMxS9Gdg0ft-pGCrXYjEzQnUqDmR_Q-1eZKohJIh355SOzrlGZ7XFSLkx_XJDgG0CfjafkSlJE"/>
+</div>
+</div>
+</header>
+<!-- Content Area -->
+<section class="mt-20 px-4 md:px-8 py-6 space-y-6">
+<!-- Filter Bar -->
+<div class="bg-white rounded-xl p-1.5 flex items-center gap-1 overflow-x-auto no-scrollbar border border-slate-100 shadow-sm">
+<button class="whitespace-nowrap px-6 py-2 rounded-lg text-sm font-bold bg-brand-orange text-white shadow-sm">全部</button>
+<button class="whitespace-nowrap px-6 py-2 rounded-lg text-sm font-semibold text-text-secondary hover:bg-slate-50 transition-colors">待处理</button>
+<button class="whitespace-nowrap px-6 py-2 rounded-lg text-sm font-semibold text-text-secondary hover:bg-slate-50 transition-colors">已同意</button>
+<button class="whitespace-nowrap px-6 py-2 rounded-lg text-sm font-semibold text-text-secondary hover:bg-slate-50 transition-colors">已驳回</button>
+<button class="whitespace-nowrap px-6 py-2 rounded-lg text-sm font-semibold text-text-secondary hover:bg-slate-50 transition-colors">待退货</button>
+<button class="whitespace-nowrap px-6 py-2 rounded-lg text-sm font-semibold text-text-secondary hover:bg-slate-50 transition-colors">已完成</button>
+</div>
+<!-- Card List -->
+<div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+<!-- Card 1: Pending Action -->
+<div class="bg-white border border-slate-100 rounded-xl p-6 flex flex-col gap-5 hover:shadow-lg transition-all duration-300 relative overflow-hidden">
+<div class="absolute top-0 left-0 w-1.5 h-full bg-brand-orange"></div>
+<div class="flex justify-between items-start">
+<div class="space-y-1">
+<p class="text-[11px] font-bold text-text-secondary uppercase tracking-wide">售后单号: AS20240815001</p>
+<h3 class="text-sm font-bold text-text-primary flex items-center gap-2">
+                                订单号: ORD-7782190
+                                <span class="material-symbols-outlined text-xs text-text-secondary" data-icon="content_copy">content_copy</span>
+</h3>
+</div>
+<span class="bg-[#FFF4ED] text-[#E65100] px-3 py-1 rounded-full text-xs font-bold border border-[#FFCCBC]">待处理</span>
+</div>
+<div class="flex gap-4 p-4 rounded-xl bg-slate-50">
+<img alt="Product" class="w-20 h-20 rounded-lg object-cover bg-white border border-slate-100" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDaHJg9Y9-82IdN_PpmDNEAm4aZPcFA1odxrSly3scqb-Gnw_q-H2b1vSaybqSiL-jhMzC1iLVc5bVSf088_TsrmAVZgzbCqIuU37XZ65PFN4-HclE7oHk2DyO_dmwoJhp3F1MG-l1n0VFg0EbCftw2RNaZv0cSsUNyuFPpT2A8m-GsonAsdGccM-BTlI7L5Uu0W1yijXxkriSMIuuOUzZDOZi2fjURPK69QyeZIiGIo_RNsC6wICtspzD3WYrz4OBpgoudQ8pnLTno"/>
+<div class="flex-1 space-y-1">
+<p class="text-sm font-bold text-text-primary leading-tight">Ultra Series 9 智能手表 - 钛金属表壳</p>
+<p class="text-xs text-text-secondary">规格: 45mm / 午夜色 / 蜂窝版</p>
+<div class="pt-2 flex items-center gap-2">
+<span class="text-[10px] font-bold px-2 py-0.5 rounded border border-slate-200 text-text-secondary">退货退款</span>
+<span class="text-xs font-black text-brand-orange">¥3,299.00</span>
+</div>
+</div>
+</div>
+<div class="flex justify-between items-center pt-2">
+<p class="text-[11px] text-text-secondary flex items-center gap-1.5 font-medium">
+<span class="material-symbols-outlined text-sm" data-icon="schedule">schedule</span>
+                            更新于 2024-08-15 14:30
+                        </p>
+<div class="flex gap-2">
+<button class="px-4 py-2 text-sm font-bold text-text-secondary hover:bg-slate-50 rounded-lg transition-colors">查看详情</button>
+<button class="px-5 py-2 text-sm font-bold bg-brand-orange text-white rounded-lg shadow-md hover:brightness-110 active:scale-95 transition-all">快速同意</button>
+</div>
+</div>
+</div>
+<!-- Card 2: Refunding -->
+<div class="bg-white border border-slate-100 rounded-xl p-6 flex flex-col gap-5 hover:shadow-lg transition-all duration-300">
+<div class="flex justify-between items-start">
+<div class="space-y-1">
+<p class="text-[11px] font-bold text-text-secondary uppercase tracking-wide">售后单号: AS20240815012</p>
+<h3 class="text-sm font-bold text-text-primary flex items-center gap-2">
+                                订单号: ORD-9901234
+                                <span class="material-symbols-outlined text-xs text-text-secondary" data-icon="content_copy">content_copy</span>
+</h3>
+</div>
+<span class="bg-[#E3F2FD] text-[#0D47A1] px-3 py-1 rounded-full text-xs font-bold border border-[#BBDEFB]">退款中</span>
+</div>
+<div class="flex gap-4 p-4 rounded-xl bg-slate-50">
+<img alt="Product" class="w-20 h-20 rounded-lg object-cover bg-white border border-slate-100" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBYvuvoNHNmykVYF0wfmIB05Hx0ubd_8R29okm5sceX1Mcgi-WOskg_deD-Lb4x9WEDkzcU8agrf7uN76eLMMu6q2RO67BqLOmf_GT7ZxzXv_p9Vdl_EPhERSDJ_zZNvMwMGfgsOQ5FuEg7pw2fhxH8fNd4usM3v1C4GJSHRImvwb0-zhZc8E0mijgAeHLyxDePdJyHmmjvnoP4V4-dS699wm0EE0aw7mHKA21A8TBNT2fQ45NDJ24K3tYjqDeXqwqLzFNtL3Byo65z"/>
+<div class="flex-1 space-y-1">
+<p class="text-sm font-bold text-text-primary leading-tight">Lumix S5II 全画幅微单相机套机</p>
+<p class="text-xs text-text-secondary">规格: 20-60mm 套机 / 黑色</p>
+<div class="pt-2 flex items-center gap-2">
+<span class="text-[10px] font-bold px-2 py-0.5 rounded border border-slate-200 text-text-secondary">仅退款</span>
+<span class="text-xs font-black text-brand-orange">¥12,499.00</span>
+</div>
+</div>
+</div>
+<div class="flex justify-between items-center pt-2">
+<p class="text-[11px] text-text-secondary flex items-center gap-1.5 font-medium">
+<span class="material-symbols-outlined text-sm" data-icon="schedule">schedule</span>
+                            更新于 2024-08-15 11:15
+                        </p>
+<button class="px-4 py-2 text-sm font-bold text-text-secondary hover:bg-slate-50 rounded-lg transition-colors">查看详情</button>
+</div>
+</div>
+<!-- Card 3: Rejected -->
+<div class="bg-white border border-slate-100 rounded-xl p-6 flex flex-col gap-5 hover:shadow-lg transition-all duration-300">
+<div class="flex justify-between items-start">
+<div class="space-y-1">
+<p class="text-[11px] font-bold text-text-secondary uppercase tracking-wide">售后单号: AS20240814088</p>
+<h3 class="text-sm font-bold text-text-primary flex items-center gap-2">
+                                订单号: ORD-5541092
+                                <span class="material-symbols-outlined text-xs text-text-secondary" data-icon="content_copy">content_copy</span>
+</h3>
+</div>
+<span class="bg-[#FFEBEE] text-[#C62828] px-3 py-1 rounded-full text-xs font-bold border border-[#FFCDD2]">已驳回</span>
+</div>
+<div class="flex gap-4 p-4 rounded-xl bg-slate-50">
+<img alt="Product" class="w-20 h-20 rounded-lg object-cover bg-white border border-slate-100" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBwou4vX8cf3TX6ttL58JhcjxBVwPc4K6c242USmEHTrCYSFlYuWH5X_dlJVigdxsUCBYjql7sm0ZDcQUM1s2BaT41ZEauqMJprhTn2q6kMkxB7pVHvhwpcwpav9F3qCyupBUFtNFOhEKCCaBGeUHzVuKDHVcWlkooObH_t78od_E2TTYclMB-Q-x4ro1mSSZ8kZ4tAbyofa2RILmyJ9sBasE1UsAG9A7sPZJdxbm07anGSwOvnSeSI3r7yS1QWLRUXTf0RrPM7mJui"/>
+<div class="flex-1 space-y-1">
+<p class="text-sm font-bold text-text-primary leading-tight">ZoomX Vaporfly Next% 3 跑鞋</p>
+<p class="text-xs text-text-secondary">规格: 42.5 / 极光绿</p>
+<div class="pt-2 flex items-center gap-2">
+<span class="text-[10px] font-bold px-2 py-0.5 rounded border border-slate-200 text-text-secondary">退货退款</span>
+<span class="text-xs font-black text-brand-orange">¥1,599.00</span>
+</div>
+</div>
+</div>
+<div class="flex justify-between items-center pt-2">
+<p class="text-[11px] text-text-secondary flex items-center gap-1.5 font-medium">
+<span class="material-symbols-outlined text-sm" data-icon="schedule">schedule</span>
+                            更新于 2024-08-14 18:02
+                        </p>
+<button class="px-4 py-2 text-sm font-bold text-text-secondary hover:bg-slate-50 rounded-lg transition-colors">查看详情</button>
+</div>
+</div>
+<!-- Card 4: Completed -->
+<div class="bg-white border border-slate-100 rounded-xl p-6 flex flex-col gap-5 hover:shadow-lg transition-all duration-300">
+<div class="flex justify-between items-start">
+<div class="space-y-1">
+<p class="text-[11px] font-bold text-text-secondary uppercase tracking-wide">售后单号: AS20240814045</p>
+<h3 class="text-sm font-bold text-text-primary flex items-center gap-2">
+                                订单号: ORD-1120038
+                                <span class="material-symbols-outlined text-xs text-text-secondary" data-icon="content_copy">content_copy</span>
+</h3>
+</div>
+<span class="bg-[#E8F5E9] text-[#2E7D32] px-3 py-1 rounded-full text-xs font-bold border border-[#C8E6C9]">已完成</span>
+</div>
+<div class="flex gap-4 p-4 rounded-xl bg-slate-50">
+<img alt="Product" class="w-20 h-20 rounded-lg object-cover bg-white border border-slate-100" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDy1sQVcHZdgTH_bDas4QHf4JaybW33lgXt6PfOkedw6MyD14Fx8s4Xx7FsMksVnhilLGU8JpYB4H1CgatlPfYH5nWzSuJDqPomXG_JX4tSJLcE9zR9L42mRnF6yNkDXR4zaPue6P21aa6GvXRnwcc6NQkAY3kleqFLnm8kcg3eLVeBYlnsY8SooaclsCyKrx_X-U5toHeIaox2e50tRcF9EleWn5nm77pXkJMY83CXLa53mVbtTxiywXLsWLwkHPgZ-yJuFU_YInaB"/>
+<div class="flex-1 space-y-1">
+<p class="text-sm font-bold text-text-primary leading-tight">Breville Barista Pro 半自动咖啡机</p>
+<p class="text-xs text-text-secondary">规格: 尊爵银 / 旗舰版</p>
+<div class="pt-2 flex items-center gap-2">
+<span class="text-[10px] font-bold px-2 py-0.5 rounded border border-slate-200 text-text-secondary">退货退款</span>
+<span class="text-xs font-black text-brand-orange">¥6,880.00</span>
+</div>
+</div>
+</div>
+<div class="flex justify-between items-center pt-2">
+<p class="text-[11px] text-text-secondary flex items-center gap-1.5 font-medium">
+<span class="material-symbols-outlined text-sm" data-icon="schedule">schedule</span>
+                            更新于 2024-08-14 09:20
+                        </p>
+<button class="px-4 py-2 text-sm font-bold text-text-secondary hover:bg-slate-50 rounded-lg transition-colors">查看详情</button>
+</div>
+</div>
+</div>
+<!-- Pagination -->
+<div class="flex justify-center py-8">
+<nav class="flex items-center gap-1 bg-slate-50 p-1.5 rounded-full border border-slate-100">
+<button class="w-9 h-9 flex items-center justify-center rounded-full hover:bg-slate-200 text-text-secondary transition-colors">
+<span class="material-symbols-outlined text-lg" data-icon="chevron_left">chevron_left</span>
+</button>
+<button class="w-9 h-9 flex items-center justify-center rounded-full bg-brand-orange text-white text-xs font-bold shadow-sm">1</button>
+<button class="w-9 h-9 flex items-center justify-center rounded-full hover:bg-slate-200 text-text-secondary text-xs font-bold transition-colors">2</button>
+<button class="w-9 h-9 flex items-center justify-center rounded-full hover:bg-slate-200 text-text-secondary text-xs font-bold transition-colors">3</button>
+<span class="text-text-secondary px-2 text-xs font-bold">...</span>
+<button class="w-9 h-9 flex items-center justify-center rounded-full hover:bg-slate-200 text-text-secondary text-xs font-bold transition-colors">12</button>
+<button class="w-9 h-9 flex items-center justify-center rounded-full hover:bg-slate-200 text-text-secondary transition-colors">
+<span class="material-symbols-outlined text-lg" data-icon="chevron_right">chevron_right</span>
+</button>
+</nav>
+</div>
+</section>
+</main>
+<!-- BottomNavBar (Mobile) -->
+<nav class="lg:hidden fixed bottom-0 w-full h-16 bg-white border-t border-slate-100 shadow-[0_-4px_16px_rgba(0,0,0,0.04)] z-50 flex justify-around items-center pb-safe">
+<a class="flex flex-col items-center justify-center text-text-secondary" href="#">
+<span class="material-symbols-outlined" data-icon="home">home</span>
+<span class="text-[10px] font-manrope font-bold">首页</span>
+</a>
+<a class="flex flex-col items-center justify-center text-text-secondary" href="#">
+<span class="material-symbols-outlined" data-icon="list_alt">list_alt</span>
+<span class="text-[10px] font-manrope font-bold">订单</span>
+</a>
+<a class="flex flex-col items-center justify-center text-brand-orange" href="#">
+<span class="material-symbols-outlined" data-icon="replay" style="font-variation-settings: 'FILL' 1;">replay</span>
+<span class="text-[10px] font-manrope font-bold">售后</span>
+</a>
+<a class="flex flex-col items-center justify-center text-text-secondary" href="#">
+<span class="material-symbols-outlined" data-icon="person">person</span>
+<span class="text-[10px] font-manrope font-bold">我的</span>
+</a>
+</nav>
+</body></html>

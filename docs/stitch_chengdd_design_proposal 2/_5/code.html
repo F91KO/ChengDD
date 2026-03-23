@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "surface-container-highest": "#d1e4fb",
+              "background": "#f7f9ff",
+              "surface-container-low": "#edf4ff",
+              "surface": "#f7f9ff",
+              "on-tertiary-fixed": "#001d35",
+              "tertiary-container": "#059eff",
+              "on-primary-fixed-variant": "#7a3000",
+              "primary-container": "#ff6b00",
+              "on-secondary-fixed": "#351000",
+              "inverse-primary": "#ffb693",
+              "error-container": "#ffdad6",
+              "primary-fixed": "#ffdbcc",
+              "on-primary-container": "#572000",
+              "on-secondary-fixed-variant": "#783207",
+              "on-primary-fixed": "#351000",
+              "surface-variant": "#d1e4fb",
+              "surface-tint": "#a04100",
+              "outline": "#8e7164",
+              "tertiary": "#0062a1",
+              "surface-container-high": "#d9eaff",
+              "primary": "#a04100",
+              "inverse-on-surface": "#e8f2ff",
+              "on-primary": "#ffffff",
+              "secondary": "#96481e",
+              "on-error-container": "#93000a",
+              "secondary-fixed-dim": "#ffb693",
+              "tertiary-fixed-dim": "#9ccaff",
+              "tertiary-fixed": "#d0e4ff",
+              "on-secondary-container": "#763006",
+              "on-error": "#ffffff",
+              "primary-fixed-dim": "#ffb693",
+              "outline-variant": "#e2bfb0",
+              "surface-container-lowest": "#ffffff",
+              "surface-container": "#e3efff",
+              "on-tertiary-fixed-variant": "#00497b",
+              "secondary-fixed": "#ffdbcc",
+              "on-surface": "#091d2e",
+              "surface-dim": "#c9dcf3",
+              "surface-bright": "#f7f9ff",
+              "error": "#ba1a1a",
+              "on-tertiary": "#ffffff",
+              "inverse-surface": "#203243",
+              "on-surface-variant": "#5a4136",
+              "on-secondary": "#ffffff",
+              "on-tertiary-container": "#003357",
+              "secondary-container": "#fe9a69",
+              "on-background": "#091d2e"
+            },
+            fontFamily: {
+              "headline": ["Manrope"],
+              "body": ["Manrope"],
+              "label": ["Manrope"]
+            },
+            borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body { font-family: 'Manrope', sans-serif; }
+        .glass-effect { backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head>
+<body class="bg-surface text-on-surface antialiased pb-20">
+<!-- Top AppBar (from JSON) -->
+<header class="fixed top-0 w-full z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl shadow-sm shadow-slate-200/50 dark:shadow-none h-16 flex items-center justify-between px-6">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-surface-container-high overflow-hidden">
+<img alt="Merchant Profile Picture" class="w-full h-full object-cover" data-alt="Professional merchant profile portrait" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAc9AriLZKVVFiDxXkuweLWnJFluBvaBXeh5m8AtTd01EHpYPQli0dPhKOlqLC9O9A1cifdcd7LZID-8e--XLI9gHvUcgFcthLnn1B3VoJmqOswRcP-6heeNQa-fhXd3M4vyqXcrP6fTr9_ltkHkIjO7NjHQsNb8MhHl8f3GFp-sf1mtX71oFkKv5pvkKU2w-TFRbpCP83cRkIiw7pRZDGHOXT45737iUSx0RVfn3J9m-QibwBYoWkVtJJZ--CWoza3hv9kHPuw0sv5"/>
+</div>
+<span class="text-xl font-bold text-orange-600 dark:text-orange-500">商品管理 (确认版)</span>
+</div>
+<div class="flex items-center gap-4">
+<button class="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors active:scale-95 duration-200 rounded-lg">
+<span class="material-symbols-outlined text-on-surface" data-icon="search">search</span>
+</button>
+</div>
+</header>
+<main class="pt-20 px-4 space-y-6 max-w-2xl mx-auto">
+<!-- Search & Filter Bar -->
+<section class="flex gap-2">
+<div class="relative flex-1 group">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-sm" data-icon="search">search</span>
+<input class="w-full h-11 pl-10 pr-4 bg-surface-container-low border-none rounded-xl text-sm focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-on-surface-variant/50" placeholder="搜索商品名称、SKU..." type="text"/>
+</div>
+<button class="h-11 px-4 bg-surface-container-low rounded-xl flex items-center justify-center text-on-surface active:scale-95 transition-all">
+<span class="material-symbols-outlined" data-icon="filter_list">filter_list</span>
+</button>
+</section>
+<!-- Stats Grid (Bento Style) -->
+<section class="grid grid-cols-3 gap-3">
+<div class="bg-surface-container-lowest p-4 rounded-xl shadow-sm border-l-4 border-primary">
+<div class="text-on-surface-variant text-[11px] font-bold uppercase tracking-wider mb-1">在售中</div>
+<div class="text-2xl font-extrabold text-on-surface">128</div>
+</div>
+<div class="bg-surface-container-lowest p-4 rounded-xl shadow-sm border-l-4 border-tertiary">
+<div class="text-on-surface-variant text-[11px] font-bold uppercase tracking-wider mb-1">待发布</div>
+<div class="text-2xl font-extrabold text-on-surface">12</div>
+</div>
+<div class="bg-surface-container-lowest p-4 rounded-xl shadow-sm border-l-4 border-error">
+<div class="text-on-surface-variant text-[11px] font-bold uppercase tracking-wider mb-1">库存预警</div>
+<div class="text-2xl font-extrabold text-error">5</div>
+</div>
+</section>
+<!-- Product List -->
+<div class="space-y-3">
+<!-- Product Card 1 -->
+<div class="bg-surface-container-lowest rounded-xl overflow-hidden shadow-sm flex flex-col group active:bg-surface-container-low transition-colors">
+<div class="p-3 flex gap-3">
+<div class="w-24 h-24 rounded-lg overflow-hidden bg-surface-container flex-shrink-0">
+<img alt="Product 1" class="w-full h-full object-cover" data-alt="High quality athletic running shoe side view" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDyqKqeCHOu1gnoJrESp-LMA6yFP_qLHTh6wFPdvOPk_7skGcLK26uOaNNX8r8eHYoaaDp6D2u8p1pd62qJ7j1PXHTN2MeTyK7vwCdpYO2H1kM-Eyy21vh07L5_IFmsMD0GMnjK3cKwNedt-Y-9-HIjLutvU5bv43j5sJgDAFbb9R_VF0lNKP78jUY2lC2fsn25fl8lWvqgcC8epR1UgHS9DAYghqcGUvSEDLZhY_p5xGUhUQiSFCkt-jRGluKCWjlDJmYzuc4etT6u"/>
+</div>
+<div class="flex-1 flex flex-col justify-between py-0.5">
+<div>
+<h3 class="text-sm font-bold text-on-surface leading-snug line-clamp-2">ChengDD Nexus 联名款高弹透气竞速跑鞋 - 极昼白</h3>
+<p class="text-[10px] text-on-surface-variant mt-1 font-mono">SKU: CDD-2024-NX01</p>
+</div>
+<div class="flex items-end justify-between">
+<div class="flex flex-col">
+<span class="text-primary-container text-lg font-extrabold leading-none">¥599.00</span>
+<span class="text-[10px] text-on-surface-variant mt-1">销量: 2,491</span>
+</div>
+<div class="text-right">
+<div class="inline-flex items-center px-2 py-0.5 rounded-full bg-primary-fixed text-on-primary-fixed-variant text-[10px] font-bold mb-1">
+                                    校验通过
+                                </div>
+<div class="text-[10px] flex items-center justify-end font-semibold text-on-surface">
+                                    库存: <span class="ml-1">842</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Actions -->
+<div class="flex border-t border-surface-container-low p-2 gap-2">
+<button class="flex-1 h-9 rounded-lg bg-surface-container-low text-[12px] font-bold text-on-surface active:scale-95 transition-all">编辑</button>
+<button class="flex-1 h-9 rounded-lg bg-surface-container-low text-[12px] font-bold text-on-surface active:scale-95 transition-all">库存</button>
+<button class="flex-1 h-9 rounded-lg bg-on-surface text-[12px] font-bold text-white active:scale-95 transition-all">下架</button>
+</div>
+</div>
+<!-- Product Card 2 (Critical Stock) -->
+<div class="bg-surface-container-lowest rounded-xl overflow-hidden shadow-sm flex flex-col group border-l-4 border-error">
+<div class="p-3 flex gap-3">
+<div class="w-24 h-24 rounded-lg overflow-hidden bg-surface-container flex-shrink-0">
+<img alt="Product 2" class="w-full h-full object-cover" data-alt="Minimalist wrist watch product photography" src="https://lh3.googleusercontent.com/aida-public/AB6AXuArCDal6X7W34pgQxMzNM7bQFnSPr1DNFsCvR-X76xkHQbgrLIy7wmV6fEMwq2z9x4a1TebsMk5lXnFVDWtRRco6gt8Pn-UyhmaMDMZcnB_CPOLqLtUA-3mC4x-twFKOHcditbZdzmQoNTtlpvr-GLYUrExv1m5900tTJpnLyahy4k8Yp2u6wope1zbG7Cxiu32u_wX44H3HtGmJptkb6OSAegzlhx-ZrUrXfyGjE308japkb1H748lcecIeDyTDi0yGNjcnB5g8YgM"/>
+</div>
+<div class="flex-1 flex flex-col justify-between py-0.5">
+<div>
+<h3 class="text-sm font-bold text-on-surface leading-snug line-clamp-2">精钢系列 42mm 智能腕表 - 钛空灰 (配皮质表带)</h3>
+<p class="text-[10px] text-on-surface-variant mt-1 font-mono">SKU: CDD-WTCH-821</p>
+</div>
+<div class="flex items-end justify-between">
+<div class="flex flex-col">
+<span class="text-primary-container text-lg font-extrabold leading-none">¥1,280.00</span>
+<span class="text-[10px] text-on-surface-variant mt-1">销量: 104</span>
+</div>
+<div class="text-right">
+<div class="inline-flex items-center px-2 py-0.5 rounded-full bg-surface-container-high text-on-surface-variant text-[10px] font-bold mb-1">
+                                    待完善
+                                </div>
+<div class="text-[10px] flex items-center justify-end font-semibold text-error">
+                                    库存: <span class="ml-1">3 (预警)</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Actions -->
+<div class="flex border-t border-surface-container-low p-2 gap-2">
+<button class="flex-1 h-9 rounded-lg bg-surface-container-low text-[12px] font-bold text-on-surface">编辑</button>
+<button class="flex-1 h-9 rounded-lg bg-error-container text-[12px] font-bold text-on-error-container">补货</button>
+<button class="flex-1 h-9 rounded-lg bg-on-surface text-[12px] font-bold text-white">下架</button>
+</div>
+</div>
+<!-- Product Card 3 -->
+<div class="bg-surface-container-lowest rounded-xl overflow-hidden shadow-sm flex flex-col opacity-75">
+<div class="p-3 flex gap-3">
+<div class="w-24 h-24 rounded-lg overflow-hidden bg-surface-container flex-shrink-0 grayscale">
+<img alt="Product 3" class="w-full h-full object-cover" data-alt="Over-ear wireless headphones on stand" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBfckBzk0JTOx54lFOKgiXeJ7Ido5gn8MYbp3uS4JtvM2ZvYnKfBtZ7mn9YkxcFCHJmPpuj2VLqvGQAZul141eQjvNhuqEpqq2Vtph4wrzDsnCeuEj2oaMKogN4-Sc50gJbeZVlY5QoSZNkCOmh0z7b_BaBJAJ8re9dXSz86hgxwrVL4vZYTDyL_VJ6zhhtrJLk02YawLouiHQz7MdBE0-HIt4jxs8jUivPwAYFOy_yQfiKu9QKL6ct_-tfaiLDADo4XQ9zO15nr7oj"/>
+</div>
+<div class="flex-1 flex flex-col justify-between py-0.5">
+<div>
+<div class="flex items-center gap-2 mb-1">
+<span class="bg-on-surface-variant/10 text-on-surface-variant text-[9px] px-1.5 py-0.5 rounded font-bold">已下架</span>
+<h3 class="text-sm font-bold text-on-surface leading-snug line-clamp-2">HIFI 降噪无线头戴式耳机 Pro版</h3>
+</div>
+<p class="text-[10px] text-on-surface-variant font-mono">SKU: CDD-AU-092-B</p>
+</div>
+<div class="flex items-end justify-between">
+<div class="flex flex-col">
+<span class="text-on-surface text-lg font-extrabold leading-none">¥899.00</span>
+<span class="text-[10px] text-on-surface-variant mt-1">销量: 562</span>
+</div>
+<div class="text-right">
+<div class="text-[10px] flex items-center justify-end font-semibold text-on-surface">
+                                    库存: <span class="ml-1">45</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Actions -->
+<div class="flex border-t border-surface-container-low p-2 gap-2">
+<button class="flex-1 h-9 rounded-lg bg-surface-container-low text-[12px] font-bold text-on-surface">编辑</button>
+<button class="flex-[2] h-9 rounded-lg bg-primary-container text-[12px] font-bold text-white">上架销售</button>
+</div>
+</div>
+</div>
+</main>
+<!-- BottomNavBar (from JSON) -->
+<nav class="fixed bottom-0 w-full z-50 pb-safe bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800 shadow-[0_-4px_12px_rgba(0,0,0,0.04)]">
+<div class="flex justify-around items-center h-16 px-2">
+<!-- Workbench Tab -->
+<a class="flex flex-col items-center justify-center text-slate-400 dark:text-slate-500 transition-all active:scale-90" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span class="font-manrope text-[11px] font-semibold">工作台</span>
+</a>
+<!-- Products Tab (ACTIVE) -->
+<a class="flex flex-col items-center justify-center text-orange-600 bg-orange-50 dark:bg-orange-900/20 rounded-xl px-3 py-1 transition-all active:scale-90" href="#">
+<span class="material-symbols-outlined font-bold" data-icon="inventory_2" style="font-variation-settings: 'FILL' 1;">inventory_2</span>
+<span class="font-manrope text-[11px] font-bold">商品</span>
+</a>
+<!-- Orders Tab -->
+<a class="flex flex-col items-center justify-center text-slate-400 dark:text-slate-500 transition-all active:scale-90" href="#">
+<span class="material-symbols-outlined" data-icon="receipt_long">receipt_long</span>
+<span class="font-manrope text-[11px] font-semibold">订单</span>
+</a>
+<!-- Profile Tab -->
+<a class="flex flex-col items-center justify-center text-slate-400 dark:text-slate-500 transition-all active:scale-90" href="#">
+<span class="material-symbols-outlined" data-icon="person">person</span>
+<span class="font-manrope text-[11px] font-semibold">我的</span>
+</a>
+</div>
+</nav>
+<!-- FAB for adding product -->
+<button class="fixed bottom-24 right-6 w-14 h-14 bg-primary-container text-white rounded-full shadow-lg shadow-primary-container/30 flex items-center justify-center active:scale-90 transition-all z-40">
+<span class="material-symbols-outlined text-3xl" data-icon="add">add</span>
+</button>
+</body></html>

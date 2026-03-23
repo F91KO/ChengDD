@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>配置中心 (确认版) - 程哒哒 ChengDD</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "surface": "#ffffff",
+                        "card-bg": "#f8f9fa",
+                        "primary": "#FF6B00",
+                        "heading": "#091D2E",
+                        "body-text": "#5A4136",
+                        "inactive-grey": "#94a3b8",
+                        "on-error": "#ffffff",
+                        "error": "#ba1a1a",
+                        "error-container": "#ffdad6",
+                    },
+                    fontFamily: {
+                        "headline": ["Manrope"],
+                        "body": ["Manrope"],
+                        "label": ["Manrope"]
+                    },
+                    borderRadius: { 
+                        "DEFAULT": "0.25rem", 
+                        "lg": "0.5rem", 
+                        "xl": "0.75rem", 
+                        "2xl": "12px",
+                        "full": "9999px" 
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            font-family: 'Manrope', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .custom-switch:checked + .switch-bg {
+            background-color: #FF6B00;
+        }
+        .custom-switch:checked + .switch-bg:after {
+            transform: translateX(100%);
+        }
+    </style>
+</head>
+<body class="bg-surface text-body-text min-h-screen pb-24">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full z-50 bg-white/90 backdrop-blur-xl border-b border-gray-100 flex justify-between items-center px-6 py-4">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary active:scale-95 transition-transform duration-200" data-icon="settings_applications">settings_applications</span>
+<h1 class="font-bold text-xl tracking-tight text-heading">配置中心 (确认版)</h1>
+</div>
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-body-text hover:bg-card-bg transition-colors p-2 rounded-full" data-icon="search">search</span>
+</div>
+</header>
+<main class="pt-24 px-4 space-y-6">
+<!-- Stats Bento Grid -->
+<section class="grid grid-cols-2 gap-4">
+<div class="bg-card-bg p-5 rounded-2xl flex flex-col justify-between h-32 relative overflow-hidden border border-gray-100/50">
+<div class="z-10">
+<span class="text-body-text/70 text-sm font-medium">已启用开关</span>
+<div class="text-3xl font-extrabold mt-1 text-heading">24</div>
+</div>
+<div class="absolute -right-2 -bottom-2 opacity-5 text-primary">
+<span class="material-symbols-outlined text-7xl" data-icon="bolt">bolt</span>
+</div>
+<div class="text-primary text-xs font-bold flex items-center gap-1">
+<span class="material-symbols-outlined text-xs" data-icon="trending_up">trending_up</span>
+                较昨日 +2
+            </div>
+</div>
+<div class="bg-card-bg p-5 rounded-2xl flex flex-col justify-between h-32 relative overflow-hidden border-l-4 border-primary border-t border-r border-b border-gray-100/50">
+<div class="z-10">
+<span class="text-body-text/70 text-sm font-medium">待确认变更</span>
+<div class="text-3xl font-extrabold mt-1 text-heading">03</div>
+</div>
+<div class="absolute -right-2 -bottom-2 opacity-5 text-heading">
+<span class="material-symbols-outlined text-7xl" data-icon="pending_actions">pending_actions</span>
+</div>
+<div class="text-body-text text-xs font-bold">需管理员审核</div>
+</div>
+</section>
+<!-- Function Switches Section -->
+<section class="space-y-3">
+<div class="flex justify-between items-center px-1">
+<h2 class="text-lg font-bold text-heading">功能开关管理</h2>
+<span class="text-xs text-primary font-bold">批量操作</span>
+</div>
+<div class="bg-card-bg rounded-2xl overflow-hidden border border-gray-100">
+<!-- Toggle Item 1 -->
+<div class="p-4 flex items-center justify-between hover:bg-white transition-colors duration-200">
+<div class="space-y-0.5">
+<div class="text-base font-bold text-heading">自动接单</div>
+<div class="text-xs text-body-text/80">开启后系统将自动分配订单给最优商户</div>
+</div>
+<label class="relative inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only peer custom-switch" type="checkbox"/>
+<div class="switch-bg w-11 h-6 bg-inactive-grey rounded-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all transition-colors duration-200"></div>
+</label>
+</div>
+<!-- Toggle Item 2 -->
+<div class="p-4 flex items-center justify-between border-t border-gray-100 hover:bg-white transition-colors duration-200">
+<div class="space-y-0.5">
+<div class="text-base font-bold text-heading">消息推送</div>
+<div class="text-xs text-body-text/80">全局实时通知开关</div>
+</div>
+<label class="relative inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only peer custom-switch" type="checkbox"/>
+<div class="switch-bg w-11 h-6 bg-inactive-grey rounded-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all transition-colors duration-200"></div>
+</label>
+</div>
+<!-- Toggle Item 3 (High Risk) -->
+<div class="p-4 flex items-center justify-between border-t border-gray-100 hover:bg-white transition-colors duration-200">
+<div class="space-y-0.5">
+<div class="text-base font-bold text-heading">自动退款</div>
+<div class="text-xs text-error font-medium">高风险：开启后异常订单将直接扣除余额</div>
+</div>
+<label class="relative inline-flex items-center cursor-pointer">
+<input class="sr-only peer custom-switch" type="checkbox"/>
+<div class="switch-bg w-11 h-6 bg-inactive-grey rounded-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all transition-colors duration-200"></div>
+</label>
+</div>
+</div>
+</section>
+<!-- Platform Core Config -->
+<section class="space-y-3">
+<h2 class="text-lg font-bold text-heading px-1">平台核心配置</h2>
+<div class="bg-card-bg rounded-2xl p-5 space-y-4 border border-gray-100 relative">
+<div class="absolute top-4 right-4 bg-white px-2 py-1 rounded-lg text-[10px] font-bold text-body-text/70 border border-gray-100">正式环境</div>
+<div class="flex justify-between items-center group">
+<span class="text-body-text/80 font-medium">商户服务费率</span>
+<span class="text-heading font-extrabold text-lg">5% <span class="material-symbols-outlined text-sm align-middle ml-1 text-primary cursor-pointer" data-icon="edit">edit</span></span>
+</div>
+<div class="flex justify-between items-center group">
+<span class="text-body-text/80 font-medium">版本号</span>
+<span class="text-heading font-extrabold text-lg">v2.4.12</span>
+</div>
+<div class="flex justify-between items-center group">
+<span class="text-body-text/80 font-medium">API 延迟阈值</span>
+<span class="text-heading font-extrabold text-lg">200ms</span>
+</div>
+<div class="pt-2 border-t border-gray-100">
+<div class="text-xs text-error font-bold flex items-center gap-1 py-2 rounded-lg hover:bg-error-container/20 px-2 transition-colors">
+<span class="material-symbols-outlined text-sm" data-icon="warning">warning</span>
+                    重置所有平台配置（敏感操作）
+                </div>
+</div>
+</div>
+</section>
+<!-- Merchant Overrides -->
+<section class="space-y-3 pb-8">
+<div class="flex justify-between items-center px-1">
+<h2 class="text-lg font-bold text-heading">商户覆盖配置</h2>
+<div class="bg-primary/10 px-3 py-1.5 rounded-full text-[10px] font-extrabold text-primary flex items-center gap-1 active:scale-95 transition-transform cursor-pointer">
+<span class="material-symbols-outlined text-xs" data-icon="add">add</span>
+                新增覆盖项
+            </div>
+</div>
+<!-- Override Card 1 -->
+<div class="bg-card-bg rounded-2xl p-4 border border-gray-100 flex items-start gap-4">
+<div class="w-10 h-10 bg-white border border-gray-100 rounded-xl flex items-center justify-center text-primary">
+<span class="material-symbols-outlined" data-icon="store">store</span>
+</div>
+<div class="flex-1 space-y-1">
+<div class="flex justify-between">
+<span class="text-sm font-bold text-heading">杭州旗舰店 (ID: 8821)</span>
+<span class="material-symbols-outlined text-body-text/60 text-sm cursor-pointer" data-icon="more_horiz">more_horiz</span>
+</div>
+<div class="flex gap-2">
+<span class="bg-primary/10 px-2 py-0.5 rounded text-[10px] font-bold text-primary">费率: 3.5%</span>
+<span class="bg-white px-2 py-0.5 rounded text-[10px] font-bold text-body-text border border-gray-100">白名单模式</span>
+</div>
+<div class="text-[10px] text-body-text/60 pt-1 italic">由管理员 ChengDD 在 2023.10.24 修改</div>
+</div>
+</div>
+<!-- Override Card 2 -->
+<div class="bg-card-bg rounded-2xl p-4 border border-gray-100 flex items-start gap-4">
+<div class="w-10 h-10 bg-white border border-gray-100 rounded-xl flex items-center justify-center text-primary">
+<span class="material-symbols-outlined" data-icon="location_on">location_on</span>
+</div>
+<div class="flex-1 space-y-1">
+<div class="flex justify-between">
+<span class="text-sm font-bold text-heading">上海静安区 (全域覆盖)</span>
+<span class="material-symbols-outlined text-body-text/60 text-sm cursor-pointer" data-icon="more_horiz">more_horiz</span>
+</div>
+<div class="flex gap-2">
+<span class="bg-error-container/50 px-2 py-0.5 rounded text-[10px] font-bold text-error">暂停自动接单</span>
+</div>
+<div class="text-[10px] text-body-text/60 pt-1 italic">应对区域运力不足，计划于明日恢复</div>
+</div>
+</div>
+</section>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full flex justify-around items-center px-4 pb-6 pt-3 bg-white border-t border-gray-100 rounded-t-3xl shadow-[0_-4px_20px_rgba(0,0,0,0.03)] z-50">
+<div class="flex flex-col items-center justify-center text-body-text/60 px-4 py-1.5 active:scale-90 transition-transform duration-150 hover:opacity-80">
+<span class="material-symbols-outlined mb-1" data-icon="dashboard">dashboard</span>
+<span class="text-[10px] font-semibold tracking-wide">概览</span>
+</div>
+<div class="flex flex-col items-center justify-center text-primary bg-primary/10 rounded-2xl px-4 py-1.5 active:scale-90 transition-transform duration-150 hover:opacity-80">
+<span class="material-symbols-outlined mb-1" data-icon="tune" style="font-variation-settings: 'FILL' 1;">tune</span>
+<span class="text-[10px] font-bold tracking-wide">配置</span>
+</div>
+<div class="flex flex-col items-center justify-center text-body-text/60 px-4 py-1.5 active:scale-90 transition-transform duration-150 hover:opacity-80">
+<span class="material-symbols-outlined mb-1" data-icon="storefront">storefront</span>
+<span class="text-[10px] font-semibold tracking-wide">店铺</span>
+</div>
+<div class="flex flex-col items-center justify-center text-body-text/60 px-4 py-1.5 active:scale-90 transition-transform duration-150 hover:opacity-80">
+<span class="material-symbols-outlined mb-1" data-icon="person">person</span>
+<span class="text-[10px] font-semibold tracking-wide">我的</span>
+</div>
+</nav>
+</body></html>

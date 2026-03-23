@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        body { font-family: 'Manrope', sans-serif; }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        .glass-effect {
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+        }
+    </style>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "on-primary-fixed-variant": "#7a3000",
+              "outline-variant": "#e2bfb0",
+              "on-secondary-container": "#763006",
+              "surface-container-highest": "#d1e4fb",
+              "on-secondary-fixed": "#351000",
+              "secondary-fixed-dim": "#ffb693",
+              "on-primary-fixed": "#351000",
+              "inverse-surface": "#203243",
+              "surface-container-lowest": "#ffffff",
+              "secondary-container": "#fe9a69",
+              "surface-dim": "#c9dcf3",
+              "on-tertiary-container": "#003357",
+              "primary-fixed": "#ffdbcc",
+              "inverse-primary": "#ffb693",
+              "tertiary": "#0062a1",
+              "on-tertiary-fixed-variant": "#00497b",
+              "secondary": "#96481e",
+              "on-tertiary": "#ffffff",
+              "primary": "#a04100",
+              "on-tertiary-fixed": "#001d35",
+              "tertiary-fixed-dim": "#9ccaff",
+              "tertiary-container": "#059eff",
+              "surface-tint": "#a04100",
+              "surface-container-low": "#edf4ff",
+              "error": "#ba1a1a",
+              "surface-variant": "#d1e4fb",
+              "surface-container": "#e3efff",
+              "on-secondary-fixed-variant": "#783207",
+              "error-container": "#ffdad6",
+              "on-secondary": "#ffffff",
+              "surface-bright": "#f7f9ff",
+              "on-background": "#091d2e",
+              "inverse-on-surface": "#e8f2ff",
+              "surface-container-high": "#d9eaff",
+              "secondary-fixed": "#ffdbcc",
+              "tertiary-fixed": "#d0e4ff",
+              "primary-container": "#ff6b00",
+              "background": "#f7f9ff",
+              "primary-fixed-dim": "#ffb693",
+              "on-surface": "#091d2e",
+              "on-error-container": "#93000a",
+              "on-primary-container": "#572000",
+              "on-surface-variant": "#5a4136",
+              "outline": "#8e7164",
+              "on-error": "#ffffff",
+              "surface": "#f7f9ff",
+              "on-primary": "#ffffff"
+            },
+            fontFamily: {
+              "headline": ["Manrope"],
+              "body": ["Manrope"],
+              "label": ["Manrope"]
+            },
+            borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+          },
+        },
+      }
+    </script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head>
+<body class="bg-surface text-on-background min-h-screen pb-24">
+<!-- TopAppBar -->
+<nav class="fixed top-0 w-full z-50 bg-white/80 dark:bg-[#091D2E]/80 backdrop-blur-xl flex items-center justify-between px-6 h-16 w-full shadow-[0_24px_24px_rgba(9,29,46,0.04)]">
+<div class="flex items-center gap-4">
+<button class="text-[#FF6B00] active:scale-95 duration-200">
+<span class="material-symbols-outlined" data-icon="arrow_back">arrow_back</span>
+</button>
+<h1 class="font-['Manrope'] font-bold text-lg tracking-tight text-[#091D2E] dark:text-white">订单详情 (确认版)</h1>
+</div>
+<div class="flex items-center gap-2">
+<button class="text-[#5A4136] p-2 hover:bg-[#EDF4FF] rounded-full transition-colors active:scale-95 duration-200">
+<span class="material-symbols-outlined" data-icon="more_vert">more_vert</span>
+</button>
+</div>
+</nav>
+<main class="pt-20 px-4 max-w-2xl mx-auto space-y-3">
+<!-- Status Header: High Information Density -->
+<section class="relative overflow-hidden rounded-xl bg-gradient-to-br from-[#091D2E] to-[#1A3A5A] p-5 text-white shadow-lg">
+<div class="absolute top-0 right-0 w-32 h-32 bg-[#FF6B00]/10 rounded-full -mr-16 -mt-16 blur-3xl"></div>
+<div class="relative flex justify-between items-center">
+<div>
+<div class="flex items-center gap-2 mb-1">
+<span class="material-symbols-outlined text-[#FF6B00]" data-icon="schedule" data-weight="fill" style="font-variation-settings: 'FILL' 1;">schedule</span>
+<span class="text-xl font-extrabold tracking-tight">待发货</span>
+</div>
+<p class="text-xs text-slate-300 font-medium opacity-90">剩余 23:54:12 自动确认订单</p>
+</div>
+<div class="text-right">
+<span class="text-[10px] uppercase tracking-widest text-slate-400 block mb-1">Order ID</span>
+<div class="flex items-center gap-1 bg-white/10 px-2 py-1 rounded-lg">
+<span class="text-sm font-mono font-bold tracking-tighter">CDD-99283471</span>
+<span class="material-symbols-outlined text-xs cursor-pointer hover:text-[#FF6B00]" data-icon="content_copy">content_copy</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Delivery Info: Dual Column / Compact -->
+<section class="bg-surface-container-lowest rounded-xl p-4 shadow-sm border border-outline-variant/10">
+<div class="flex items-start gap-3">
+<div class="bg-primary-fixed p-2 rounded-lg">
+<span class="material-symbols-outlined text-primary" data-icon="location_on" data-weight="fill" style="font-variation-settings: 'FILL' 1;">location_on</span>
+</div>
+<div class="flex-1 grid grid-cols-1 gap-1">
+<div class="flex items-center justify-between">
+<div class="flex items-baseline gap-2">
+<span class="text-base font-bold text-on-background">程大宝</span>
+<span class="text-sm font-medium text-on-surface-variant">138 **** 8888</span>
+</div>
+<button class="text-primary flex items-center gap-1 active:scale-95 duration-200">
+<span class="material-symbols-outlined text-lg" data-icon="call">call</span>
+</button>
+</div>
+<p class="text-xs text-on-surface-variant leading-relaxed">广东省深圳市南山区粤海街道科苑路 15 号科兴科学园 B 栋 3 单元 808 室</p>
+</div>
+</div>
+</section>
+<!-- Product List: High Density Grid -->
+<section class="bg-surface-container-lowest rounded-xl overflow-hidden shadow-sm border border-outline-variant/10">
+<div class="px-4 py-3 border-b border-surface-container flex justify-between items-center">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-on-surface-variant text-lg" data-icon="store">store</span>
+<span class="text-sm font-bold text-on-background">程哒哒品牌旗舰店</span>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant text-sm" data-icon="chevron_right">chevron_right</span>
+</div>
+<div class="p-4 space-y-4">
+<!-- Product Item 1 -->
+<div class="flex gap-3">
+<div class="w-20 h-20 rounded-lg overflow-hidden flex-shrink-0 bg-surface-container">
+<img class="w-full h-full object-cover" data-alt="Modern ergonomic office chair with orange accents" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA26EM2bk-HgfVSyg2fQJNIwROf-Yd7fAamloBZujEAzIBarZ01bYOH4iM4LeFj-YKsBIhEdFe4CV2ecmBCowsVXsCTQsBYcHX5O_byzX55otqLwzRQre3le_xpYWMRx1kJ7l4VpY1Pw5pVHcSe8QDIR4PdR57d7DsiAxRIyMMlXbQTmjkwdR2HSD-oG5QBWTlZ0Wo23hQtdsZQejJjlMTjweH9wNYt9psx12VqCLCDP1UB5VqRRsSYrPw7iw5jvrnvU5A8KQr1ycNR"/>
+</div>
+<div class="flex-1 flex flex-col justify-between py-0.5">
+<div>
+<h3 class="text-sm font-bold text-on-background line-clamp-1 leading-tight">程哒哒 Pro 系列工学人体座椅</h3>
+<p class="text-[11px] text-on-surface-variant mt-1 px-1.5 py-0.5 bg-surface-container-low inline-block rounded">旗舰版 / 极客黑 / 自动感应</p>
+</div>
+<div class="flex justify-between items-end">
+<div class="flex items-baseline gap-0.5">
+<span class="text-xs font-bold text-primary">¥</span>
+<span class="text-lg font-black text-primary tracking-tighter">1,299.00</span>
+</div>
+<span class="text-xs font-medium text-on-surface-variant">x1</span>
+</div>
+</div>
+</div>
+<!-- Product Item 2 -->
+<div class="flex gap-3">
+<div class="w-20 h-20 rounded-lg overflow-hidden flex-shrink-0 bg-surface-container">
+<img class="w-full h-full object-cover" data-alt="Minimalist wooden desk lamp warm light" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC2JqT86NjWH-viFuRdtsMAKEpesg0vJCcq24H-7JWpLSttg0aR1KGfkMyNAWRYz4PuU2_l4xIuRJ5_-2h_zutdfkQ2g2GmQm_V4p1qONkGUWFtrEaheOU4xvy8gY1M0LyjcQ18H7QjfO_QnujY8mIshomPjUFTBBknUyiGVKIehrU2pddH6D7FC3YY3Us9nqUCxy0TdZJZZgAOCoizYCQJwnwYVaJm6uzSUhsrCkzV2yZZrEuEhDfNuWPLPY5_VypgD06pVcI0TQ4o"/>
+</div>
+<div class="flex-1 flex flex-col justify-between py-0.5">
+<div>
+<h3 class="text-sm font-bold text-on-background line-clamp-1 leading-tight">智能护眼 LED 磁吸桌面补光灯</h3>
+<p class="text-[11px] text-on-surface-variant mt-1 px-1.5 py-0.5 bg-surface-container-low inline-block rounded">无极调光 / 标准版</p>
+</div>
+<div class="flex justify-between items-end">
+<div class="flex items-baseline gap-0.5">
+<span class="text-xs font-bold text-primary">¥</span>
+<span class="text-lg font-black text-primary tracking-tighter">158.00</span>
+</div>
+<span class="text-xs font-medium text-on-surface-variant">x2</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Footer Action within Card -->
+<div class="px-4 py-3 bg-surface-container-low/30 border-t border-surface-container flex justify-end gap-2">
+<button class="px-3 py-1.5 rounded-full border border-outline text-xs font-bold text-on-surface-variant hover:bg-white transition-colors">申请售后</button>
+<button class="px-3 py-1.5 rounded-full border border-primary text-xs font-bold text-primary hover:bg-primary-fixed transition-colors">联系客服</button>
+</div>
+</section>
+<!-- Fee Breakdown: Editorial Style -->
+<section class="bg-surface-container-lowest rounded-xl p-4 shadow-sm border border-outline-variant/10">
+<h4 class="text-xs font-black uppercase tracking-widest text-on-surface-variant/60 mb-3">费用清单</h4>
+<div class="space-y-2.5">
+<div class="flex justify-between items-center text-xs">
+<span class="text-on-surface-variant">商品总额</span>
+<span class="font-bold text-on-background tracking-tight">¥1,615.00</span>
+</div>
+<div class="flex justify-between items-center text-xs">
+<span class="text-on-surface-variant">运费 (程哒哒特快)</span>
+<span class="font-bold text-on-background tracking-tight">¥0.00</span>
+</div>
+<div class="flex justify-between items-center text-xs">
+<span class="text-on-surface-variant">会员特权减免</span>
+<span class="font-bold text-primary tracking-tight">- ¥20.00</span>
+</div>
+<div class="flex justify-between items-center text-xs">
+<span class="text-on-surface-variant">店铺满减</span>
+<span class="font-bold text-primary tracking-tight">- ¥100.00</span>
+</div>
+<div class="pt-3 mt-2 border-t border-surface-container-low flex justify-between items-baseline">
+<span class="text-sm font-bold text-on-background">实付金额</span>
+<div class="flex items-baseline gap-0.5 text-primary">
+<span class="text-xs font-bold">¥</span>
+<span class="text-2xl font-black tracking-tighter">1,495.00</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Order Logs: Subtle Timeline -->
+<section class="bg-surface-container-lowest rounded-xl p-4 shadow-sm border border-outline-variant/10">
+<h4 class="text-xs font-black uppercase tracking-widest text-on-surface-variant/60 mb-3">订单日志</h4>
+<div class="space-y-3 relative before:content-[''] before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-[1px] before:bg-surface-container">
+<div class="flex gap-4 relative">
+<div class="w-6 flex justify-center pt-1 relative z-10">
+<div class="w-1.5 h-1.5 rounded-full bg-primary ring-4 ring-primary-fixed"></div>
+</div>
+<div class="flex-1 pb-1">
+<div class="flex justify-between items-center">
+<span class="text-xs font-bold text-on-background">订单支付成功</span>
+<span class="text-[10px] text-on-surface-variant">10:24</span>
+</div>
+</div>
+</div>
+<div class="flex gap-4 relative">
+<div class="w-6 flex justify-center pt-1 relative z-10">
+<div class="w-1.5 h-1.5 rounded-full bg-outline-variant"></div>
+</div>
+<div class="flex-1">
+<div class="flex justify-between items-center">
+<span class="text-xs font-medium text-on-surface-variant">订单已创建</span>
+<span class="text-[10px] text-on-surface-variant/60">10:20</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Ad/Promotion Banner: Asymmetric Bento Style -->
+<section class="grid grid-cols-2 gap-3 h-24">
+<div class="bg-surface-container rounded-xl p-3 flex flex-col justify-between relative overflow-hidden group">
+<div class="relative z-10">
+<h5 class="text-xs font-bold text-on-background">邀请得好礼</h5>
+<p class="text-[10px] text-on-surface-variant">立享 50 元优惠</p>
+</div>
+<span class="material-symbols-outlined text-primary text-xl self-end relative z-10" data-icon="card_giftcard">card_giftcard</span>
+<div class="absolute -right-4 -bottom-4 w-16 h-16 bg-white/40 rounded-full blur-xl group-hover:scale-110 transition-transform"></div>
+</div>
+<div class="bg-[#FFDBCC] rounded-xl p-3 relative overflow-hidden group">
+<div class="relative z-10">
+<h5 class="text-xs font-bold text-on-primary-fixed-variant">加入会员</h5>
+<p class="text-[10px] text-on-secondary-fixed-variant">享受 0 元配送</p>
+</div>
+<img class="absolute -right-4 -top-4 w-20 h-20 opacity-20 group-hover:rotate-12 transition-transform" data-alt="Abstract orange circular pattern" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBurObiCqyl-1b9srQlerU8MOZJJzkF65YL6jzlfpsl5_K2kQgEdbbtrUt67OyJ3XFyVXCsOFEyS1LOBAYQcs8URoyOG-upOIHO2g9HNdPJJM5cChqX0trePkz5PnnORC0mlvlP6apGiSqyr-BOg5ZRpqfNtOUE3ZEPOpOYuD2MLzIBkWZCSZY0crATMaY5WXJDFAyVdjthlTJwS1VR6u_gcOO_J897GggkubeW1e2x-m2RU-dS5kVdCnoeD2-jCsxenEqeaXPDReVt"/>
+<span class="material-symbols-outlined text-on-primary-fixed-variant text-xl absolute bottom-3 right-3" data-icon="stars">stars</span>
+</div>
+</section>
+</main>
+<!-- BottomNavBar: Replaced with Sticky Order Actions for this Detail Page -->
+<div class="fixed bottom-0 w-full z-50 bg-white/95 backdrop-blur-md shadow-[0_-8px_30px_rgba(0,0,0,0.08)]">
+<div class="flex justify-between items-center h-20 px-6 pb-safe">
+<div class="flex flex-col">
+<span class="text-[10px] font-bold text-on-surface-variant tracking-wider uppercase">合计应付</span>
+<span class="text-lg font-black text-on-background tracking-tighter">¥1,495.00</span>
+</div>
+<div class="flex gap-2">
+<button class="px-5 h-11 rounded-xl bg-surface-container-low text-on-background text-sm font-bold active:scale-95 duration-200 transition-all hover:bg-surface-container">修改地址</button>
+<button class="px-7 h-11 rounded-xl bg-gradient-to-br from-[#A04100] to-[#FF6B00] text-white text-sm font-bold shadow-[0_8px_20px_rgba(255,107,0,0.3)] active:scale-95 duration-200 transition-all">催促发货</button>
+</div>
+</div>
+</div>
+</body></html>

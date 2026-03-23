@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+
+<html class="light" lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>商户资料编辑 - 第3步 (确认版) - 程哒哒 ChengDD</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "surface-dim": "#c9dcf3",
+                        "error": "#ba1a1a",
+                        "on-tertiary-fixed-variant": "#00497b",
+                        "on-tertiary-fixed": "#001d35",
+                        "on-secondary-container": "#763006",
+                        "tertiary": "#0062a1",
+                        "surface-container": "#e3efff",
+                        "primary-container": "#ff6b00",
+                        "on-error-container": "#93000a",
+                        "on-secondary-fixed": "#351000",
+                        "background": "#f7f9ff",
+                        "tertiary-fixed-dim": "#9ccaff",
+                        "surface-container-high": "#d9eaff",
+                        "on-background": "#091d2e",
+                        "primary": "#a04100",
+                        "surface-tint": "#a04100",
+                        "on-tertiary-container": "#003357",
+                        "on-primary-fixed": "#351000",
+                        "on-surface": "#091d2e",
+                        "inverse-on-surface": "#e8f2ff",
+                        "on-primary": "#ffffff",
+                        "on-primary-fixed-variant": "#7a3000",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-bright": "#f7f9ff",
+                        "secondary": "#96481e",
+                        "primary-fixed": "#ffdbcc",
+                        "inverse-primary": "#ffb693",
+                        "inverse-surface": "#203243",
+                        "secondary-fixed": "#ffdbcc",
+                        "on-primary-container": "#572000",
+                        "surface-variant": "#d1e4fb",
+                        "outline-variant": "#e2bfb0",
+                        "secondary-fixed-dim": "#ffb693",
+                        "surface-container-low": "#edf4ff",
+                        "on-surface-variant": "#5a4136",
+                        "on-secondary-fixed-variant": "#783207",
+                        "surface-container-highest": "#d1e4fb",
+                        "surface": "#f7f9ff",
+                        "on-secondary": "#ffffff",
+                        "on-tertiary": "#ffffff",
+                        "secondary-container": "#fe9a69",
+                        "error-container": "#ffdad6",
+                        "tertiary-container": "#059eff",
+                        "primary-fixed-dim": "#ffb693",
+                        "on-error": "#ffffff",
+                        "tertiary-fixed": "#d0e4ff",
+                        "outline": "#8e7164"
+                    },
+                    fontFamily: {
+                        "headline": ["Manrope"],
+                        "body": ["Manrope"],
+                        "label": ["Manrope"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .tonal-shift {
+            background: linear-gradient(135deg, rgba(237, 244, 255, 1) 0%, rgba(247, 249, 255, 1) 100%);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head>
+<body class="bg-background font-body text-on-background min-h-screen flex flex-col">
+<!-- TopAppBar Component -->
+<header class="sticky top-0 w-full z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl shadow-sm shadow-slate-200/50 dark:shadow-none tonal-shift">
+<div class="flex items-center justify-between px-6 h-16 w-full">
+<div class="flex items-center gap-4">
+<button class="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex items-center justify-center active:opacity-80 active:scale-95 transition-all">
+<span class="material-symbols-outlined text-orange-600 dark:text-orange-500" data-icon="arrow_back">arrow_back</span>
+</button>
+<h1 class="font-manrope font-extrabold text-slate-900 dark:text-slate-100 text-lg tracking-tight">商户资料编辑 - 第3步 (确认版)</h1>
+</div>
+<div class="hidden md:flex gap-8 items-center">
+<span class="font-manrope font-bold text-orange-600 dark:text-orange-400">Step 3 of 3</span>
+</div>
+</div>
+</header>
+<main class="flex-grow w-full max-w-4xl mx-auto px-6 py-8 pb-32">
+<!-- Stepper Section -->
+<div class="mb-12 flex justify-between items-center relative">
+<!-- Progress Line Background -->
+<div class="absolute top-5 left-0 w-full h-0.5 bg-surface-container-highest -z-10"></div>
+<!-- Active Progress Line -->
+<div class="absolute top-5 left-0 w-2/3 h-0.5 bg-primary-container -z-10"></div>
+<!-- Step 1 -->
+<div class="flex flex-col items-center gap-2 group">
+<div class="w-10 h-10 rounded-full bg-primary-container text-white flex items-center justify-center shadow-lg shadow-primary-container/20">
+<span class="material-symbols-outlined text-xl" data-icon="check" data-weight="fill" style="font-variation-settings: 'FILL' 1;">check</span>
+</div>
+<span class="text-xs font-semibold text-on-surface-variant">主体信息</span>
+</div>
+<!-- Step 2 -->
+<div class="flex flex-col items-center gap-2 group">
+<div class="w-10 h-10 rounded-full bg-primary-container text-white flex items-center justify-center shadow-lg shadow-primary-container/20">
+<span class="material-symbols-outlined text-xl" data-icon="check" data-weight="fill" style="font-variation-settings: 'FILL' 1;">check</span>
+</div>
+<span class="text-xs font-semibold text-on-surface-variant">店铺信息</span>
+</div>
+<!-- Step 3 -->
+<div class="flex flex-col items-center gap-2 group">
+<div class="w-10 h-10 rounded-full bg-primary-container ring-4 ring-primary-fixed text-white flex items-center justify-center shadow-xl shadow-primary-container/30">
+<span class="text-sm font-bold">3</span>
+</div>
+<span class="text-xs font-bold text-on-surface">接入配置</span>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-12 gap-8">
+<!-- Technical Configuration Card (Mini-program Integration) -->
+<section class="md:col-span-8 bg-surface-container-lowest rounded-xl p-8 shadow-sm shadow-on-surface/5 border border-transparent">
+<div class="flex items-center gap-3 mb-8">
+<div class="w-1.5 h-6 bg-primary-container rounded-full"></div>
+<h2 class="text-xl font-bold tracking-tight text-on-surface">小程序对接</h2>
+</div>
+<div class="space-y-6">
+<div class="space-y-2">
+<label class="block text-sm font-semibold text-on-surface-variant ml-1">小程序 AppID</label>
+<input class="w-full h-12 px-4 bg-surface-container-low border-none rounded-lg focus:ring-2 focus:ring-primary-container focus:bg-surface-container-lowest transition-all placeholder:text-slate-400" placeholder="请输入您的 AppID" type="text"/>
+</div>
+<div class="space-y-2">
+<label class="block text-sm font-semibold text-on-surface-variant ml-1">商户号 (MCHID)</label>
+<input class="w-full h-12 px-4 bg-surface-container-low border-none rounded-lg focus:ring-2 focus:ring-primary-container focus:bg-surface-container-lowest transition-all placeholder:text-slate-400" placeholder="请输入微信支付商户号" type="text"/>
+</div>
+<div class="space-y-2 relative">
+<label class="block text-sm font-semibold text-on-surface-variant ml-1">API 密钥</label>
+<div class="relative">
+<input class="w-full h-12 px-4 bg-surface-container-low border-none rounded-lg focus:ring-2 focus:ring-primary-container focus:bg-surface-container-lowest transition-all placeholder:text-slate-400" placeholder="••••••••••••••••" type="password"/>
+<button class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-on-surface transition-colors">
+<span class="material-symbols-outlined text-lg" data-icon="visibility">visibility</span>
+</button>
+</div>
+</div>
+</div>
+</section>
+<!-- Integration Status Card (Side) -->
+<aside class="md:col-span-4 space-y-6">
+<div class="bg-surface-container-low rounded-xl p-6 border border-transparent">
+<div class="flex items-center gap-2 mb-6">
+<span class="material-symbols-outlined text-orange-600" data-icon="security">security</span>
+<h3 class="text-base font-bold text-on-surface">连通性校验</h3>
+</div>
+<div class="flex items-center justify-between mb-8">
+<span class="text-sm text-on-surface-variant">当前状态</span>
+<span class="px-3 py-1 bg-surface-container-high text-on-surface-variant text-xs font-bold rounded-full">未校验</span>
+</div>
+<button class="w-full py-3 bg-white border-2 border-primary-fixed text-primary font-bold rounded-xl hover:bg-primary-fixed/30 active:scale-95 transition-all text-sm shadow-sm">
+                        立即校验
+                    </button>
+</div>
+<div class="p-6 bg-white rounded-xl border border-outline-variant/10 shadow-sm">
+<h4 class="text-sm font-bold text-on-surface mb-3 flex items-center gap-2">
+<span class="material-symbols-outlined text-blue-500 text-sm" data-icon="help">help</span>
+                        集成指南
+                    </h4>
+<p class="text-xs text-on-surface-variant leading-relaxed mb-4">
+                        完成配置后，系统将进行全链路拨测以确保回调通路正常。
+                    </p>
+<a class="text-xs font-bold text-primary flex items-center gap-1 hover:underline" href="#">
+                        查看开发者文档
+                        <span class="material-symbols-outlined text-[14px]" data-icon="open_in_new">open_in_new</span>
+</a>
+</div>
+</aside>
+<!-- Endpoint Settings (Full Width) -->
+<section class="md:col-span-12 bg-surface-container-lowest rounded-xl p-8 shadow-sm shadow-on-surface/5 border border-transparent">
+<div class="flex items-center gap-3 mb-8">
+<div class="w-1.5 h-6 bg-primary-container rounded-full"></div>
+<h2 class="text-xl font-bold tracking-tight text-on-surface">回调地址配置</h2>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+<div class="space-y-2">
+<div class="flex items-center justify-between mb-1">
+<label class="block text-sm font-semibold text-on-surface-variant ml-1">支付结果通知</label>
+<span class="text-[10px] uppercase tracking-wider bg-tertiary-fixed px-2 py-0.5 rounded text-on-tertiary-fixed-variant">System Default</span>
+</div>
+<div class="flex items-center gap-2 h-12 px-4 bg-surface-container-low rounded-lg text-slate-500 text-sm overflow-hidden select-all italic">
+                            https://api.chengdd.com/callback/v1/payment/notify
+                        </div>
+</div>
+<div class="space-y-2">
+<div class="flex items-center justify-between mb-1">
+<label class="block text-sm font-semibold text-on-surface-variant ml-1">任务状态同步</label>
+<span class="text-[10px] uppercase tracking-wider bg-tertiary-fixed px-2 py-0.5 rounded text-on-tertiary-fixed-variant">System Default</span>
+</div>
+<div class="flex items-center gap-2 h-12 px-4 bg-surface-container-low rounded-lg text-slate-500 text-sm overflow-hidden select-all italic">
+                            https://api.chengdd.com/callback/v1/task/sync
+                        </div>
+</div>
+</div>
+<div class="mt-6 p-4 bg-surface-container-low/50 rounded-lg flex items-start gap-3">
+<span class="material-symbols-outlined text-orange-400 mt-0.5" data-icon="info">info</span>
+<p class="text-xs text-on-surface-variant leading-normal">
+                        以上回调地址由系统自动生成，用于接收支付平台和任务模块的实时异步通知。请确保您的服务器防火墙已加白我们的回调出口 IP。
+                    </p>
+</div>
+</section>
+</div>
+</main>
+<!-- BottomNavBar (Action Footer) Component -->
+<nav class="fixed bottom-0 w-full z-50 pb-safe bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800 shadow-[0_-4px_24px_rgba(9,29,46,0.04)]">
+<div class="flex justify-between items-center px-8 py-4 w-full max-w-7xl mx-auto">
+<!-- Left Action: Previous -->
+<button class="flex flex-col items-center justify-center text-slate-500 dark:text-slate-400 px-8 py-2 hover:text-orange-600 dark:hover:text-orange-400 transition-all active:scale-[0.98] duration-150">
+<span class="material-symbols-outlined" data-icon="chevron_left">chevron_left</span>
+<span class="font-manrope font-semibold text-xs uppercase tracking-widest mt-1">Previous</span>
+</button>
+<!-- Right Action: Complete -->
+<button class="flex flex-col items-center justify-center bg-orange-600 text-white rounded-xl px-12 py-3 font-bold shadow-lg shadow-orange-500/20 hover:bg-orange-700 active:scale-[0.98] transition-all duration-150 group">
+<div class="flex items-center gap-2">
+<span class="font-manrope font-bold text-sm">Complete Registration</span>
+<span class="material-symbols-outlined text-lg" data-icon="check_circle" data-weight="fill" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</div>
+<span class="font-manrope font-semibold text-[10px] uppercase tracking-widest opacity-80 mt-0.5">完成入驻</span>
+</button>
+</div>
+</nav>
+</body></html>

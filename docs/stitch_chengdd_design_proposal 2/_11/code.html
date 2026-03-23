@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN"><head><title>权限管理 (确认版)</title>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "surface-tint": "#a04100",
+              "outline-variant": "#e2bfb0",
+              "surface-dim": "#c9dcf3",
+              "secondary": "#96481e",
+              "on-primary-container": "#572000",
+              "inverse-surface": "#203243",
+              "secondary-fixed": "#ffdbcc",
+              "surface-container-low": "#F1F5F9",
+              "tertiary-container": "#059eff",
+              "surface": "#F8FAFC",
+              "tertiary": "#0062a1",
+              "on-secondary-fixed": "#351000",
+              "error": "#ba1a1a",
+              "on-secondary-container": "#763006",
+              "inverse-primary": "#ffb693",
+              "on-tertiary-fixed": "#001d35",
+              "surface-container-high": "#E2E8F0",
+              "on-primary-fixed-variant": "#7a3000",
+              "on-tertiary": "#ffffff",
+              "on-primary": "#ffffff",
+              "outline": "#8e7164",
+              "surface-container-lowest": "#ffffff",
+              "error-container": "#ffdad6",
+              "on-surface-variant": "#475569",
+              "tertiary-fixed-dim": "#9ccaff",
+              "on-surface": "#091D2E",
+              "surface-container-highest": "#CBD5E1",
+              "primary": "#FF6B00",
+              "on-primary-fixed": "#351000",
+              "surface-container": "#F1F5F9",
+              "inverse-on-surface": "#e8f2ff",
+              "tertiary-fixed": "#d0e4ff",
+              "on-secondary-fixed-variant": "#783207",
+              "background": "#F8FAFC",
+              "secondary-container": "#fe9a69",
+              "secondary-fixed-dim": "#ffb693",
+              "on-error-container": "#93000a",
+              "on-background": "#091D2E",
+              "on-tertiary-container": "#003357",
+              "surface-variant": "#E2E8F0",
+              "on-tertiary-fixed-variant": "#00497b",
+              "on-secondary": "#ffffff",
+              "surface-bright": "#ffffff",
+              "primary-container": "#FF6B00",
+              "on-error": "#ffffff",
+              "primary-fixed-dim": "#ffb693",
+              "primary-fixed": "#FFDBCC"
+            },
+            fontFamily: {
+              "headline": ["Manrope"],
+              "body": ["Manrope"],
+              "label": ["Manrope"]
+            },
+            borderRadius: {"DEFAULT": "0.75rem", "lg": "0.75rem", "xl": "0.75rem", "full": "9999px"},
+          },
+        },
+      }
+    </script>
+<style>
+      .material-symbols-outlined {
+        font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      }
+      body { font-family: 'Manrope', sans-serif; }
+    </style>
+</head>
+<body class="bg-background text-on-surface min-h-screen pb-32">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full z-50 bg-white/90 backdrop-blur-xl flex justify-between items-center px-6 h-16 w-full border-b border-slate-100">
+<div class="flex items-center gap-4">
+<button class="active:scale-95 duration-200 text-on-surface">
+<span class="material-symbols-outlined" data-icon="arrow_back">arrow_back</span>
+</button>
+<h1 class="font-bold text-lg tracking-tight text-on-surface">权限管理 (确认版)</h1>
+</div>
+<button class="active:scale-95 duration-200 text-on-surface">
+<span class="material-symbols-outlined" data-icon="more_vert">more_vert</span>
+</button>
+</header>
+<main class="pt-24 px-4 max-w-lg mx-auto space-y-6">
+<!-- 1. Account Overview -->
+<section class="relative overflow-hidden bg-white rounded-xl p-6 shadow-sm border border-slate-100">
+<div class="flex items-center gap-5 relative z-10">
+<div class="w-20 h-20 rounded-full border-2 border-slate-100 overflow-hidden">
+<img alt="Professional merchant profile portrait of Chen" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBfj5CZb9U0hBsrLjT2RbA_NpkFVy0B6gOJbyHuWtah6pMqT_7Yme5uSG8XGdE5ug3hNe5iNd_0JQJer8LSFem-I9Nawzkt7Bn3wBT7Xf0Rx5Wwxca7BXnIZQOr249Z6NQtbm9VEA2l6esdN66QiuaW5nI5fy66ImeFQtpC6tZXVuEJaB6lrP4JVAbg-YQQcv4wMkw25Suw0qzz5C25emgvpgmrZTk_idMnjh7UaI-mZWePIwg6BN2Ychfv156bIsJJqACRESJLy8Xc"/>
+</div>
+<div class="flex-1">
+<div class="flex items-center justify-between mb-1">
+<h2 class="text-xl font-extrabold tracking-tight text-on-surface">陈老板</h2>
+<span class="bg-primary-fixed/40 text-on-primary-fixed-variant text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">已认证</span>
+</div>
+<p class="text-on-surface-variant font-medium text-sm mb-3">超级管理员</p>
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-green-500"></span>
+<span class="text-xs text-on-surface-variant font-semibold">当前在线</span>
+</div>
+</div>
+</div>
+</section>
+<!-- 2. Data Access Control -->
+<section class="bg-on-surface text-white rounded-xl p-6 shadow-md">
+<div class="flex justify-between items-start mb-4">
+<div>
+<h3 class="text-sm font-semibold text-white/70 uppercase tracking-widest mb-1">数据访问权限</h3>
+<p class="text-lg font-bold leading-tight">全域店铺访问权限</p>
+</div>
+<div class="p-3 bg-white/10 rounded-xl">
+<span class="material-symbols-outlined text-primary" data-icon="hub">hub</span>
+</div>
+</div>
+<div class="h-[1px] w-full bg-white/10 mb-4"></div>
+<div class="grid grid-cols-2 gap-4">
+<div class="bg-white/5 p-3 rounded-lg border border-white/5">
+<p class="text-[10px] text-white/50 uppercase font-bold mb-1">活跃区域</p>
+<p class="text-sm font-semibold">华东, 华南, 西南</p>
+</div>
+<div class="bg-white/5 p-3 rounded-lg border border-white/5">
+<p class="text-[10px] text-white/50 uppercase font-bold mb-1">门店数量</p>
+<p class="text-sm font-semibold">128 间分店</p>
+</div>
+</div>
+</section>
+<!-- 3. Roles & Permissions List -->
+<section class="space-y-4">
+<div class="flex items-center justify-between px-2">
+<h3 class="text-sm font-extrabold text-on-surface uppercase tracking-widest">角色与权限</h3>
+<button class="text-primary font-bold text-xs">管理全部</button>
+</div>
+<div class="space-y-3">
+<!-- Role Card 1 -->
+<div class="group bg-white hover:bg-slate-50 transition-colors p-4 rounded-xl flex items-center justify-between shadow-sm border border-slate-100">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-lg bg-surface-container-high flex items-center justify-center text-on-surface">
+<span class="material-symbols-outlined" data-icon="storefront">storefront</span>
+</div>
+<div>
+<p class="font-bold text-on-surface">店长</p>
+<p class="text-xs text-on-surface-variant font-medium">拥有日常运营管理权</p>
+</div>
+</div>
+<div class="flex items-center">
+<span class="w-10 h-5 bg-primary rounded-full relative cursor-pointer">
+<span class="absolute right-0.5 top-0.5 w-4 h-4 bg-white rounded-full shadow-sm"></span>
+</span>
+</div>
+</div>
+<!-- Role Card 2 -->
+<div class="group bg-white hover:bg-slate-50 transition-colors p-4 rounded-xl flex items-center justify-between shadow-sm border border-slate-100">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-lg bg-surface-container-high flex items-center justify-center text-on-surface">
+<span class="material-symbols-outlined" data-icon="payments">payments</span>
+</div>
+<div>
+<p class="font-bold text-on-surface">财务</p>
+<p class="text-xs text-on-surface-variant font-medium">仅查看与处理财务报表</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="chevron_right">chevron_right</span>
+</div>
+<!-- Role Card 3 -->
+<div class="group bg-white hover:bg-slate-50 transition-colors p-4 rounded-xl flex items-center justify-between shadow-sm border border-slate-100">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-lg bg-surface-container-high flex items-center justify-center text-on-surface">
+<span class="material-symbols-outlined" data-icon="inventory">inventory</span>
+</div>
+<div>
+<p class="font-bold text-on-surface">仓管</p>
+<p class="text-xs text-on-surface-variant font-medium">负责进销存数据同步</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="chevron_right">chevron_right</span>
+</div>
+</div>
+</section>
+<!-- 4. Account Security -->
+<section class="bg-surface-container-low rounded-xl p-5 border border-slate-100">
+<h3 class="text-sm font-extrabold text-on-surface uppercase tracking-widest mb-4 px-1">账户安全</h3>
+<div class="grid grid-cols-1 gap-3">
+<button class="w-full flex items-center justify-between p-4 bg-white rounded-xl shadow-sm border border-slate-50 active:bg-slate-50 transition-colors">
+<div class="flex items-center gap-3 text-on-surface">
+<span class="material-symbols-outlined opacity-80" data-icon="lock_reset">lock_reset</span>
+<span class="font-bold text-sm">修改登录密码</span>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="arrow_forward_ios" style="font-size: 14px;">arrow_forward_ios</span>
+</button>
+<button class="w-full flex items-center justify-between p-4 bg-white rounded-xl shadow-sm border border-slate-50 active:bg-slate-50 transition-colors">
+<div class="flex items-center gap-3 text-on-surface">
+<span class="material-symbols-outlined opacity-80" data-icon="phone_iphone">phone_iphone</span>
+<span class="font-bold text-sm">手机号换绑</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="text-xs text-on-surface-variant font-bold">138****8888</span>
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="arrow_forward_ios" style="font-size: 14px;">arrow_forward_ios</span>
+</div>
+</button>
+<button class="w-full flex items-center justify-between p-4 bg-white rounded-xl shadow-sm border border-slate-50 active:bg-slate-50 transition-colors">
+<div class="flex items-center gap-3 text-on-surface">
+<span class="material-symbols-outlined opacity-80" data-icon="verified_user">verified_user</span>
+<span class="font-bold text-sm">双重身份验证 (2FA)</span>
+</div>
+<span class="text-[11px] font-bold text-primary px-2.5 py-1 bg-primary/10 rounded-full border border-primary/20">已开启</span>
+</button>
+</div>
+</section>
+<div class="py-8 text-center">
+<p class="text-xs text-on-surface-variant font-semibold tracking-tight">ChengDD Merchant Systems v4.2.0</p>
+</div>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full flex justify-around items-center px-4 pb-6 pt-3 bg-white/95 backdrop-blur-md z-50 rounded-t-xl border-t border-slate-100 shadow-[0_-1px_10px_rgba(0,0,0,0.05)]">
+<a class="flex flex-col items-center justify-center text-on-surface-variant px-4 py-1 hover:text-primary transition-all active:scale-90 duration-300" href="#">
+<span class="material-symbols-outlined" data-icon="home">home</span>
+<span class="text-[10px] font-bold tracking-wide uppercase mt-1">首页</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant px-4 py-1 hover:text-primary transition-all active:scale-90 duration-300" href="#">
+<span class="material-symbols-outlined" data-icon="inventory_2">inventory_2</span>
+<span class="text-[10px] font-bold tracking-wide uppercase mt-1">商品</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant px-4 py-1 hover:text-primary transition-all active:scale-90 duration-300" href="#">
+<span class="material-symbols-outlined" data-icon="shopping_bag">shopping_bag</span>
+<span class="text-[10px] font-bold tracking-wide uppercase mt-1">订单</span>
+</a>
+<a class="flex flex-col items-center justify-center text-primary bg-primary/10 rounded-xl px-4 py-1 active:scale-90 duration-300" href="#">
+<span class="material-symbols-outlined" data-icon="person" style="font-variation-settings: 'FILL' 1;">person</span>
+<span class="text-[10px] font-bold tracking-wide uppercase mt-1">我的</span>
+</a>
+</nav>
+</body></html>

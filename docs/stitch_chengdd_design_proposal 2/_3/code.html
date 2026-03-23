@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "outline": "#8e7164",
+              "surface-container-high": "#d9eaff",
+              "surface-bright": "#f7f9ff",
+              "surface": "#f7f9ff",
+              "on-primary-fixed-variant": "#7a3000",
+              "surface-dim": "#c9dcf3",
+              "surface-variant": "#d1e4fb",
+              "on-secondary": "#ffffff",
+              "error-container": "#ffdad6",
+              "on-tertiary-fixed-variant": "#00497b",
+              "inverse-primary": "#ffb693",
+              "tertiary-fixed-dim": "#9ccaff",
+              "outline-variant": "#e2bfb0",
+              "tertiary-container": "#059eff",
+              "tertiary-fixed": "#d0e4ff",
+              "surface-container-low": "#edf4ff",
+              "on-tertiary-fixed": "#001d35",
+              "on-error-container": "#93000a",
+              "secondary-fixed": "#ffdbcc",
+              "on-primary": "#ffffff",
+              "inverse-on-surface": "#e8f2ff",
+              "surface-tint": "#a04100",
+              "on-primary-fixed": "#351000",
+              "on-secondary-fixed-variant": "#783207",
+              "secondary-fixed-dim": "#ffb693",
+              "on-tertiary-container": "#003357",
+              "surface-container-lowest": "#ffffff",
+              "on-error": "#ffffff",
+              "on-surface": "#091d2e",
+              "surface-container": "#e3efff",
+              "primary-fixed-dim": "#ffb693",
+              "inverse-surface": "#203243",
+              "tertiary": "#0062a1",
+              "secondary": "#96481e",
+              "primary": "#a04100",
+              "secondary-container": "#fe9a69",
+              "on-secondary-fixed": "#351000",
+              "surface-container-highest": "#d1e4fb",
+              "primary-fixed": "#ffdbcc",
+              "primary-container": "#ff6b00",
+              "on-secondary-container": "#763006",
+              "error": "#ba1a1a",
+              "background": "#f7f9ff",
+              "on-tertiary": "#ffffff",
+              "on-surface-variant": "#5a4136",
+              "on-primary-container": "#572000",
+              "on-background": "#091d2e"
+            },
+            fontFamily: {
+              "headline": ["Manrope"],
+              "body": ["Manrope"],
+              "label": ["Manrope"]
+            },
+            borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+          },
+        },
+      }
+    </script>
+<style>
+        body { font-family: 'Manrope', sans-serif; }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head>
+<body class="bg-background text-on-surface pb-32">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl flex items-center justify-between px-4 h-16 w-full shadow-sm shadow-[#091D2E]/5">
+<button class="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors active:scale-95 duration-200 rounded-full flex items-center justify-center">
+<span class="material-symbols-outlined text-[#5A4136]">arrow_back</span>
+</button>
+<h1 class="font-['Manrope'] font-bold text-lg tracking-tight text-on-surface">商品新增/编辑页 (确认版)</h1>
+<button class="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors active:scale-95 duration-200 rounded-full flex items-center justify-center">
+<span class="material-symbols-outlined text-[#5A4136]">more_vert</span>
+</button>
+</header>
+<main class="mt-20 px-4 space-y-4 max-w-2xl mx-auto">
+<!-- 基础信息卡片 -->
+<section class="bg-surface-container-lowest rounded-xl p-4 shadow-[0_4px_24px_rgba(9,29,46,0.04)]">
+<h2 class="text-on-surface font-bold text-base mb-4">基础信息</h2>
+<div class="space-y-4">
+<div>
+<label class="block text-xs font-semibold text-on-surface-variant mb-1.5 uppercase tracking-wider">商品名称</label>
+<input class="w-full bg-surface-container-low border-none rounded-lg p-3 text-sm focus:ring-2 focus:ring-primary-container transition-all" placeholder="请输入商品完整名称" type="text"/>
+</div>
+<div>
+<label class="block text-xs font-semibold text-on-surface-variant mb-1.5 uppercase tracking-wider">商品简介</label>
+<textarea class="w-full bg-surface-container-low border-none rounded-lg p-3 text-sm focus:ring-2 focus:ring-primary-container transition-all" placeholder="添加商品的亮点描述..." rows="3"></textarea>
+</div>
+<div>
+<label class="block text-xs font-semibold text-on-surface-variant mb-1.5 uppercase tracking-wider">商品类目</label>
+<div class="flex items-center justify-between bg-surface-container-low rounded-lg p-3 cursor-pointer group">
+<span class="text-sm text-on-surface">办公用品 &gt; 文具 &gt; 笔类</span>
+<span class="material-symbols-outlined text-on-surface-variant group-active:translate-x-1 transition-transform">chevron_right</span>
+</div>
+</div>
+</div>
+</section>
+<!-- 多图上传区 -->
+<section class="bg-surface-container-lowest rounded-xl p-4 shadow-[0_4px_24px_rgba(9,29,46,0.04)]">
+<div class="flex items-center justify-between mb-4">
+<h2 class="text-on-surface font-bold text-base">商品图集</h2>
+<span class="text-xs text-on-surface-variant">最多9张</span>
+</div>
+<div class="grid grid-cols-3 gap-3">
+<div class="relative aspect-square rounded-lg overflow-hidden group">
+<img class="w-full h-full object-cover" data-alt="Modern minimalist office stationery photo" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAMD8gpJOaWj5bj4db7fO61oCQ9A_qtMIXJev1FUJQW9HVzc19Ut6xpwWIsAtvz--g3sgLIUl2d2AyvHdt1t0A0jQGWaxB_scdjoNPJL92KoXGik-lEJa6OhvfCEdV3FnLA3gfB9xidCk1oSgOesuDHyCDajbJ6PAcj7X4plgj6xVEKEuwBNi0glJyjBJfaBDOm622BMeccy02Uz9j4faNViADfb043emNfg9-HYyY3qRB0S7sjbWzk--A_RMzcw7JP6v4TaSgMcYa-"/>
+<button class="absolute top-1 right-1 bg-on-surface/50 text-white rounded-full p-1 backdrop-blur-sm">
+<span class="material-symbols-outlined text-[16px]">close</span>
+</button>
+</div>
+<div class="relative aspect-square rounded-lg overflow-hidden group">
+<img class="w-full h-full object-cover" data-alt="Macro shot of luxury pen nib" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDSQw5_Gm8AvlH4P6UyHThw5WQhNPZO4KZbqh38aofT6EeyZmDdXodhoYBzK92Vw0Nm8Wig-uoNVuNE98SCgEPuHga8B3SDsiRMYox5P6V1PeNCkRY4kFVEbFH3qXPYuarnJMuTfGi2XkAOs-_p1Re2OlTmSiEQYUSVywwAKb9HrX912oMLxHUW2hr7h8OKZW3qd_VwCUsjUNhUFLflZ2R7UB6M-6wM6KO-A-8RJI0JBXhjC9Kk7m9lzn6WiG4rqItlacqMAXgWqnJy"/>
+<button class="absolute top-1 right-1 bg-on-surface/50 text-white rounded-full p-1 backdrop-blur-sm">
+<span class="material-symbols-outlined text-[16px]">close</span>
+</button>
+</div>
+<button class="aspect-square rounded-lg border-2 border-dashed border-outline-variant bg-surface-container-low flex flex-col items-center justify-center gap-1 active:scale-95 transition-transform">
+<span class="material-symbols-outlined text-primary-container">photo_camera</span>
+<span class="text-[10px] font-semibold text-on-surface-variant">添加图片</span>
+</button>
+</div>
+</section>
+<!-- 销售属性与 SKU -->
+<section class="bg-surface-container-lowest rounded-xl p-4 shadow-[0_4px_24px_rgba(9,29,46,0.04)] overflow-hidden">
+<h2 class="text-on-surface font-bold text-base mb-4">销售属性与 SKU</h2>
+<div class="grid grid-cols-2 gap-4 mb-6">
+<div>
+<label class="block text-xs font-semibold text-on-surface-variant mb-1.5 uppercase tracking-wider">销售价 (¥)</label>
+<input class="w-full bg-surface-container-low border-none rounded-lg p-3 text-sm focus:ring-2 focus:ring-primary-container transition-all" placeholder="0.00" type="number"/>
+</div>
+<div>
+<label class="block text-xs font-semibold text-on-surface-variant mb-1.5 uppercase tracking-wider">总库存</label>
+<input class="w-full bg-surface-container-low border-none rounded-lg p-3 text-sm focus:ring-2 focus:ring-primary-container transition-all" placeholder="999" type="number"/>
+</div>
+</div>
+<div class="overflow-x-auto -mx-4 px-4 hide-scrollbar">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-low">
+<th class="py-3 px-3 text-[11px] font-bold text-on-surface-variant rounded-l-lg first:pl-4">规格</th>
+<th class="py-3 px-3 text-[11px] font-bold text-on-surface-variant">价格</th>
+<th class="py-3 px-3 text-[11px] font-bold text-on-surface-variant">库存</th>
+<th class="py-3 px-3 text-[11px] font-bold text-on-surface-variant rounded-r-lg last:pr-4 text-right">操作</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-surface-container-low">
+<tr>
+<td class="py-4 px-3 text-sm font-medium">经典款-蓝</td>
+<td class="py-4 px-3 text-sm">¥49.00</td>
+<td class="py-4 px-3 text-sm">120</td>
+<td class="py-4 px-3 text-right">
+<button class="text-primary-container font-bold text-xs">编辑</button>
+</td>
+</tr>
+<tr>
+<td class="py-4 px-3 text-sm font-medium">极客款-黑</td>
+<td class="py-4 px-3 text-sm">¥59.00</td>
+<td class="py-4 px-3 text-sm">85</td>
+<td class="py-4 px-3 text-right">
+<button class="text-primary-container font-bold text-xs">编辑</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<button class="w-full mt-4 py-3 border border-primary-container text-primary-container rounded-xl text-xs font-bold hover:bg-primary-container/5 transition-colors active:scale-[0.98]">
+                + 新增规格型号
+            </button>
+</section>
+<!-- 服务与运费 -->
+<section class="bg-surface-container-lowest rounded-xl p-4 shadow-[0_4px_24px_rgba(9,29,46,0.04)]">
+<h2 class="text-on-surface font-bold text-base mb-4">服务与运费</h2>
+<div class="space-y-4">
+<div>
+<label class="block text-xs font-semibold text-on-surface-variant mb-1.5 uppercase tracking-wider">运费模板</label>
+<select class="w-full bg-surface-container-low border-none rounded-lg p-3 text-sm focus:ring-2 focus:ring-primary-container appearance-none transition-all">
+<option>全国包邮</option>
+<option>按距离计算</option>
+<option>自提免邮</option>
+</select>
+</div>
+<div>
+<label class="block text-xs font-semibold text-on-surface-variant mb-3 uppercase tracking-wider">服务保障</label>
+<div class="flex flex-wrap gap-2">
+<label class="flex items-center gap-2 bg-surface-container-low px-3 py-2 rounded-full cursor-pointer hover:bg-surface-container-high transition-colors">
+<input checked="" class="w-4 h-4 rounded text-primary-container focus:ring-primary-container border-none bg-white" type="checkbox"/>
+<span class="text-xs font-medium">7天无理由</span>
+</label>
+<label class="flex items-center gap-2 bg-surface-container-low px-3 py-2 rounded-full cursor-pointer hover:bg-surface-container-high transition-colors">
+<input checked="" class="w-4 h-4 rounded text-primary-container focus:ring-primary-container border-none bg-white" type="checkbox"/>
+<span class="text-xs font-medium">正品保证</span>
+</label>
+<label class="flex items-center gap-2 bg-surface-container-low px-3 py-2 rounded-full cursor-pointer hover:bg-surface-container-high transition-colors">
+<input class="w-4 h-4 rounded text-primary-container focus:ring-primary-container border-none bg-white" type="checkbox"/>
+<span class="text-xs font-medium">极速退款</span>
+</label>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- BottomNavBar as Control Panel -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-between items-center px-4 py-2 pb-safe bg-white dark:bg-slate-900 shadow-[0_-4px_24px_rgba(9,29,46,0.04)] border-t border-slate-100 dark:border-slate-800">
+<button class="flex flex-1 flex-col items-center justify-center text-[#5A4136] dark:text-slate-400 py-3 mx-2 my-2 bg-slate-100 dark:bg-slate-800 rounded-xl hover:opacity-90 transition-opacity active:scale-[0.98]">
+<span class="material-symbols-outlined mb-1">save</span>
+<span class="font-['Manrope'] font-semibold text-xs uppercase tracking-wider">Save Draft</span>
+</button>
+<button class="flex flex-1 flex-col items-center justify-center bg-[#FF6B00] text-white py-3 mx-2 my-2 rounded-xl hover:opacity-90 transition-opacity active:scale-[0.98]">
+<span class="material-symbols-outlined mb-1" style="font-variation-settings: 'FILL' 1;">rocket_launch</span>
+<span class="font-['Manrope'] font-semibold text-xs uppercase tracking-wider">Publish Product</span>
+</button>
+</nav>
+<!-- Contextual FAB (Hidden on this transactional page as per rules, but included if user were to scroll to list view) -->
+<!-- Suppression Logic: Suppressed because the page intent is Transactional (Product Edit) -->
+</body></html>
