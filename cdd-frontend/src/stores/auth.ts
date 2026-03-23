@@ -153,7 +153,7 @@ export const useAuthStore = defineStore('auth', () => {
         accountName,
         password,
       });
-      const current = await fetchCurrentAuthContext();
+      const current = await fetchCurrentAuthContext(tokenPayload.access_token);
       setSession(buildSessionFromRemote(tokenPayload, current), '当前连接真实接口。');
       return {
         mode: 'remote' as const,

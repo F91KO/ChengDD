@@ -15,10 +15,15 @@ export async function merchantLogin(payload: {
   });
 }
 
-export async function fetchCurrentAuthContext(): Promise<CurrentAuthContextRaw> {
+export async function fetchCurrentAuthContext(accessToken?: string): Promise<CurrentAuthContextRaw> {
   return requestApi<CurrentAuthContextRaw>({
     method: 'GET',
     url: '/auth/me',
+    headers: accessToken
+      ? {
+          Authorization: `Bearer ${accessToken}`,
+        }
+      : undefined,
   });
 }
 
@@ -31,4 +36,3 @@ export async function logoutByRefreshToken(refreshToken: string): Promise<void> 
     },
   });
 }
-
