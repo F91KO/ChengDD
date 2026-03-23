@@ -12,6 +12,7 @@ import com.cdd.api.product.model.ProductDetailResponse;
 import com.cdd.api.product.model.ProductStockResponse;
 import com.cdd.api.product.model.ProductSummaryResponse;
 import com.cdd.api.product.model.UpdateCategoryRequest;
+import com.cdd.api.product.model.UpdateProductRequest;
 import com.cdd.common.web.ApiResponse;
 import com.cdd.common.web.ApiResponses;
 import com.cdd.product.service.ProductCatalogApplicationService;
@@ -83,6 +84,13 @@ public class ProductController {
     @GetMapping("/spu/{product_id}")
     public ApiResponse<ProductDetailResponse> getProduct(@PathVariable(name = "product_id") Long productId) {
         return ApiResponses.success(productCatalogApplicationService.getProduct(productId));
+    }
+
+    @PutMapping("/spu/{product_id}")
+    public ApiResponse<ProductDetailResponse> updateProduct(
+            @PathVariable(name = "product_id") Long productId,
+            @Valid @RequestBody UpdateProductRequest request) {
+        return ApiResponses.success(productCatalogApplicationService.updateProduct(productId, request));
     }
 
     @GetMapping("/spu")

@@ -6,7 +6,9 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -28,6 +30,7 @@ public class JdbcOrderRepository implements OrderRepository {
     private static final RowMapper<RefundCallbackRecord> REFUND_CALLBACK_ROW_MAPPER = JdbcOrderRepository::mapRefundCallbackRecord;
     private static final RowMapper<AfterSaleRecord> AFTER_SALE_ROW_MAPPER = JdbcOrderRepository::mapAfterSaleRecord;
     private static final RowMapper<AfterSaleSummaryRecord> AFTER_SALE_SUMMARY_ROW_MAPPER = JdbcOrderRepository::mapAfterSaleSummaryRecord;
+    private static final RowMapper<AfterSaleDetailRecord> AFTER_SALE_DETAIL_ROW_MAPPER = JdbcOrderRepository::mapAfterSaleDetailRecord;
     private static final RowMapper<CompensationTaskRecord> COMPENSATION_TASK_ROW_MAPPER = JdbcOrderRepository::mapCompensationTaskRecord;
 
     private final JdbcTemplate jdbcTemplate;
@@ -316,6 +319,37 @@ public class JdbcOrderRepository implements OrderRepository {
         }
         sql.append(" ORDER BY created_at DESC, id DESC");
         return jdbcTemplate.query(sql.toString(), ORDER_ROW_MAPPER, args.toArray());
+    }
+
+    @Override
+    public List<OrderSummaryRecord> listOrderSummaries(long merchantId, long storeId, Long userId, String orderStatus) {
+        List<OrderRecord> orders = listOrders(merchantId, storeId, userId, orderStatus);
+        if (orders.isEmpty()) {
+            return List.of();
+        }
+
+        List<Long> orderIds = orders.stream()
+                .map(OrderRecord::id)
+                .toList();
+        Map<Long, String> latestChannelMap = queryLatestChannelMap(orderIds);
+        Map<Long, String> productSummaryMap = queryProductSummaryMap(orderIds);
+
+        return orders.stream()
+                .map(order -> new OrderSummaryRecord(
+                        order.orderNo(),
+                        order.merchantId(),
+                        order.storeId(),
+                        order.userId(),
+                        String.valueOf(order.userId()),
+                        resolveOrderChannel(order.payStatus(), latestChannelMap.get(order.id())),
+                        productSummaryMap.getOrDefault(order.id(), ""),
+                        order.orderStatus(),
+                        order.payStatus(),
+                        order.deliveryStatus(),
+                        order.payableAmount(),
+                        order.paidAmount(),
+                        order.createdAt()))
+                .toList();
     }
 
     @Override
@@ -890,6 +924,61 @@ public class JdbcOrderRepository implements OrderRepository {
     }
 
     @Override
+    public Optional<AfterSaleDetailRecord> findAfterSaleDetailByAfterSaleNo(String afterSaleNo, long merchantId, long storeId) {
+        List<AfterSaleDetailRecord> rows = jdbcTemplate.query("""
+                SELECT a.after_sale_no,
+                       a.order_no,
+                       a.order_item_id,
+                       a.merchant_id,
+                       a.store_id,
+                       a.user_id,
+                       a.after_sale_type,
+                       a.after_sale_status,
+                       i.product_name,
+                       i.sku_name,
+                       a.refund_quantity,
+                       a.refund_amount,
+                       a.reason_code,
+                       a.reason_desc,
+                       a.proof_urls_json,
+                       a.merchant_result,
+                       a.refund_no,
+                       r.refund_status,
+                       r.failure_reason AS refund_failure_reason,
+                       r.third_party_refund_no,
+                       o.pay_status,
+                       a.return_company,
+                       a.return_logistics_no,
+                       a.handled_by,
+                       a.handled_at,
+                       a.approved_at,
+                       a.returned_at,
+                       r.applied_at AS refund_applied_at,
+                       r.success_at AS refund_success_at,
+                       a.completed_at,
+                       a.closed_at,
+                       a.created_at,
+                       a.updated_at
+                FROM cdd_order_after_sale a
+                LEFT JOIN cdd_order_item i
+                  ON a.order_item_id = i.id
+                 AND i.deleted = 0
+                LEFT JOIN cdd_order_refund_record r
+                  ON a.refund_no = r.refund_no
+                 AND r.deleted = 0
+                LEFT JOIN cdd_order_info o
+                  ON a.order_id = o.id
+                 AND o.deleted = 0
+                WHERE a.after_sale_no = ?
+                  AND a.merchant_id = ?
+                  AND a.store_id = ?
+                  AND a.deleted = 0
+                LIMIT 1
+                """, AFTER_SALE_DETAIL_ROW_MAPPER, afterSaleNo, merchantId, storeId);
+        return rows.stream().findFirst();
+    }
+
+    @Override
     public List<AfterSaleSummaryRecord> listAfterSales(long merchantId, long storeId, String afterSaleStatus) {
         StringBuilder sql = new StringBuilder("""
                 SELECT a.after_sale_no,
@@ -1295,6 +1384,43 @@ public class JdbcOrderRepository implements OrderRepository {
                 toInstant(rs.getTimestamp("after_sale_updated_at")));
     }
 
+    private static AfterSaleDetailRecord mapAfterSaleDetailRecord(ResultSet rs, int rowNum) throws SQLException {
+        return new AfterSaleDetailRecord(
+                rs.getString("after_sale_no"),
+                rs.getString("order_no"),
+                rs.getObject("order_item_id", Long.class),
+                rs.getLong("merchant_id"),
+                rs.getLong("store_id"),
+                rs.getLong("user_id"),
+                rs.getString("after_sale_type"),
+                rs.getString("after_sale_status"),
+                rs.getString("product_name"),
+                rs.getString("sku_name"),
+                rs.getObject("refund_quantity", Integer.class),
+                rs.getBigDecimal("refund_amount"),
+                rs.getString("reason_code"),
+                rs.getString("reason_desc"),
+                rs.getString("proof_urls_json"),
+                rs.getString("merchant_result"),
+                rs.getString("refund_no"),
+                rs.getString("refund_status"),
+                rs.getString("refund_failure_reason"),
+                rs.getString("third_party_refund_no"),
+                rs.getString("pay_status"),
+                rs.getString("return_company"),
+                rs.getString("return_logistics_no"),
+                rs.getObject("handled_by", Long.class),
+                toInstant(rs.getTimestamp("handled_at")),
+                toInstant(rs.getTimestamp("approved_at")),
+                toInstant(rs.getTimestamp("returned_at")),
+                toInstant(rs.getTimestamp("refund_applied_at")),
+                toInstant(rs.getTimestamp("refund_success_at")),
+                toInstant(rs.getTimestamp("completed_at")),
+                toInstant(rs.getTimestamp("closed_at")),
+                toInstant(rs.getTimestamp("created_at")),
+                toInstant(rs.getTimestamp("updated_at")));
+    }
+
     private static RefundCallbackRecord mapRefundCallbackRecord(ResultSet rs, int rowNum) throws SQLException {
         Long refundRecordId = rs.getObject("refund_record_id", Long.class);
         Long orderId = rs.getObject("order_id", Long.class);
@@ -1344,5 +1470,67 @@ public class JdbcOrderRepository implements OrderRepository {
 
     private static Instant toInstant(Timestamp value) {
         return value == null ? null : value.toInstant();
+    }
+
+    private Map<Long, String> queryLatestChannelMap(List<Long> orderIds) {
+        String placeholders = String.join(",", java.util.Collections.nCopies(orderIds.size(), "?"));
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList("""
+                SELECT order_id, pay_channel
+                FROM cdd_order_pay_record
+                WHERE order_id IN (""" + placeholders + """
+                )
+                  AND deleted = 0
+                ORDER BY created_at DESC, id DESC
+                """, orderIds.toArray());
+
+        Map<Long, String> latestChannelMap = new LinkedHashMap<>();
+        for (Map<String, Object> row : rows) {
+            Number orderId = (Number) row.get("order_id");
+            if (orderId == null) {
+                continue;
+            }
+            latestChannelMap.putIfAbsent(orderId.longValue(), (String) row.get("pay_channel"));
+        }
+        return latestChannelMap;
+    }
+
+    private Map<Long, String> queryProductSummaryMap(List<Long> orderIds) {
+        String placeholders = String.join(",", java.util.Collections.nCopies(orderIds.size(), "?"));
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList("""
+                SELECT order_id, product_name, sku_name, quantity
+                FROM cdd_order_item
+                WHERE order_id IN (""" + placeholders + """
+                )
+                  AND deleted = 0
+                ORDER BY order_id ASC, id ASC
+                """, orderIds.toArray());
+
+        Map<Long, StringBuilder> summaryBuilderMap = new LinkedHashMap<>();
+        for (Map<String, Object> row : rows) {
+            Number orderId = (Number) row.get("order_id");
+            if (orderId == null) {
+                continue;
+            }
+            StringBuilder builder = summaryBuilderMap.computeIfAbsent(orderId.longValue(), key -> new StringBuilder());
+            if (!builder.isEmpty()) {
+                builder.append("；");
+            }
+            builder.append(row.get("product_name"))
+                    .append(" / ")
+                    .append(row.get("sku_name"))
+                    .append(" x")
+                    .append(row.get("quantity"));
+        }
+
+        Map<Long, String> productSummaryMap = new LinkedHashMap<>();
+        summaryBuilderMap.forEach((orderId, builder) -> productSummaryMap.put(orderId, builder.toString()));
+        return productSummaryMap;
+    }
+
+    private String resolveOrderChannel(String payStatus, String latestChannel) {
+        if (StringUtils.hasText(latestChannel)) {
+            return latestChannel;
+        }
+        return "unpaid".equals(payStatus) || "paying".equals(payStatus) ? "unpaid" : "unknown";
     }
 }

@@ -6,8 +6,8 @@
         <div :class="$style.badge">ChengDD 商家后台</div>
         <h1 :class="$style.title">把商家运营动作整理成一张低噪音工作台。</h1>
         <p :class="$style.description">
-          一期先覆盖登录、工作台、商品、订单、售后和配置中心。当前页面默认真实接口优先，
-          若本地认证服务未接通则自动回退到演示模式。
+          一期先覆盖登录、工作台、商品、订单、售后和配置中心。当前页面只走真实接口，
+          认证失败时会直接提示错误，不再回退演示会话。
         </p>
         <div :class="$style.statusCard">
           <div :class="$style.statusLabel">当前接入状态</div>
@@ -28,7 +28,7 @@
         <div :class="$style.demoAccount">
           <div :class="$style.demoTitle">演示账号</div>
           <div :class="$style.demoValue">merchant_admin</div>
-          <div :class="$style.demoHint">若认证服务未启动，前端会自动回退到演示模式。</div>
+          <div :class="$style.demoHint">请先启动本地认证服务，再使用该账号登录。</div>
         </div>
         <UiInput v-model="account" label="账号" placeholder="请输入运营账号" prefix="ID" />
         <UiInput
@@ -70,8 +70,8 @@ const password = ref('merchant123456');
 const submitting = ref(false);
 const feedback = ref('');
 
-const feedbackTone = computed(() => (authStore.authMode === 'remote' ? 'info' : 'empty'));
-const feedbackTitle = computed(() => (authStore.authMode === 'remote' ? '接口状态' : '演示模式'));
+const feedbackTone = computed(() => (authStore.authMode === 'remote' ? 'info' : 'error'));
+const feedbackTitle = computed(() => '接口状态');
 
 async function handleLogin() {
   submitting.value = true;

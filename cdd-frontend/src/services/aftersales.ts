@@ -1,5 +1,9 @@
 import { requestApi } from '@/services/http';
-import type { OrderAfterSaleSummaryResponseRaw } from '@/types/aftersales';
+import type {
+  OrderAfterSaleDetailResponseRaw,
+  OrderAfterSaleLogResponseRaw,
+  OrderAfterSaleSummaryResponseRaw,
+} from '@/types/aftersales';
 
 export async function fetchAfterSaleList(params: {
   merchantId: number;
@@ -13,6 +17,36 @@ export async function fetchAfterSaleList(params: {
       merchant_id: params.merchantId,
       store_id: params.storeId,
       after_sale_status: params.afterSaleStatus,
+    },
+  });
+}
+
+export async function fetchAfterSaleDetail(params: {
+  afterSaleNo: string;
+  merchantId: number;
+  storeId: number;
+}): Promise<OrderAfterSaleDetailResponseRaw> {
+  return requestApi<OrderAfterSaleDetailResponseRaw>({
+    method: 'GET',
+    url: `/order/after-sales/${params.afterSaleNo}`,
+    params: {
+      merchant_id: params.merchantId,
+      store_id: params.storeId,
+    },
+  });
+}
+
+export async function fetchAfterSaleLogs(params: {
+  afterSaleNo: string;
+  merchantId: number;
+  storeId: number;
+}): Promise<OrderAfterSaleLogResponseRaw[]> {
+  return requestApi<OrderAfterSaleLogResponseRaw[]>({
+    method: 'GET',
+    url: `/order/after-sales/${params.afterSaleNo}/logs`,
+    params: {
+      merchant_id: params.merchantId,
+      store_id: params.storeId,
     },
   });
 }

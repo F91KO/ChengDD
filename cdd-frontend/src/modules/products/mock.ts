@@ -1,67 +1,44 @@
 import { reactive } from 'vue';
+import { fetchProductDetail, fetchProductList } from '@/services/product';
+import { fetchProductDailyList } from '@/services/report';
 import { useAuthStore } from '@/stores/auth';
-import { fetchProductList } from '@/services/product';
-import type { ProductSummaryResponseRaw } from '@/types/product';
+import type { ProductDetailResponseRaw, ProductSummaryResponseRaw } from '@/types/product';
+import type { ReportProductDailyResponseRaw } from '@/types/report';
 
-type ProductCard = {
+export type ProductCard = {
+  id: number;
+  merchantId: number;
+  storeId: number;
+  categoryId: number;
   name: string;
   sku: string;
   price: string;
   sales: string;
   inventory: string;
   status: string;
+  statusRaw: string;
+  skuCount: number;
   statusTone: 'primary' | 'default' | 'info';
 };
 
-type ProductStat = {
+export type ProductStat = {
   label: string;
   value: string;
   tone: 'primary' | 'info' | 'danger';
 };
 
-const mockProducts: ProductCard[] = [
-  {
-    name: 'ChengDD Nexus 联名款高弹透气竞速跑鞋',
-    sku: 'CDD-2024-NX01',
-    price: '¥599.00',
-    sales: '2,491',
-    inventory: '842',
-    status: '校验通过',
-    statusTone: 'primary',
-  },
-  {
-    name: '精钢系列 42mm 智能腕表',
-    sku: 'CDD-WTCH-821',
-    price: '¥1,280.00',
-    sales: '104',
-    inventory: '3 (预警)',
-    status: '待完善',
-    statusTone: 'default',
-  },
-  {
-    name: 'HIFI 降噪无线头戴式耳机 Pro 版',
-    sku: 'CDD-AU-092-B',
-    price: '¥899.00',
-    sales: '562',
-    inventory: '45',
-    status: '已下架',
-    statusTone: 'info',
-  },
-];
-
-const mockStats: ProductStat[] = [
-  { label: '在售中', value: '128', tone: 'primary' },
-  { label: '待发布', value: '12', tone: 'info' },
-  { label: '库存预警', value: '5', tone: 'danger' },
-];
-
-export const products = reactive<ProductCard[]>([...mockProducts]);
-export const productStats = reactive<ProductStat[]>([...mockStats]);
+export const products = reactive<ProductCard[]>([]);
+export const productStats = reactive<ProductStat[]>([
+  { label: '在售中', value: '0', tone: 'primary' },
+  { label: '待发布', value: '0', tone: 'info' },
+  { label: '已下架', value: '0', tone: 'danger' },
+]);
 
 export const productLoadState = reactive({
   loading: false,
-  source: 'mock' as 'mock' | 'remote',
-  message: '当前展示演示数据。',
+  loaded: false,
+  errorMessage: '',
+  message: '等待加载真实商品数据。',
 });
 
 let loadPromise: Promise<void> | null = null;
@@ -79,18 +56,70 @@ function statusToCard(status: string): { text: string; tone: ProductCard['status
   if (normalized === 'off_shelf') {
     return { text: '已下架', tone: 'info' };
   }
-  return { text: '待完善', tone: 'default' };
+  return { text: '待发布', tone: 'default' };
 }
 
-function mapRemoteProduct(item: ProductSummaryResponseRaw): ProductCard {
+function formatCurrency(value: number | string): string {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) {
+    return '¥0.00';
+  }
+  return `¥${parsed.toFixed(2)}`;
+}
+
+function buildPriceLabel(detail?: ProductDetailResponseRaw): string {
+  if (!detail?.skus.length) {
+    return '未配置售价';
+  }
+  const prices = detail.skus
+    .map((sku) => Number(sku.sale_price))
+    .filter((value) => Number.isFinite(value))
+    .sort((left, right) => left - right);
+  if (!prices.length) {
+    return '未配置售价';
+  }
+  if (prices[0] === prices[prices.length - 1]) {
+    return formatCurrency(prices[0]);
+  }
+  return `${formatCurrency(prices[0])} - ${formatCurrency(prices[prices.length - 1])}`;
+}
+
+function buildInventoryLabel(detail: ProductDetailResponseRaw | undefined, skuCount: number): string {
+  if (!detail?.skus.length) {
+    return `${skuCount} 个 SKU`;
+  }
+  const available = detail.skus.reduce((sum, sku) => sum + sku.available_stock, 0);
+  const locked = detail.skus.reduce((sum, sku) => sum + sku.locked_stock, 0);
+  return locked > 0 ? `${available} 可售 / ${locked} 锁定` : `${available} 可售`;
+}
+
+function buildSalesLabel(rows: ReportProductDailyResponseRaw[] | undefined): string {
+  if (!rows?.length) {
+    return '近日报表暂无销量';
+  }
+  const totalSaleCount = rows.reduce((sum, row) => sum + Number(row.sale_count || 0), 0);
+  return `${totalSaleCount} 件`;
+}
+
+function mapRemoteProduct(
+  item: ProductSummaryResponseRaw,
+  detail?: ProductDetailResponseRaw,
+  reportRows: ReportProductDailyResponseRaw[] = [],
+): ProductCard {
   const mappedStatus = statusToCard(item.status);
   return {
+    id: item.id,
+    merchantId: item.merchant_id,
+    storeId: item.store_id,
+    categoryId: item.category_id,
     name: item.product_name,
     sku: `SPU-${item.id}`,
-    price: '¥--',
-    sales: '--',
-    inventory: `${item.sku_count} 个 SKU`,
+    price: buildPriceLabel(detail),
+    sales: buildSalesLabel(reportRows),
+    inventory: buildInventoryLabel(detail, item.sku_count),
     status: mappedStatus.text,
+    statusRaw: item.status,
+    skuCount: item.sku_count,
     statusTone: mappedStatus.tone,
   };
 }
@@ -102,33 +131,55 @@ function buildStatsFromRemote(items: ProductSummaryResponseRaw[]): ProductStat[]
   return [
     { label: '在售中', value: String(onShelfCount), tone: 'primary' },
     { label: '待发布', value: String(draftCount), tone: 'info' },
-    { label: '库存预警', value: String(offShelfCount), tone: 'danger' },
+    { label: '已下架', value: String(offShelfCount), tone: 'danger' },
   ];
 }
 
-function fallbackToMock(message: string) {
-  replaceProductData(mockProducts, mockStats);
-  productLoadState.source = 'mock';
-  productLoadState.message = message;
+function buildDetailMap(
+  items: ProductSummaryResponseRaw[],
+  results: PromiseSettledResult<ProductDetailResponseRaw>[],
+): Map<number, ProductDetailResponseRaw> {
+  const detailMap = new Map<number, ProductDetailResponseRaw>();
+  items.forEach((item, index) => {
+    const result = results[index];
+    if (result?.status === 'fulfilled') {
+      detailMap.set(item.id, result.value);
+    }
+  });
+  return detailMap;
 }
 
-export async function loadProducts(force = false): Promise<void> {
+function buildReportMap(rows: ReportProductDailyResponseRaw[]): Map<number, ReportProductDailyResponseRaw[]> {
+  const reportMap = new Map<number, ReportProductDailyResponseRaw[]>();
+  rows.forEach((row) => {
+    const current = reportMap.get(row.product_id) ?? [];
+    current.push(row);
+    reportMap.set(row.product_id, current);
+  });
+  return reportMap;
+}
+
+export async function loadProducts(force = false, status?: string): Promise<void> {
   if (productLoadState.loading) {
     return loadPromise ?? Promise.resolve();
   }
-  if (productLoadState.source === 'remote' && !force) {
+  if (productLoadState.loaded && !force && !status) {
     return;
   }
 
   loadPromise = (async () => {
     productLoadState.loading = true;
+    productLoadState.errorMessage = '';
     const authStore = useAuthStore();
     await authStore.ensureCurrentContext();
 
     const merchantId = authStore.merchantIdForQuery;
     const storeId = authStore.storeIdForQuery;
     if (!merchantId || !storeId) {
-      fallbackToMock('当前账号上下文无法映射为数值型商户/店铺 ID，已使用演示数据。');
+      replaceProductData([], buildStatsFromRemote([]));
+      productLoadState.loaded = true;
+      productLoadState.message = '当前账号缺少真实商户上下文，无法加载商品数据。';
+      productLoadState.errorMessage = productLoadState.message;
       productLoadState.loading = false;
       return;
     }
@@ -137,24 +188,30 @@ export async function loadProducts(force = false): Promise<void> {
       const remoteProducts = await fetchProductList({
         merchantId,
         storeId,
+        status,
       });
 
-      if (remoteProducts.length === 0) {
-        fallbackToMock('真实接口返回空商品列表，已自动回退到演示数据。');
-        productLoadState.loading = false;
-        return;
-      }
+      const [detailResults, reportRows] = await Promise.all([
+        Promise.allSettled(remoteProducts.map((item) => fetchProductDetail(item.id))),
+        fetchProductDailyList({ merchantId, storeId }).catch(() => []),
+      ]);
+
+      const detailMap = buildDetailMap(remoteProducts, detailResults);
+      const reportMap = buildReportMap(reportRows);
 
       replaceProductData(
-        remoteProducts.map(mapRemoteProduct),
+        remoteProducts.map((item) => mapRemoteProduct(item, detailMap.get(item.id), reportMap.get(item.id))),
         buildStatsFromRemote(remoteProducts),
       );
-      productLoadState.source = 'remote';
-      productLoadState.message = '已使用真实商品接口数据。';
+      productLoadState.loaded = true;
+      productLoadState.message = remoteProducts.length
+        ? '已加载真实商品摘要、SKU 价格与库存信息。'
+        : '当前商家暂无商品数据。';
     } catch (error) {
-      fallbackToMock(
-        `商品接口调用失败，已回退演示数据：${error instanceof Error ? error.message : '未知错误'}`,
-      );
+      replaceProductData([], buildStatsFromRemote([]));
+      productLoadState.loaded = true;
+      productLoadState.errorMessage = error instanceof Error ? error.message : '商品接口调用失败。';
+      productLoadState.message = productLoadState.errorMessage;
     } finally {
       productLoadState.loading = false;
     }

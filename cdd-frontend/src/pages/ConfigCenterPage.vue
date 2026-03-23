@@ -11,6 +11,13 @@
       :description="configStatePanel.description"
     />
 
+    <UiStatePanel
+      v-if="actionMessage"
+      :tone="actionTone"
+      title="操作结果"
+      :description="actionMessage"
+    />
+
     <section :class="$style.grid">
       <UiCard elevated :class="$style.mainPanel">
         <div :class="$style.panelHead">
@@ -18,18 +25,29 @@
             <div :class="$style.eyebrow">功能开关</div>
             <h3 :class="$style.title">商家当前生效开关</h3>
           </div>
-          <UiButton variant="secondary">发起发布</UiButton>
+          <UiButton variant="secondary" @click="loadConfigCenter">刷新配置</UiButton>
         </div>
         <div :class="$style.configList">
-          <article v-for="item in configGroups" :key="item.name" :class="$style.configItem">
+          <article v-for="item in configGroups" :key="item.switchCode" :class="$style.configItem">
             <div>
               <div :class="$style.configName">{{ item.name }}</div>
               <div :class="$style.configDescription">{{ item.description }}</div>
             </div>
-            <UiTag :tone="item.statusTone as 'default' | 'primary' | 'success'">
-              {{ item.status }}
-            </UiTag>
+            <div :class="$style.configActions">
+              <UiTag :tone="item.statusTone as 'default' | 'primary' | 'success'">
+                {{ item.status }}
+              </UiTag>
+              <UiButton variant="secondary" @click="handleToggleSwitch(item)">
+                {{ item.effectiveValue === 'on' ? '关闭' : '开启' }}
+              </UiButton>
+            </div>
           </article>
+          <UiStatePanel
+            v-if="!configGroups.length"
+            tone="empty"
+            title="当前没有真实开关数据"
+            description="请确认 config-service 是否已完成商家开关初始化。"
+          />
         </div>
       </UiCard>
 
@@ -40,14 +58,15 @@
           <li>默认时区：{{ effectiveConfigSummary.timeZone }}</li>
           <li>配置来源：{{ effectiveConfigSummary.configSource }}</li>
           <li>商家标识：{{ effectiveConfigSummary.merchantId }}</li>
+          <li>报表状态：{{ reportHealthSummary }}</li>
         </ul>
         <div :class="$style.sideState">
           <UiStatePanel
-            :tone="configMode === 'remote' ? 'info' : 'loading'"
-            :title="configMode === 'remote' ? '已接入真实配置接口' : '当前使用演示配置摘要'"
+            :tone="configMode === 'remote' ? 'info' : 'error'"
+            :title="configMode === 'remote' ? '已接入真实配置接口' : '真实配置接口异常'"
             :description="
               configMode === 'remote'
-                ? '商家功能开关与生效配置已从 config-service 读取，发布记录仍保留演示数据。'
+                ? '商家功能开关与生效配置已从 config-service 读取。'
                 : configNotice
             "
           />
@@ -59,22 +78,64 @@
       <UiCard elevated :class="$style.recordPanel">
         <div :class="$style.panelHead">
           <div>
-            <div :class="$style.eyebrow">发布记录</div>
-            <h3 :class="$style.title">最近三次操作</h3>
+            <div :class="$style.eyebrow">联调健康度</div>
+            <h3 :class="$style.title">报表与看板数据就绪情况</h3>
           </div>
         </div>
-        <div :class="$style.recordTable">
+        <UiStatePanel
+          :tone="reportHealth?.ready ? 'info' : 'error'"
+          :title="reportHealth?.ready ? '报表健康度已就绪' : '报表健康度未完成'"
+          :description="reportHealth?.summary || '正在检查报表健康度。'"
+        />
+        <div v-if="reportHealth?.items?.length" :class="$style.recordTable">
           <div :class="$style.recordHead">
-            <span>版本</span>
-            <span>操作人</span>
-            <span>目标</span>
-            <span>结果</span>
+            <span>检查项</span>
+            <span>状态</span>
+            <span>最近数据</span>
+            <span>说明</span>
           </div>
-          <div v-for="record in publishRecords" :key="record.version" :class="$style.recordRow">
-            <span :class="$style.strong">{{ record.version }}</span>
-            <span>{{ record.operator }}</span>
-            <span>{{ record.target }}</span>
-            <UiTag :tone="record.tone as 'success' | 'danger' | 'info'">{{ record.result }}</UiTag>
+          <div v-for="item in reportHealth.items" :key="item.code" :class="$style.recordRow">
+            <div :class="$style.strong">{{ item.name }}</div>
+            <div>{{ item.status === 'ready' ? '已就绪' : '缺失' }}</div>
+            <div>{{ item.latest_data_time || '-' }}</div>
+            <div>{{ item.message }}</div>
+          </div>
+        </div>
+
+        <div :class="$style.panelHead">
+          <div>
+            <div :class="$style.eyebrow">发布记录</div>
+            <h3 :class="$style.title">配置发布与回滚</h3>
+          </div>
+          <UiButton @click="handleCreatePublish">发起发布</UiButton>
+        </div>
+
+        <div :class="$style.formStack">
+          <label :class="$style.fieldBlock">
+            <span :class="$style.fieldLabel">发布说明</span>
+            <textarea v-model="publishNote" :class="$style.textarea" placeholder="请输入发布说明" />
+          </label>
+          <label :class="$style.fieldBlock">
+            <span :class="$style.fieldLabel">回滚原因</span>
+            <textarea v-model="rollbackReason" :class="$style.textarea" placeholder="请输入回滚原因" />
+          </label>
+          <UiButton variant="secondary" :disabled="!publishRecords.length" @click="handleRollbackLatest">
+            回滚最新记录
+          </UiButton>
+        </div>
+
+        <div v-if="publishRecords.length" :class="$style.recordTable">
+          <div :class="$style.recordHead">
+            <span>任务号</span>
+            <span>状态</span>
+            <span>创建时间</span>
+            <span>说明</span>
+          </div>
+          <div v-for="record in publishRecords" :key="record.task_no" :class="$style.recordRow">
+            <div :class="$style.strong">{{ record.task_no }}</div>
+            <div>{{ record.release_status }}</div>
+            <div>{{ record.created_at }}</div>
+            <div>{{ record.publish_note || '-' }}</div>
           </div>
         </div>
       </UiCard>
@@ -89,23 +150,57 @@ import UiCard from '@/components/base/UiCard.vue';
 import UiStatePanel from '@/components/base/UiStatePanel.vue';
 import UiTag from '@/components/base/UiTag.vue';
 import WorkspaceLayout from '@/components/layout/WorkspaceLayout.vue';
-import { fetchEffectiveConfig, fetchMerchantFeatureSwitches } from '@/services/config';
+import {
+  changeMerchantFeatureSwitch,
+  createPublishRecord,
+  fetchEffectiveConfig,
+  fetchMerchantFeatureSwitches,
+  fetchPublishRecords,
+  rollbackPublishRecord,
+} from '@/services/config';
+import { fetchReportHealth } from '@/services/report';
 import { useAuthStore } from '@/stores/auth';
-import type { ConfigKvValueResponseRaw, FeatureSwitchValueResponseRaw } from '@/types/config';
-import { configGroups as mockConfigGroups, publishRecords } from '@/modules/config/mock';
+import type {
+  ConfigKvValueResponseRaw,
+  ConfigPublishRecordResponseRaw,
+  FeatureSwitchValueResponseRaw,
+} from '@/types/config';
+import type { ReportHealthResponseRaw } from '@/types/report';
+
+type ConfigGroupItem = {
+  switchCode: string;
+  name: string;
+  description: string;
+  status: string;
+  statusTone: 'default' | 'primary' | 'success';
+  effectiveValue: string;
+};
 
 const authStore = useAuthStore();
-const configMode = ref<'remote' | 'mock'>('mock');
-const configNotice = ref('正在尝试连接配置中心接口，未接通时会回退到演示数据。');
-const configGroups = ref(mockConfigGroups.map((item) => ({ ...item })));
+const configMode = ref<'remote' | 'error'>('remote');
+const configNotice = ref('正在加载真实配置接口。');
+const configGroups = ref<ConfigGroupItem[]>([]);
 const effectiveConfig = ref<ConfigKvValueResponseRaw | null>(null);
+const reportHealth = ref<ReportHealthResponseRaw | null>(null);
+const publishRecords = ref<ConfigPublishRecordResponseRaw[]>([]);
+const actionMessage = ref('');
+const actionTone = ref<'info' | 'error'>('info');
+const publishNote = ref('本地联调发布');
+const rollbackReason = ref('联调验证后回滚');
+
+const reportHealthSummary = computed(() => {
+  if (!reportHealth.value) {
+    return '未检查';
+  }
+  return reportHealth.value.ready ? '已就绪' : '待补数';
+});
 
 const effectiveConfigSummary = computed(() => {
   if (!effectiveConfig.value) {
     return {
       timeZone: 'Asia/Shanghai',
-      configSource: '演示数据',
-      merchantId: authStore.context?.merchantId || 'merchant_1001',
+      configSource: '未加载',
+      merchantId: authStore.context?.merchantId || '-',
     };
   }
   return {
@@ -116,17 +211,10 @@ const effectiveConfigSummary = computed(() => {
 });
 
 const configStatePanel = computed(() => {
-  if (authStore.authMode === 'mock') {
+  if (configMode.value === 'error') {
     return {
-      tone: 'empty' as const,
-      title: '当前展示演示配置',
-      description: '认证服务未接通，配置中心页面先使用演示数据。',
-    };
-  }
-  if (configMode.value !== 'remote') {
-    return {
-      tone: 'info' as const,
-      title: '配置接口暂未接通',
+      tone: 'error' as const,
+      title: '配置接口调用失败',
       description: configNotice.value,
     };
   }
@@ -137,44 +225,113 @@ function resolveMerchantId(): string {
   return authStore.context?.merchantId || `merchant_${authStore.merchantIdForQuery ?? 1001}`;
 }
 
-function toConfigGroups(items: FeatureSwitchValueResponseRaw[]) {
+function toConfigGroups(items: FeatureSwitchValueResponseRaw[]): ConfigGroupItem[] {
   return items.map((item) => ({
+    switchCode: item.switch_code,
     name: item.switch_name,
     description: `${item.switch_code} · 范围 ${item.switch_scope} · 默认 ${item.default_value} · 来源 ${item.source}`,
     status: item.effective_value === 'on' ? '已开启' : '已关闭',
-    statusTone: item.effective_value === 'on' ? 'success' : item.status === 'enabled' ? 'primary' : 'default',
+    statusTone: item.effective_value === 'on'
+      ? 'success'
+      : item.status === 'enabled'
+        ? 'primary'
+        : 'default',
+    effectiveValue: item.effective_value,
   }));
 }
 
-function fallbackToMock(message: string) {
-  configMode.value = 'mock';
-  configNotice.value = message;
-  configGroups.value = mockConfigGroups.map((item) => ({ ...item }));
-  effectiveConfig.value = null;
+function setActionMessage(message: string, tone: 'info' | 'error' = 'info') {
+  actionMessage.value = message;
+  actionTone.value = tone;
 }
 
 async function loadConfigCenter() {
   await authStore.ensureCurrentContext();
   const merchantId = resolveMerchantId();
+  const storeId = authStore.context?.storeId || `store_${authStore.storeIdForQuery ?? 1001}`;
+  const merchantIdForQuery = authStore.merchantIdForQuery ?? 1001;
+  const storeIdForQuery = authStore.storeIdForQuery ?? 1001;
   try {
-    const [switches, timeZoneConfig] = await Promise.all([
+    const [switches, timeZoneConfig, nextReportHealth, nextPublishRecords] = await Promise.all([
       fetchMerchantFeatureSwitches(merchantId),
       fetchEffectiveConfig({
         merchantId,
         configGroup: 'system',
         configKey: 'default_time_zone',
       }),
+      fetchReportHealth({
+        merchantId: merchantIdForQuery,
+        storeId: storeIdForQuery,
+      }),
+      fetchPublishRecords({
+        merchantId,
+        storeId,
+      }),
     ]);
-    if (!switches.length) {
-      fallbackToMock('配置接口已接通，但当前商家还没有可展示的功能开关数据。');
-      return;
-    }
     configMode.value = 'remote';
     configNotice.value = '配置中心已连接真实接口。';
     configGroups.value = toConfigGroups(switches);
     effectiveConfig.value = timeZoneConfig;
+    reportHealth.value = nextReportHealth;
+    publishRecords.value = nextPublishRecords;
   } catch (error) {
-    fallbackToMock(`配置服务未就绪，页面已回退到演示数据。${error instanceof Error ? error.message : ''}`.trim());
+    configMode.value = 'error';
+    configNotice.value = error instanceof Error ? error.message : '配置服务未就绪。';
+    configGroups.value = [];
+    effectiveConfig.value = null;
+    reportHealth.value = null;
+    publishRecords.value = [];
+  }
+}
+
+async function handleToggleSwitch(item: ConfigGroupItem) {
+  try {
+    const merchantId = resolveMerchantId();
+    const switchValue = item.effectiveValue === 'on' ? 'off' : 'on';
+    await changeMerchantFeatureSwitch({
+      merchantId,
+      switchCode: item.switchCode,
+      switchValue,
+    });
+    await loadConfigCenter();
+    setActionMessage(`已将开关 ${item.name} 调整为 ${switchValue === 'on' ? '开启' : '关闭'}。`);
+  } catch (error) {
+    setActionMessage(error instanceof Error ? error.message : '开关调整失败。', 'error');
+  }
+}
+
+async function handleCreatePublish() {
+  try {
+    const merchantId = resolveMerchantId();
+    const storeId = authStore.context?.storeId || `store_${authStore.storeIdForQuery ?? 1001}`;
+    await createPublishRecord({
+      merchantId,
+      storeId,
+      operatorName: authStore.user.operatorName || '商家管理员',
+      publishNote: publishNote.value.trim() || '本地联调发布',
+    });
+    await loadConfigCenter();
+    setActionMessage('配置发布记录已创建。');
+  } catch (error) {
+    setActionMessage(error instanceof Error ? error.message : '发起发布失败。', 'error');
+  }
+}
+
+async function handleRollbackLatest() {
+  try {
+    const latest = publishRecords.value[0];
+    if (!latest) {
+      throw new Error('当前没有可回滚的发布记录。');
+    }
+    await rollbackPublishRecord({
+      taskNo: latest.task_no,
+      operatorName: authStore.user.operatorName || '商家管理员',
+      rollbackReason: rollbackReason.value.trim() || '联调验证后回滚',
+    });
+    await loadConfigCenter();
+    setActionMessage(`发布记录 ${latest.task_no} 已发起回滚。`);
+  } catch (error) {
+    setActionMessage(error instanceof Error ? error.message : '回滚发布记录失败。', 'error');
   }
 }
 
@@ -245,6 +402,12 @@ onMounted(() => {
   line-height: 1.7;
 }
 
+.configActions {
+  display: grid;
+  justify-items: end;
+  gap: 10px;
+}
+
 .notes {
   margin: 18px 0 0;
   padding-left: 18px;
@@ -260,6 +423,34 @@ onMounted(() => {
   display: grid;
   gap: 10px;
   margin-top: 20px;
+}
+
+.formStack {
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.fieldBlock {
+  display: grid;
+  gap: 8px;
+}
+
+.fieldLabel {
+  color: var(--cdd-text-soft);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.textarea {
+  min-height: 88px;
+  width: 100%;
+  padding: 14px 16px;
+  border: 0;
+  border-radius: 18px;
+  background: rgba(237, 244, 255, 0.92);
+  color: var(--cdd-text);
+  resize: vertical;
 }
 
 .recordHead,

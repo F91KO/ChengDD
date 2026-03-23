@@ -21,4 +21,8 @@ public interface FeatureSwitchRepository {
     void upsertMerchantOverride(long id, long switchId, String merchantId, String switchValue);
 
     Optional<FeatureSwitchMerchantOverrideRecord> findMerchantOverride(long switchId, String merchantId);
+
+    void softDeleteDefinitionsNotIn(List<String> switchCodes);
+
+    void softDeleteMerchantOverrides(String merchantId);
 }

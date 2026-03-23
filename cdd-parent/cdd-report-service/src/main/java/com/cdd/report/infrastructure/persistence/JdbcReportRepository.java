@@ -114,6 +114,19 @@ public class JdbcReportRepository implements ReportRepository {
     }
 
     @Override
+    public Optional<HomeEventDailyRecord> findLatestHomeEventDaily(long merchantId, long storeId) {
+        return jdbcTemplate.query("""
+                SELECT id, merchant_id, store_id, stat_date, mini_program_id, page_view_count, visitor_count, click_count
+                FROM cdd_report_home_event_daily
+                WHERE merchant_id = ?
+                  AND store_id = ?
+                  AND deleted = 0
+                ORDER BY stat_date DESC, id DESC
+                LIMIT 1
+                """, HOME_EVENT_ROW_MAPPER, merchantId, storeId).stream().findFirst();
+    }
+
+    @Override
     public OrderDailyRecord upsertOrderDaily(long id,
                                              long merchantId,
                                              long storeId,
@@ -161,6 +174,19 @@ public class JdbcReportRepository implements ReportRepository {
         appendDateRange(sql, args, startDate, endDate);
         sql.append(" ORDER BY stat_date DESC, id DESC");
         return jdbcTemplate.query(sql.toString(), ORDER_DAILY_ROW_MAPPER, args.toArray());
+    }
+
+    @Override
+    public Optional<OrderDailyRecord> findLatestOrderDaily(long merchantId, long storeId) {
+        return jdbcTemplate.query("""
+                SELECT id, merchant_id, store_id, stat_date, order_count, paid_order_count, gross_amount, refund_amount
+                FROM cdd_report_order_daily
+                WHERE merchant_id = ?
+                  AND store_id = ?
+                  AND deleted = 0
+                ORDER BY stat_date DESC, id DESC
+                LIMIT 1
+                """, ORDER_DAILY_ROW_MAPPER, merchantId, storeId).stream().findFirst();
     }
 
     @Override
@@ -221,6 +247,19 @@ public class JdbcReportRepository implements ReportRepository {
         appendDateRange(sql, args, startDate, endDate);
         sql.append(" ORDER BY stat_date DESC, id DESC");
         return jdbcTemplate.query(sql.toString(), PRODUCT_DAILY_ROW_MAPPER, args.toArray());
+    }
+
+    @Override
+    public Optional<ProductDailyRecord> findLatestProductDaily(long merchantId, long storeId) {
+        return jdbcTemplate.query("""
+                SELECT id, merchant_id, store_id, stat_date, product_id, sku_id, view_count, sale_count, sale_amount
+                FROM cdd_report_product_daily
+                WHERE merchant_id = ?
+                  AND store_id = ?
+                  AND deleted = 0
+                ORDER BY stat_date DESC, id DESC
+                LIMIT 1
+                """, PRODUCT_DAILY_ROW_MAPPER, merchantId, storeId).stream().findFirst();
     }
 
     @Override
@@ -311,6 +350,56 @@ public class JdbcReportRepository implements ReportRepository {
                 """, PLATFORM_DASHBOARD_ROW_MAPPER).stream().findFirst();
     }
 
+    @Override
+    public long countHomeEventDaily() {
+        return countByTable("cdd_report_home_event_daily");
+    }
+
+    @Override
+    public long countOrderDaily() {
+        return countByTable("cdd_report_order_daily");
+    }
+
+    @Override
+    public long countProductDaily() {
+        return countByTable("cdd_report_product_daily");
+    }
+
+    @Override
+    public long countMerchantDashboardSnapshots() {
+        return countByTable("cdd_metric_merchant_dashboard");
+    }
+
+    @Override
+    public long countPlatformDashboardSnapshots() {
+        return countByTable("cdd_metric_platform_dashboard");
+    }
+
+    @Override
+    public Optional<LocalDate> findLatestHomeEventStatDate() {
+        return findLatestStatDate("cdd_report_home_event_daily");
+    }
+
+    @Override
+    public Optional<LocalDate> findLatestOrderStatDate() {
+        return findLatestStatDate("cdd_report_order_daily");
+    }
+
+    @Override
+    public Optional<LocalDate> findLatestProductStatDate() {
+        return findLatestStatDate("cdd_report_product_daily");
+    }
+
+    @Override
+    public Optional<Timestamp> findLatestMerchantDashboardSnapshotTime() {
+        return findLatestSnapshotTime("cdd_metric_merchant_dashboard");
+    }
+
+    @Override
+    public Optional<Timestamp> findLatestPlatformDashboardSnapshotTime() {
+        return findLatestSnapshotTime("cdd_metric_platform_dashboard");
+    }
+
     private HomeEventDailyRecord findHomeEventDaily(long merchantId, long storeId, LocalDate statDate) {
         return jdbcTemplate.query("""
                 SELECT id, merchant_id, store_id, stat_date, mini_program_id, page_view_count, visitor_count, click_count
@@ -354,5 +443,26 @@ public class JdbcReportRepository implements ReportRepository {
             sql.append(" AND stat_date <= ?");
             args.add(Date.valueOf(endDate));
         }
+    }
+
+    private long countByTable(String tableName) {
+        Long count = jdbcTemplate.queryForObject(
+                "SELECT COUNT(1) FROM " + tableName + " WHERE deleted = 0",
+                Long.class);
+        return count == null ? 0L : count;
+    }
+
+    private Optional<LocalDate> findLatestStatDate(String tableName) {
+        Date value = jdbcTemplate.queryForObject(
+                "SELECT MAX(stat_date) FROM " + tableName + " WHERE deleted = 0",
+                Date.class);
+        return value == null ? Optional.empty() : Optional.of(value.toLocalDate());
+    }
+
+    private Optional<Timestamp> findLatestSnapshotTime(String tableName) {
+        Timestamp value = jdbcTemplate.queryForObject(
+                "SELECT MAX(snapshot_time) FROM " + tableName + " WHERE deleted = 0",
+                Timestamp.class);
+        return value == null ? Optional.empty() : Optional.of(value);
     }
 }

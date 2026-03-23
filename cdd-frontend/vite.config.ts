@@ -54,6 +54,15 @@ export default defineConfig({
         target: 'http://127.0.0.1:8089',
         changeOrigin: true,
       },
+      '/api/release': {
+        target: 'http://127.0.0.1:8087',
+        changeOrigin: true,
+      },
+      '/actuator/report': {
+        target: 'http://127.0.0.1:8088',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/actuator\/report/, '/actuator'),
+      },
     },
   },
 });

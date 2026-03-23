@@ -138,6 +138,44 @@ public class JdbcFeatureSwitchRepository implements FeatureSwitchRepository {
         return rows.stream().findFirst();
     }
 
+    @Override
+    public void softDeleteDefinitionsNotIn(List<String> switchCodes) {
+        if (switchCodes.isEmpty()) {
+            jdbcTemplate.update("""
+                    UPDATE cdd_config_feature_switch
+                    SET deleted = 1, updated_by = 0, updated_at = CURRENT_TIMESTAMP
+                    WHERE deleted = 0
+                    """);
+            return;
+        }
+        StringBuilder sql = new StringBuilder("""
+                UPDATE cdd_config_feature_switch
+                SET deleted = 1, updated_by = 0, updated_at = CURRENT_TIMESTAMP
+                WHERE deleted = 0
+                  AND switch_code NOT IN (
+                """);
+        Object[] args = new Object[switchCodes.size()];
+        for (int index = 0; index < switchCodes.size(); index++) {
+            if (index > 0) {
+                sql.append(", ");
+            }
+            sql.append("?");
+            args[index] = switchCodes.get(index);
+        }
+        sql.append(")");
+        jdbcTemplate.update(sql.toString(), args);
+    }
+
+    @Override
+    public void softDeleteMerchantOverrides(String merchantId) {
+        jdbcTemplate.update("""
+                UPDATE cdd_config_feature_switch_merchant_override
+                SET deleted = 1, updated_by = 0, updated_at = CURRENT_TIMESTAMP
+                WHERE merchant_id = ?
+                  AND deleted = 0
+                """, merchantId);
+    }
+
     private static FeatureSwitchDefinitionRecord mapDefinitionRow(ResultSet rs, int rowNum) throws SQLException {
         return new FeatureSwitchDefinitionRecord(
                 rs.getLong("id"),

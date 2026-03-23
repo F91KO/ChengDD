@@ -23,8 +23,8 @@ import org.springframework.transaction.annotation.Transactional;
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 class ReportApplicationServiceTest {
 
-    private static final long MERCHANT_ID = 1001L;
-    private static final long STORE_ID = 1001L;
+    private static final long MERCHANT_ID = 920002L;
+    private static final long STORE_ID = 920002L;
 
     @Autowired
     private ReportApplicationService reportApplicationService;
@@ -68,21 +68,21 @@ class ReportApplicationServiceTest {
         var merchantDashboard = reportApplicationService.createMerchantDashboardSnapshot(new MerchantDashboardSnapshotUpsertRequest(
                 MERCHANT_ID,
                 STORE_ID,
-                "2026-03-22 10:30:00",
+                "2026-03-23 10:30:00",
                 objectMapper.readTree("{\"gmv\":1299.90,\"order_count\":18}")));
         assertEquals(STORE_ID, merchantDashboard.storeId());
 
         var platformDashboard = reportApplicationService.createPlatformDashboardSnapshot(new PlatformDashboardSnapshotUpsertRequest(
-                "2026-03-22 11:00:00",
+                "2026-03-23 11:00:00",
                 objectMapper.readTree("{\"merchant_count\":12,\"daily_active_store_count\":8}")));
-        assertEquals("2026-03-22 11:00:00", platformDashboard.snapshotTime());
+        assertEquals("2026-03-23 11:00:00", platformDashboard.snapshotTime());
 
         assertEquals(1, reportApplicationService.listHomeEventDaily(MERCHANT_ID, STORE_ID, "2026-03-01", "2026-03-31").size());
         assertEquals(1, reportApplicationService.listOrderDaily(MERCHANT_ID, STORE_ID, null, null).size());
         assertEquals(1, reportApplicationService.listProductDaily(MERCHANT_ID, STORE_ID, 3100001L, null, null).size());
-        assertEquals("2026-03-22 10:30:00",
+        assertEquals("2026-03-23 10:30:00",
                 reportApplicationService.getLatestMerchantDashboardSnapshot(MERCHANT_ID, STORE_ID).snapshotTime());
-        assertEquals("2026-03-22 11:00:00",
+        assertEquals("2026-03-23 11:00:00",
                 reportApplicationService.getLatestPlatformDashboardSnapshot().snapshotTime());
     }
 }

@@ -19,6 +19,8 @@ public interface ReportRepository {
 
     List<HomeEventDailyRecord> listHomeEventDaily(long merchantId, long storeId, LocalDate startDate, LocalDate endDate);
 
+    Optional<HomeEventDailyRecord> findLatestHomeEventDaily(long merchantId, long storeId);
+
     OrderDailyRecord upsertOrderDaily(long id,
                                       long merchantId,
                                       long storeId,
@@ -29,6 +31,8 @@ public interface ReportRepository {
                                       BigDecimal refundAmount);
 
     List<OrderDailyRecord> listOrderDaily(long merchantId, long storeId, LocalDate startDate, LocalDate endDate);
+
+    Optional<OrderDailyRecord> findLatestOrderDaily(long merchantId, long storeId);
 
     ProductDailyRecord upsertProductDaily(long id,
                                           long merchantId,
@@ -46,6 +50,8 @@ public interface ReportRepository {
                                               LocalDate startDate,
                                               LocalDate endDate);
 
+    Optional<ProductDailyRecord> findLatestProductDaily(long merchantId, long storeId);
+
     MerchantDashboardSnapshotRecord createMerchantDashboardSnapshot(long id,
                                                                     long merchantId,
                                                                     long storeId,
@@ -61,6 +67,26 @@ public interface ReportRepository {
                                                                     String dashboardPayloadJson);
 
     Optional<PlatformDashboardSnapshotRecord> findLatestPlatformDashboardSnapshot();
+
+    long countHomeEventDaily();
+
+    long countOrderDaily();
+
+    long countProductDaily();
+
+    long countMerchantDashboardSnapshots();
+
+    long countPlatformDashboardSnapshots();
+
+    Optional<LocalDate> findLatestHomeEventStatDate();
+
+    Optional<LocalDate> findLatestOrderStatDate();
+
+    Optional<LocalDate> findLatestProductStatDate();
+
+    Optional<Timestamp> findLatestMerchantDashboardSnapshotTime();
+
+    Optional<Timestamp> findLatestPlatformDashboardSnapshotTime();
 
     record HomeEventDailyRecord(
             long id,

@@ -291,6 +291,61 @@ public class InMemoryProductCatalogStore implements ProductCatalogStore {
     }
 
     @Override
+    public synchronized Optional<ProductRecord> updateProduct(long productId,
+                                                             long categoryId,
+                                                             String productName,
+                                                             String productSubTitle,
+                                                             List<SkuDraft> skuDrafts) {
+        ProductRecord current = products.get(productId);
+        if (current == null) {
+            return Optional.empty();
+        }
+        for (Long skuId : current.skuIds()) {
+            SkuRecord currentSku = skus.remove(skuId);
+            if (currentSku != null) {
+                merchantSkuCodeIndex.remove(merchantSkuCodeKey(currentSku.merchantId(), currentSku.skuCode()));
+            }
+            stocks.remove(skuId);
+        }
+
+        List<Long> skuIds = new ArrayList<>(skuDrafts.size());
+        for (SkuDraft draft : skuDrafts) {
+            long skuId = skuIdGenerator.incrementAndGet();
+            SkuRecord sku = new SkuRecord(
+                    skuId,
+                    productId,
+                    current.merchantId(),
+                    current.storeId(),
+                    draft.skuCode(),
+                    draft.skuName(),
+                    draft.salePrice());
+            skus.put(skuId, sku);
+            skuIds.add(skuId);
+            stocks.put(skuId, new StockRecord(
+                    skuId,
+                    productId,
+                    current.merchantId(),
+                    current.storeId(),
+                    draft.availableStock(),
+                    0,
+                    toStockStatus(draft.availableStock())));
+            merchantSkuCodeIndex.put(merchantSkuCodeKey(current.merchantId(), draft.skuCode()), skuId);
+        }
+
+        ProductRecord updated = new ProductRecord(
+                current.id(),
+                current.merchantId(),
+                current.storeId(),
+                categoryId,
+                productName,
+                productSubTitle,
+                current.status(),
+                List.copyOf(skuIds));
+        products.put(productId, updated);
+        return Optional.of(updated);
+    }
+
+    @Override
     public boolean skuCodeExists(long merchantId, String skuCode) {
         return merchantSkuCodeIndex.containsKey(merchantSkuCodeKey(merchantId, skuCode));
     }
@@ -362,6 +417,11 @@ public class InMemoryProductCatalogStore implements ProductCatalogStore {
                 reason);
         stocks.put(skuId, updated);
         return Optional.of(updated);
+    }
+
+    @Override
+    public ProductSalesRecord summarizePaidOrderSales(long merchantId, long storeId, long productId) {
+        return new ProductSalesRecord(0, new BigDecimal("0.00"));
     }
 
     private Optional<CategoryRecord> findCategoryByParentAndName(long merchantId,

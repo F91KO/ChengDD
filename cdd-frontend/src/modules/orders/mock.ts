@@ -3,12 +3,17 @@ import { useAuthStore } from '@/stores/auth';
 import { fetchOrderList } from '@/services/order';
 import type { OrderSummaryResponseRaw } from '@/types/order';
 
-type OrderCard = {
+export type OrderCard = {
   orderNo: string;
+  merchantId: number;
+  storeId: number;
+  userId: number;
   customer: string;
   items: string;
   amount: string;
   status: string;
+  statusRaw: string;
+  deliveryStatusRaw: string;
   statusTone: 'primary' | 'info' | 'danger' | 'success';
   channel: string;
   time: string;
@@ -16,54 +21,12 @@ type OrderCard = {
 
 export const orderFilters = ['全部', '待支付', '待发货', '运输中', '已完成', '异常单'];
 
-const mockOrders: OrderCard[] = [
-  {
-    orderNo: 'ORD-7782190',
-    customer: '周辰',
-    items: '2 件商品',
-    amount: '¥1,240.00',
-    status: '待发货',
-    statusTone: 'primary',
-    channel: '微信小程序',
-    time: '2026-03-22 10:42',
-  },
-  {
-    orderNo: 'ORD-9901234',
-    customer: '罗安',
-    items: '1 件商品',
-    amount: '¥329.00',
-    status: '运输中',
-    statusTone: 'info',
-    channel: 'H5 商城',
-    time: '2026-03-22 09:16',
-  },
-  {
-    orderNo: 'ORD-5541092',
-    customer: '林清',
-    items: '3 件商品',
-    amount: '¥2,019.00',
-    status: '异常单',
-    statusTone: 'danger',
-    channel: '抖音小店',
-    time: '2026-03-21 18:05',
-  },
-  {
-    orderNo: 'ORD-1120038',
-    customer: '夏禾',
-    items: '1 件商品',
-    amount: '¥88.00',
-    status: '已完成',
-    statusTone: 'success',
-    channel: '微信小程序',
-    time: '2026-03-21 16:20',
-  },
-];
-
-export const orders = reactive<OrderCard[]>([...mockOrders]);
+export const orders = reactive<OrderCard[]>([]);
 export const orderLoadState = reactive({
   loading: false,
-  source: 'mock' as 'mock' | 'remote',
-  message: '当前展示演示数据。',
+  loaded: false,
+  errorMessage: '',
+  message: '等待加载真实订单数据。',
 });
 
 let loadPromise: Promise<void> | null = null;
@@ -110,7 +73,7 @@ function normalizeStatus(item: OrderSummaryResponseRaw): {
   if (deliveryStatus.includes('deliver') || deliveryStatus.includes('ship')) {
     return { text: '运输中', tone: 'info' };
   }
-  if (payStatus.includes('paid') || status.includes('paid')) {
+  if (payStatus.includes('paid') || status.includes('paid') || status.includes('preparing')) {
     return { text: '待发货', tone: 'primary' };
   }
   return { text: '待支付', tone: 'info' };
@@ -121,39 +84,59 @@ function mapRemoteOrder(item: OrderSummaryResponseRaw): OrderCard {
   const amount = Number(item.paid_amount) > 0 ? item.paid_amount : item.payable_amount;
   return {
     orderNo: item.order_no,
-    customer: `用户 ${item.user_id}`,
-    items: '真实接口暂未返回商品明细',
+    merchantId: item.merchant_id,
+    storeId: item.store_id,
+    userId: item.user_id,
+    customer: item.customer_identifier || `用户 ${item.user_id}`,
+    items: item.product_summary || '暂无商品摘要',
     amount: normalizeAmount(amount),
     status: normalizedStatus.text,
+    statusRaw: item.order_status,
+    deliveryStatusRaw: item.delivery_status,
     statusTone: normalizedStatus.tone,
-    channel: '线上渠道',
+    channel: item.channel || '未知渠道',
     time: formatTime(item.created_at),
   };
 }
 
-function fallbackToMock(message: string) {
-  replaceOrders(mockOrders);
-  orderLoadState.source = 'mock';
-  orderLoadState.message = message;
+export function filterToOrderStatus(filter: string): string | undefined {
+  switch (filter) {
+    case '待支付':
+      return 'pending_pay';
+    case '待发货':
+      return 'paid';
+    case '运输中':
+      return 'shipped';
+    case '已完成':
+      return 'finished';
+    case '异常单':
+      return 'cancelled';
+    default:
+      return undefined;
+  }
 }
 
-export async function loadOrders(force = false): Promise<void> {
+export async function loadOrders(force = false, orderStatus?: string): Promise<void> {
   if (orderLoadState.loading) {
     return loadPromise ?? Promise.resolve();
   }
-  if (orderLoadState.source === 'remote' && !force) {
+  if (orderLoadState.loaded && !force && !orderStatus) {
     return;
   }
 
   loadPromise = (async () => {
     orderLoadState.loading = true;
+    orderLoadState.errorMessage = '';
     const authStore = useAuthStore();
     await authStore.ensureCurrentContext();
 
     const merchantId = authStore.merchantIdForQuery;
     const storeId = authStore.storeIdForQuery;
     if (!merchantId || !storeId) {
-      fallbackToMock('当前账号上下文无法映射为数值型商户/店铺 ID，已使用演示数据。');
+      replaceOrders([]);
+      orderLoadState.loaded = true;
+      orderLoadState.message = '当前账号缺少真实商户上下文，无法加载订单数据。';
+      orderLoadState.errorMessage = orderLoadState.message;
       orderLoadState.loading = false;
       return;
     }
@@ -163,20 +146,19 @@ export async function loadOrders(force = false): Promise<void> {
         merchantId,
         storeId,
         userId: authStore.userIdForQuery,
+        orderStatus,
       });
-      if (remoteOrders.length === 0) {
-        fallbackToMock('真实接口返回空订单列表，已自动回退到演示数据。');
-        orderLoadState.loading = false;
-        return;
-      }
 
       replaceOrders(remoteOrders.map(mapRemoteOrder));
-      orderLoadState.source = 'remote';
-      orderLoadState.message = '已使用真实订单接口数据。';
+      orderLoadState.loaded = true;
+      orderLoadState.message = remoteOrders.length
+        ? '已加载真实订单接口数据。'
+        : '当前筛选条件下没有真实订单数据。';
     } catch (error) {
-      fallbackToMock(
-        `订单接口调用失败，已回退演示数据：${error instanceof Error ? error.message : '未知错误'}`,
-      );
+      replaceOrders([]);
+      orderLoadState.loaded = true;
+      orderLoadState.errorMessage = error instanceof Error ? error.message : '订单接口调用失败。';
+      orderLoadState.message = orderLoadState.errorMessage;
     } finally {
       orderLoadState.loading = false;
     }

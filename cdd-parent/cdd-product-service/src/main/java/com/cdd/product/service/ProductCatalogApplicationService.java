@@ -11,19 +11,27 @@ import com.cdd.api.product.model.CreateProductRequest;
 import com.cdd.api.product.model.InitializeCategoryTreeRequest;
 import com.cdd.api.product.model.InitializeCategoryTreeResponse;
 import com.cdd.api.product.model.ProductDetailResponse;
+import com.cdd.api.product.model.ProductPriceSummaryResponse;
+import com.cdd.api.product.model.ProductSalesSummaryResponse;
 import com.cdd.api.product.model.ProductSkuResponse;
 import com.cdd.api.product.model.ProductStockResponse;
+import com.cdd.api.product.model.ProductStockSummaryResponse;
 import com.cdd.api.product.model.ProductSummaryResponse;
 import com.cdd.api.product.model.UpdateCategoryRequest;
+import com.cdd.api.product.model.UpdateProductRequest;
 import com.cdd.common.core.error.BusinessException;
 import com.cdd.product.error.ProductErrorCode;
 import com.cdd.product.infrastructure.ProductCatalogStore;
+import java.math.BigDecimal;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 @Service
@@ -188,39 +196,18 @@ public class ProductCatalogApplicationService {
                 .toList();
     }
 
+    @Transactional
     public ProductDetailResponse createProduct(CreateProductRequest request) {
-        ProductCatalogStore.CategoryRecord category = requireCategory(request.categoryId());
-        if (category.merchantId() != request.merchantId() || category.storeId() != request.storeId()) {
-            throw new BusinessException(ProductErrorCode.PRODUCT_CATEGORY_MISMATCH);
-        }
-        if (!category.enabled()) {
-            throw new BusinessException(ProductErrorCode.CATEGORY_DISABLED);
-        }
-        if (store.categoryHasChildren(request.merchantId(), request.storeId(), category.id())) {
-            throw new BusinessException(ProductErrorCode.CATEGORY_HAS_CHILDREN);
-        }
-        for (var sku : request.skus()) {
-            if (store.skuCodeExists(request.merchantId(), sku.skuCode())) {
-                throw new BusinessException(ProductErrorCode.SKU_CODE_DUPLICATE);
-            }
-            if (sku.availableStock() < 0) {
-                throw new BusinessException(ProductErrorCode.INVALID_STOCK_CHANGE);
-            }
-        }
+        validateProductCategory(request.merchantId(), request.storeId(), request.categoryId());
+        List<ProductCatalogStore.SkuDraft> skuDrafts = buildSkuDrafts(request.merchantId(), request.skus(), Set.of());
 
         ProductCatalogStore.ProductRecord created = store.createProduct(
                 request.merchantId(),
                 request.storeId(),
                 request.categoryId(),
                 request.productName().trim(),
-                request.productSubTitle(),
-                request.skus().stream()
-                        .map(sku -> new ProductCatalogStore.SkuDraft(
-                                sku.skuCode().trim(),
-                                sku.skuName().trim(),
-                                sku.salePrice(),
-                                sku.availableStock()))
-                        .toList());
+                trimToNull(request.productSubTitle()),
+                skuDrafts);
 
         return toProductDetailResponse(created);
     }
@@ -229,16 +216,32 @@ public class ProductCatalogApplicationService {
         return toProductDetailResponse(requireProduct(productId));
     }
 
+    @Transactional
+    public ProductDetailResponse updateProduct(long productId, UpdateProductRequest request) {
+        ProductCatalogStore.ProductRecord current = requireProduct(productId);
+        if (current.merchantId() != request.merchantId() || current.storeId() != request.storeId()) {
+            throw new BusinessException(ProductErrorCode.PRODUCT_NOT_FOUND);
+        }
+        validateProductCategory(request.merchantId(), request.storeId(), request.categoryId());
+        Set<String> ownedSkuCodes = store.listSkusByProductId(productId).stream()
+                .map(ProductCatalogStore.SkuRecord::skuCode)
+                .map(ProductCatalogApplicationService::normalize)
+                .collect(java.util.stream.Collectors.toSet());
+        List<ProductCatalogStore.SkuDraft> skuDrafts = buildSkuDrafts(request.merchantId(), request.skus(), ownedSkuCodes);
+
+        ProductCatalogStore.ProductRecord updated = store.updateProduct(
+                        productId,
+                        request.categoryId(),
+                        request.productName().trim(),
+                        trimToNull(request.productSubTitle()),
+                        skuDrafts)
+                .orElseThrow(() -> new BusinessException(ProductErrorCode.PRODUCT_NOT_FOUND));
+        return toProductDetailResponse(updated);
+    }
+
     public List<ProductSummaryResponse> listProducts(long merchantId, long storeId, String status) {
         return store.listProducts(merchantId, storeId, status).stream()
-                .map(product -> new ProductSummaryResponse(
-                        product.id(),
-                        product.merchantId(),
-                        product.storeId(),
-                        product.categoryId(),
-                        product.productName(),
-                        product.status(),
-                        product.skuIds().size()))
+                .map(this::toProductSummaryResponse)
                 .toList();
     }
 
@@ -300,6 +303,45 @@ public class ProductCatalogApplicationService {
                 .orElseThrow(() -> new BusinessException(ProductErrorCode.PRODUCT_NOT_FOUND));
     }
 
+    private void validateProductCategory(long merchantId, long storeId, long categoryId) {
+        ProductCatalogStore.CategoryRecord category = requireCategory(categoryId);
+        if (category.merchantId() != merchantId || category.storeId() != storeId) {
+            throw new BusinessException(ProductErrorCode.PRODUCT_CATEGORY_MISMATCH);
+        }
+        if (!category.enabled()) {
+            throw new BusinessException(ProductErrorCode.CATEGORY_DISABLED);
+        }
+        if (store.categoryHasChildren(merchantId, storeId, category.id())) {
+            throw new BusinessException(ProductErrorCode.CATEGORY_HAS_CHILDREN);
+        }
+    }
+
+    private List<ProductCatalogStore.SkuDraft> buildSkuDrafts(long merchantId,
+                                                              List<com.cdd.api.product.model.CreateSkuRequest> skus,
+                                                              Set<String> ownedSkuCodes) {
+        Set<String> requestSkuCodes = new HashSet<>();
+        return skus.stream()
+                .map(sku -> {
+                    String skuCode = sku.skuCode().trim();
+                    String normalizedSkuCode = normalize(skuCode);
+                    if (!requestSkuCodes.add(normalizedSkuCode)) {
+                        throw new BusinessException(ProductErrorCode.SKU_CODE_DUPLICATE, "SKU编码重复");
+                    }
+                    if (store.skuCodeExists(merchantId, skuCode) && !ownedSkuCodes.contains(normalizedSkuCode)) {
+                        throw new BusinessException(ProductErrorCode.SKU_CODE_DUPLICATE);
+                    }
+                    if (sku.availableStock() < 0) {
+                        throw new BusinessException(ProductErrorCode.INVALID_STOCK_CHANGE);
+                    }
+                    return new ProductCatalogStore.SkuDraft(
+                            skuCode,
+                            sku.skuName().trim(),
+                            sku.salePrice(),
+                            sku.availableStock());
+                })
+                .toList();
+    }
+
     private CategoryResponse toCategoryResponse(ProductCatalogStore.CategoryRecord category) {
         return new CategoryResponse(
                 category.id(),
@@ -338,7 +380,45 @@ public class ProductCatalogApplicationService {
     }
 
     private ProductDetailResponse toProductDetailResponse(ProductCatalogStore.ProductRecord product) {
-        List<ProductSkuResponse> skuResponses = store.listSkusByProductId(product.id()).stream()
+        List<ProductSkuResponse> skuResponses = buildProductSkuResponses(product);
+        return new ProductDetailResponse(
+                product.id(),
+                product.merchantId(),
+                product.storeId(),
+                product.categoryId(),
+                product.productName(),
+                product.productSubTitle(),
+                product.status(),
+                skuResponses);
+    }
+
+    private ProductSummaryResponse toProductSummaryResponse(ProductCatalogStore.ProductRecord product) {
+        List<ProductSkuResponse> skuSummaries = buildProductSkuResponses(product);
+        ProductCatalogStore.ProductSalesRecord salesRecord = store.summarizePaidOrderSales(
+                product.merchantId(),
+                product.storeId(),
+                product.id());
+        ProductPriceSummaryResponse priceSummary = summarizePrice(skuSummaries);
+        ProductStockSummaryResponse stockSummary = summarizeStock(skuSummaries);
+        return new ProductSummaryResponse(
+                product.id(),
+                product.merchantId(),
+                product.storeId(),
+                product.categoryId(),
+                product.productName(),
+                product.productSubTitle(),
+                product.status(),
+                skuSummaries.size(),
+                priceSummary,
+                new ProductSalesSummaryResponse(
+                        salesRecord.totalSalesQuantity(),
+                        salesRecord.totalSalesAmount()),
+                stockSummary,
+                skuSummaries);
+    }
+
+    private List<ProductSkuResponse> buildProductSkuResponses(ProductCatalogStore.ProductRecord product) {
+        return store.listSkusByProductId(product.id()).stream()
                 .map(sku -> {
                     ProductCatalogStore.StockRecord stock = store.findStock(sku.id()).orElseThrow(
                             () -> new BusinessException(ProductErrorCode.SKU_NOT_FOUND));
@@ -353,15 +433,38 @@ public class ProductCatalogApplicationService {
                             stock.stockStatus());
                 })
                 .toList();
-        return new ProductDetailResponse(
-                product.id(),
-                product.merchantId(),
-                product.storeId(),
-                product.categoryId(),
-                product.productName(),
-                product.productSubTitle(),
-                product.status(),
-                skuResponses);
+    }
+
+    private ProductPriceSummaryResponse summarizePrice(List<ProductSkuResponse> skuSummaries) {
+        if (skuSummaries.isEmpty()) {
+            return new ProductPriceSummaryResponse(zeroAmount(), zeroAmount());
+        }
+        BigDecimal minSalePrice = skuSummaries.stream()
+                .map(ProductSkuResponse::salePrice)
+                .min(BigDecimal::compareTo)
+                .orElseGet(ProductCatalogApplicationService::zeroAmount);
+        BigDecimal maxSalePrice = skuSummaries.stream()
+                .map(ProductSkuResponse::salePrice)
+                .max(BigDecimal::compareTo)
+                .orElseGet(ProductCatalogApplicationService::zeroAmount);
+        return new ProductPriceSummaryResponse(minSalePrice, maxSalePrice);
+    }
+
+    private ProductStockSummaryResponse summarizeStock(List<ProductSkuResponse> skuSummaries) {
+        int totalAvailableStock = skuSummaries.stream()
+                .mapToInt(ProductSkuResponse::availableStock)
+                .sum();
+        int totalLockedStock = skuSummaries.stream()
+                .mapToInt(ProductSkuResponse::lockedStock)
+                .sum();
+        return new ProductStockSummaryResponse(
+                totalAvailableStock,
+                totalLockedStock,
+                totalAvailableStock > 0 ? "in_stock" : "out_of_stock");
+    }
+
+    private static BigDecimal zeroAmount() {
+        return new BigDecimal("0.00");
     }
 
     private static int resolveLevel(String code,

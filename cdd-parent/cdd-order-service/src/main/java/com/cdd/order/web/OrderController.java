@@ -8,7 +8,9 @@ import com.cdd.api.order.model.CreateOrderRequest;
 import com.cdd.api.order.model.CreateOrderResponse;
 import com.cdd.api.order.model.OrderCancelRequest;
 import com.cdd.api.order.model.OrderAfterSaleCreateRequest;
+import com.cdd.api.order.model.OrderAfterSaleDetailResponse;
 import com.cdd.api.order.model.OrderAfterSaleLifecycleResponse;
+import com.cdd.api.order.model.OrderAfterSaleLogResponse;
 import com.cdd.api.order.model.OrderAfterSaleReturnRequest;
 import com.cdd.api.order.model.OrderAfterSaleReviewRequest;
 import com.cdd.api.order.model.OrderAfterSaleSummaryResponse;
@@ -30,7 +32,11 @@ import com.cdd.common.web.ApiResponses;
 import com.cdd.order.service.OrderApplicationService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -129,6 +135,22 @@ public class OrderController {
         return ApiResponses.success(orderApplicationService.listAfterSales(merchantId, storeId, afterSaleStatus));
     }
 
+    @GetMapping("/after-sales/{after_sale_no}")
+    public ApiResponse<OrderAfterSaleDetailResponse> getAfterSaleDetail(
+            @PathVariable(name = "after_sale_no") String afterSaleNo,
+            @RequestParam(name = "merchant_id") @NotNull(message = "商家ID不能为空") Long merchantId,
+            @RequestParam(name = "store_id") @NotNull(message = "店铺ID不能为空") Long storeId) {
+        return ApiResponses.success(orderApplicationService.getAfterSaleDetail(afterSaleNo, merchantId, storeId));
+    }
+
+    @GetMapping("/after-sales/{after_sale_no}/logs")
+    public ApiResponse<List<OrderAfterSaleLogResponse>> listAfterSaleLogs(
+            @PathVariable(name = "after_sale_no") String afterSaleNo,
+            @RequestParam(name = "merchant_id") @NotNull(message = "商家ID不能为空") Long merchantId,
+            @RequestParam(name = "store_id") @NotNull(message = "店铺ID不能为空") Long storeId) {
+        return ApiResponses.success(orderApplicationService.listAfterSaleLogs(afterSaleNo, merchantId, storeId));
+    }
+
     @PostMapping("/orders/{order_no}/cancel")
     public ApiResponse<OrderLifecycleResponse> cancelOrder(@PathVariable(name = "order_no") String orderNo,
                                                            @Valid @RequestBody OrderCancelRequest request) {
@@ -157,6 +179,20 @@ public class OrderController {
             @RequestParam(name = "user_id", required = false) Long userId,
             @RequestParam(name = "order_status", required = false) String orderStatus) {
         return ApiResponses.success(orderApplicationService.listOrders(merchantId, storeId, userId, orderStatus));
+    }
+
+    @GetMapping(value = "/orders/export", produces = "text/csv;charset=UTF-8")
+    public ResponseEntity<byte[]> exportOrders(
+            @RequestParam(name = "merchant_id") @NotNull(message = "商家ID不能为空") Long merchantId,
+            @RequestParam(name = "store_id") @NotNull(message = "店铺ID不能为空") Long storeId,
+            @RequestParam(name = "user_id", required = false) Long userId,
+            @RequestParam(name = "order_status", required = false) String orderStatus) {
+        byte[] body = orderApplicationService.exportOrdersCsv(merchantId, storeId, userId, orderStatus)
+                .getBytes(StandardCharsets.UTF_8);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"orders-export.csv\"")
+                .contentType(MediaType.parseMediaType("text/csv;charset=UTF-8"))
+                .body(body);
     }
 
     @GetMapping("/orders/{order_no}/status-logs")

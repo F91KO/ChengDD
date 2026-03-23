@@ -4,6 +4,8 @@ import com.cdd.api.report.model.MerchantDashboardSnapshotResponse;
 import com.cdd.api.report.model.MerchantDashboardSnapshotUpsertRequest;
 import com.cdd.api.report.model.PlatformDashboardSnapshotResponse;
 import com.cdd.api.report.model.PlatformDashboardSnapshotUpsertRequest;
+import com.cdd.api.report.model.ReportDataHealthResponse;
+import com.cdd.api.report.model.ReportHealthResponse;
 import com.cdd.api.report.model.ReportHomeEventDailyResponse;
 import com.cdd.api.report.model.ReportHomeEventDailyUpsertRequest;
 import com.cdd.api.report.model.ReportOrderDailyResponse;
@@ -92,6 +94,18 @@ public class ReportController {
             @RequestParam("merchant_id") @NotNull(message = "商家ID不能为空") Long merchantId,
             @RequestParam("store_id") @NotNull(message = "店铺ID不能为空") Long storeId) {
         return ApiResponses.success(reportApplicationService.getLatestMerchantDashboardSnapshot(merchantId, storeId));
+    }
+
+    @GetMapping("/health")
+    public ApiResponse<ReportHealthResponse> getReportHealth(
+            @RequestParam("merchant_id") @NotNull(message = "商家ID不能为空") Long merchantId,
+            @RequestParam("store_id") @NotNull(message = "店铺ID不能为空") Long storeId) {
+        return ApiResponses.success(reportApplicationService.getReportHealth(merchantId, storeId));
+    }
+
+    @GetMapping("/data-health")
+    public ApiResponse<ReportDataHealthResponse> getReportDataHealth() {
+        return ApiResponses.success(reportApplicationService.getReportDataHealth());
     }
 
     @PostMapping("/platform-dashboard/snapshots")

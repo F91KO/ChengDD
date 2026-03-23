@@ -27,3 +27,31 @@ export interface ReportHomeEventDailyResponseRaw {
   visitor_count: number;
   click_count: number;
 }
+
+export interface ReportProductDailyResponseRaw {
+  id: number;
+  merchant_id: number;
+  store_id: number;
+  stat_date: string;
+  product_id: number;
+  sku_id: number | null;
+  view_count: number;
+  sale_count: number;
+  sale_amount: number | string;
+}
+
+export interface ReportHealthResponseRaw {
+  merchant_id: number;
+  store_id: number;
+  ready: boolean;
+  summary: string;
+  items: ReportHealthItemResponseRaw[];
+}
+
+export interface ReportHealthItemResponseRaw {
+  code: string;
+  name: string;
+  status: string;
+  latest_data_time: string | null;
+  message: string;
+}

@@ -60,6 +60,12 @@ public interface ProductCatalogStore {
 
     List<ProductRecord> listProducts(long merchantId, long storeId, String status);
 
+    Optional<ProductRecord> updateProduct(long productId,
+                                          long categoryId,
+                                          String productName,
+                                          String productSubTitle,
+                                          List<SkuDraft> skuDrafts);
+
     boolean skuCodeExists(long merchantId, String skuCode);
 
     Optional<ProductRecord> updateProductStatus(long productId, String status);
@@ -71,6 +77,8 @@ public interface ProductCatalogStore {
     Optional<StockRecord> findStock(long skuId);
 
     Optional<StockRecord> adjustStock(long skuId, int delta, String reason);
+
+    ProductSalesRecord summarizePaidOrderSales(long merchantId, long storeId, long productId);
 
     record CategoryTemplateRecord(
             long id,
@@ -170,5 +178,10 @@ public interface ProductCatalogStore {
             String skuName,
             BigDecimal salePrice,
             int availableStock) {
+    }
+
+    record ProductSalesRecord(
+            int totalSalesQuantity,
+            BigDecimal totalSalesAmount) {
     }
 }

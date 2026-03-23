@@ -33,6 +33,8 @@ public interface OrderRepository {
 
     List<OrderRecord> listOrders(long merchantId, long storeId, Long userId, String orderStatus);
 
+    List<OrderSummaryRecord> listOrderSummaries(long merchantId, long storeId, Long userId, String orderStatus);
+
     List<OrderItemRecord> listOrderItems(long orderId);
 
     Optional<OrderItemRecord> findOrderItem(long orderId, long orderItemId);
@@ -110,6 +112,8 @@ public interface OrderRepository {
     void createAfterSaleRecord(AfterSaleRecord afterSaleRecord);
 
     Optional<AfterSaleRecord> findAfterSaleByAfterSaleNo(String afterSaleNo);
+
+    Optional<AfterSaleDetailRecord> findAfterSaleDetailByAfterSaleNo(String afterSaleNo, long merchantId, long storeId);
 
     List<AfterSaleSummaryRecord> listAfterSales(long merchantId, long storeId, String afterSaleStatus);
 
@@ -198,6 +202,22 @@ public interface OrderRepository {
             String refundStatus,
             int refundedQuantity,
             BigDecimal refundedAmount) {
+    }
+
+    record OrderSummaryRecord(
+            String orderNo,
+            long merchantId,
+            long storeId,
+            long userId,
+            String customerIdentifier,
+            String channel,
+            String productSummary,
+            String orderStatus,
+            String payStatus,
+            String deliveryStatus,
+            BigDecimal payableAmount,
+            BigDecimal paidAmount,
+            Instant createdAt) {
     }
 
     record OrderStatusLogRecord(
@@ -316,6 +336,42 @@ public interface OrderRepository {
             Instant approvedAt,
             Instant returnedAt,
             Instant completedAt,
+            Instant updatedAt) {
+    }
+
+    record AfterSaleDetailRecord(
+            String afterSaleNo,
+            String orderNo,
+            Long orderItemId,
+            long merchantId,
+            long storeId,
+            long userId,
+            String afterSaleType,
+            String afterSaleStatus,
+            String productName,
+            String skuName,
+            Integer refundQuantity,
+            BigDecimal refundAmount,
+            String reasonCode,
+            String reasonDesc,
+            String proofUrlsJson,
+            String merchantResult,
+            String refundNo,
+            String refundStatus,
+            String refundFailureReason,
+            String thirdPartyRefundNo,
+            String payStatus,
+            String returnCompany,
+            String returnLogisticsNo,
+            Long handledBy,
+            Instant handledAt,
+            Instant approvedAt,
+            Instant returnedAt,
+            Instant refundAppliedAt,
+            Instant refundSuccessAt,
+            Instant completedAt,
+            Instant closedAt,
+            Instant createdAt,
             Instant updatedAt) {
     }
 

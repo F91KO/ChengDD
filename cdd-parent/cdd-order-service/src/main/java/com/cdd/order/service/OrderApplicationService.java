@@ -8,7 +8,9 @@ import com.cdd.api.order.model.CreateOrderRequest;
 import com.cdd.api.order.model.CreateOrderResponse;
 import com.cdd.api.order.model.OrderCancelRequest;
 import com.cdd.api.order.model.OrderAfterSaleCreateRequest;
+import com.cdd.api.order.model.OrderAfterSaleDetailResponse;
 import com.cdd.api.order.model.OrderAfterSaleLifecycleResponse;
+import com.cdd.api.order.model.OrderAfterSaleLogResponse;
 import com.cdd.api.order.model.OrderAfterSaleReturnRequest;
 import com.cdd.api.order.model.OrderAfterSaleReviewRequest;
 import com.cdd.api.order.model.OrderAfterSaleSummaryResponse;
@@ -31,11 +33,13 @@ import com.cdd.order.error.OrderErrorCode;
 import com.cdd.order.infrastructure.persistence.OrderRepository.CompensationTaskRecord;
 import com.cdd.order.infrastructure.persistence.OrderRepository;
 import com.cdd.order.infrastructure.persistence.OrderRepository.AfterSaleRecord;
+import com.cdd.order.infrastructure.persistence.OrderRepository.AfterSaleDetailRecord;
 import com.cdd.order.infrastructure.persistence.OrderRepository.AfterSaleSummaryRecord;
 import com.cdd.order.infrastructure.persistence.OrderRepository.CartItem;
 import com.cdd.order.infrastructure.persistence.OrderRepository.CheckoutSnapshot;
 import com.cdd.order.infrastructure.persistence.OrderRepository.OrderItemRecord;
 import com.cdd.order.infrastructure.persistence.OrderRepository.OrderRecord;
+import com.cdd.order.infrastructure.persistence.OrderRepository.OrderSummaryRecord;
 import com.cdd.order.infrastructure.persistence.OrderRepository.PayCallbackRecord;
 import com.cdd.order.infrastructure.persistence.OrderRepository.OrderStatusLogRecord;
 import com.cdd.order.infrastructure.persistence.OrderRepository.PayRecord;
@@ -48,6 +52,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -824,8 +829,8 @@ public class OrderApplicationService {
                 afterSale.id(),
                 AFTER_SALE_STATUS_REFUNDING,
                 afterSale.merchantResult(),
-                request.userId(),
-                now,
+                afterSale.handledBy(),
+                afterSale.handledAt(),
                 afterSale.approvedAt(),
                 null,
                 null);
@@ -994,15 +999,132 @@ public class OrderApplicationService {
     }
 
     public List<OrderSummaryResponse> listOrders(long merchantId, long storeId, Long userId, String orderStatus) {
-        return repository.listOrders(merchantId, storeId, userId, orderStatus).stream()
+        return repository.listOrderSummaries(merchantId, storeId, userId, orderStatus).stream()
                 .map(this::toOrderSummaryResponse)
                 .toList();
+    }
+
+    public String exportOrdersCsv(long merchantId, long storeId, Long userId, String orderStatus) {
+        List<OrderSummaryRecord> orders = repository.listOrderSummaries(merchantId, storeId, userId, orderStatus);
+        StringBuilder csvBuilder = new StringBuilder();
+        csvBuilder.append("订单号,客户标识,渠道,商品摘要,订单状态,支付状态,履约状态,应付金额,实付金额,创建时间\n");
+        for (OrderSummaryRecord order : orders) {
+            csvBuilder.append(escapeCsv(order.orderNo())).append(',')
+                    .append(escapeCsv(order.customerIdentifier())).append(',')
+                    .append(escapeCsv(order.channel())).append(',')
+                    .append(escapeCsv(order.productSummary())).append(',')
+                    .append(escapeCsv(order.orderStatus())).append(',')
+                    .append(escapeCsv(order.payStatus())).append(',')
+                    .append(escapeCsv(order.deliveryStatus())).append(',')
+                    .append(escapeCsv(order.payableAmount())).append(',')
+                    .append(escapeCsv(order.paidAmount())).append(',')
+                    .append(escapeCsv(order.createdAt()))
+                    .append('\n');
+        }
+        return csvBuilder.toString();
     }
 
     public List<OrderStatusLogResponse> listOrderStatusLogs(String orderNo, long merchantId, long storeId, long userId) {
         OrderRecord order = requireOrder(orderNo, merchantId, storeId, userId);
         return repository.listOrderStatusLogs(order.id()).stream()
                 .map(this::toOrderStatusLogResponse)
+                .toList();
+    }
+
+    public OrderAfterSaleDetailResponse getAfterSaleDetail(String afterSaleNo, long merchantId, long storeId) {
+        AfterSaleDetailRecord detail = repository.findAfterSaleDetailByAfterSaleNo(afterSaleNo, merchantId, storeId)
+                .orElseThrow(() -> new BusinessException(OrderErrorCode.AFTER_SALE_NOT_FOUND));
+        return toAfterSaleDetailResponse(detail);
+    }
+
+    public List<OrderAfterSaleLogResponse> listAfterSaleLogs(String afterSaleNo, long merchantId, long storeId) {
+        AfterSaleDetailRecord detail = repository.findAfterSaleDetailByAfterSaleNo(afterSaleNo, merchantId, storeId)
+                .orElseThrow(() -> new BusinessException(OrderErrorCode.AFTER_SALE_NOT_FOUND));
+
+        List<AfterSaleTimelineEvent> events = new ArrayList<>();
+        events.add(new AfterSaleTimelineEvent(
+                "apply",
+                detail.afterSaleStatus(),
+                detail.userId(),
+                "用户" + detail.userId(),
+                defaultText(detail.reasonDesc(), defaultText(detail.reasonCode(), "发起售后申请")),
+                detail.createdAt()));
+
+        if (detail.handledAt() != null) {
+            String logType = AFTER_SALE_STATUS_REJECTED.equals(detail.afterSaleStatus()) ? "merchant_reject" : "merchant_review";
+            String message = AFTER_SALE_STATUS_REJECTED.equals(detail.afterSaleStatus())
+                    ? defaultText(detail.merchantResult(), "商家拒绝售后")
+                    : defaultText(detail.merchantResult(), "商家已审核售后");
+            events.add(new AfterSaleTimelineEvent(
+                    logType,
+                    detail.afterSaleStatus(),
+                    detail.handledBy(),
+                    buildMerchantOperatorName(detail.handledBy()),
+                    message,
+                    detail.handledAt()));
+        }
+
+        if (detail.returnedAt() != null) {
+            String returnSummary = StringUtils.hasText(detail.returnCompany()) || StringUtils.hasText(detail.returnLogisticsNo())
+                    ? "用户已提交退货物流：" + defaultText(detail.returnCompany(), "-") + " / " + defaultText(detail.returnLogisticsNo(), "-")
+                    : "用户已提交退货物流";
+            events.add(new AfterSaleTimelineEvent(
+                    "return_submit",
+                    detail.afterSaleStatus(),
+                    detail.userId(),
+                    "用户" + detail.userId(),
+                    returnSummary,
+                    detail.returnedAt()));
+        }
+
+        if (detail.refundAppliedAt() != null) {
+            events.add(new AfterSaleTimelineEvent(
+                    "refund_apply",
+                    detail.afterSaleStatus(),
+                    null,
+                    "系统",
+                    "已创建退款单" + defaultText(detail.refundNo(), ""),
+                    detail.refundAppliedAt()));
+        }
+
+        if (detail.refundSuccessAt() != null) {
+            events.add(new AfterSaleTimelineEvent(
+                    "refund_success",
+                    AFTER_SALE_STATUS_COMPLETED,
+                    null,
+                    "系统",
+                    "退款成功" + (StringUtils.hasText(detail.thirdPartyRefundNo()) ? "，第三方退款单号：" + detail.thirdPartyRefundNo() : ""),
+                    detail.refundSuccessAt()));
+        } else if (REFUND_STATUS_FAILED.equals(detail.refundStatus()) && detail.updatedAt() != null) {
+            events.add(new AfterSaleTimelineEvent(
+                    "refund_failed",
+                    detail.afterSaleStatus(),
+                    null,
+                    "系统",
+                    defaultText(detail.refundFailureReason(), "退款失败"),
+                    detail.updatedAt()));
+        }
+
+        if (detail.completedAt() != null) {
+            events.add(new AfterSaleTimelineEvent(
+                    "complete",
+                    AFTER_SALE_STATUS_COMPLETED,
+                    null,
+                    "系统",
+                    "售后单已完成",
+                    detail.completedAt()));
+        }
+
+        return events.stream()
+                .filter(event -> event.createdAt() != null)
+                .sorted(Comparator.comparing(AfterSaleTimelineEvent::createdAt).thenComparing(AfterSaleTimelineEvent::logType))
+                .map(event -> new OrderAfterSaleLogResponse(
+                        event.logType(),
+                        event.afterSaleStatus(),
+                        event.operatorId(),
+                        event.operatorName(),
+                        event.message(),
+                        event.createdAt()))
                 .toList();
     }
 
@@ -1043,12 +1165,15 @@ public class OrderApplicationService {
                 item.snapshotPrice());
     }
 
-    private OrderSummaryResponse toOrderSummaryResponse(OrderRecord order) {
+    private OrderSummaryResponse toOrderSummaryResponse(OrderSummaryRecord order) {
         return new OrderSummaryResponse(
                 order.orderNo(),
                 order.merchantId(),
                 order.storeId(),
                 order.userId(),
+                order.customerIdentifier(),
+                order.channel(),
+                order.productSummary(),
                 order.orderStatus(),
                 order.payStatus(),
                 order.deliveryStatus(),
@@ -1129,6 +1254,43 @@ public class OrderApplicationService {
                 afterSale.returnedAt(),
                 afterSale.completedAt(),
                 afterSale.updatedAt());
+    }
+
+    private OrderAfterSaleDetailResponse toAfterSaleDetailResponse(AfterSaleDetailRecord detail) {
+        return new OrderAfterSaleDetailResponse(
+                detail.afterSaleNo(),
+                detail.orderNo(),
+                detail.orderItemId(),
+                detail.merchantId(),
+                detail.storeId(),
+                detail.userId(),
+                detail.afterSaleType(),
+                detail.afterSaleStatus(),
+                detail.productName(),
+                detail.skuName(),
+                detail.refundQuantity(),
+                detail.refundAmount(),
+                detail.reasonCode(),
+                detail.reasonDesc(),
+                readStringList(detail.proofUrlsJson()),
+                detail.merchantResult(),
+                detail.refundNo(),
+                detail.refundStatus(),
+                detail.refundFailureReason(),
+                detail.thirdPartyRefundNo(),
+                detail.payStatus(),
+                detail.returnCompany(),
+                detail.returnLogisticsNo(),
+                detail.handledBy(),
+                detail.handledAt(),
+                detail.approvedAt(),
+                detail.returnedAt(),
+                detail.refundAppliedAt(),
+                detail.refundSuccessAt(),
+                detail.completedAt(),
+                detail.closedAt(),
+                detail.createdAt(),
+                detail.updatedAt());
     }
 
     private void validateAfterSalePayStatus(OrderRecord order) {
@@ -1427,6 +1589,23 @@ public class OrderApplicationService {
         }
     }
 
+    private List<String> readStringList(String raw) {
+        if (!StringUtils.hasText(raw)) {
+            return List.of();
+        }
+        JsonNode root = readJson(raw);
+        if (!root.isArray()) {
+            return List.of();
+        }
+        List<String> values = new ArrayList<>();
+        for (JsonNode node : root) {
+            if (node != null && node.isTextual() && StringUtils.hasText(node.asText())) {
+                values.add(node.asText().trim());
+            }
+        }
+        return values;
+    }
+
     private String writeJson(Object value) {
         try {
             return objectMapper.writeValueAsString(value);
@@ -1501,6 +1680,22 @@ public class OrderApplicationService {
         return raw.trim();
     }
 
+    private static String buildMerchantOperatorName(Long operatorId) {
+        return operatorId == null ? "商家" : "商家" + operatorId;
+    }
+
+    private static String escapeCsv(Object value) {
+        if (value == null) {
+            return "";
+        }
+        // CSV 字段中若包含逗号、双引号或换行，需要整体包裹并转义双引号。
+        String raw = String.valueOf(value);
+        if (raw.contains(",") || raw.contains("\"") || raw.contains("\n") || raw.contains("\r")) {
+            return "\"" + raw.replace("\"", "\"\"") + "\"";
+        }
+        return raw;
+    }
+
     private record SnapshotPricing(
             List<SnapshotItem> items,
             BigDecimal totalAmount,
@@ -1517,5 +1712,14 @@ public class OrderApplicationService {
             BigDecimal lineAmount,
             String productName,
             String skuName) {
+    }
+
+    private record AfterSaleTimelineEvent(
+            String logType,
+            String afterSaleStatus,
+            Long operatorId,
+            String operatorName,
+            String message,
+            Instant createdAt) {
     }
 }

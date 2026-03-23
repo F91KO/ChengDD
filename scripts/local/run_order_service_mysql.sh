@@ -49,6 +49,10 @@ export CDD_ORDER_DB_PASSWORD="${CDD_ORDER_DB_PASSWORD:-$mysql_password}"
 export CDD_ORDER_DB_DRIVER_CLASS_NAME="${CDD_ORDER_DB_DRIVER_CLASS_NAME:-com.mysql.cj.jdbc.Driver}"
 export CDD_ORDER_SQL_INIT_MODE="${CDD_ORDER_SQL_INIT_MODE:-never}"
 
+mvn -q -s "$settings_file" "-Dmaven.repo.local=$work_repo" -f "${parent_root}/pom.xml" \
+  -pl cdd-order-service -am \
+  -DskipTests install
+
 mvn -q -s "$settings_file" "-Dmaven.repo.local=$work_repo" -f "${parent_root}/cdd-order-service/pom.xml" \
   spring-boot:run \
   -Dspring-boot.run.arguments="--server.port=${CDD_ORDER_SERVER_PORT:-8085}"

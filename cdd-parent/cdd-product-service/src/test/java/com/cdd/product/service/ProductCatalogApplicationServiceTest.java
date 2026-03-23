@@ -100,7 +100,16 @@ class ProductCatalogApplicationServiceTest {
 
         assertEquals(3, products.size());
         assertEquals("赣南脐橙礼盒", products.get(0).productName());
+        assertEquals("当季现发 12 枚装", products.get(0).productSubTitle());
         assertEquals("on_shelf", products.get(0).status());
+        assertEquals(new BigDecimal("59.90"), products.get(0).priceSummary().minSalePrice());
+        assertEquals(new BigDecimal("59.90"), products.get(0).priceSummary().maxSalePrice());
+        assertEquals(1, products.get(0).salesSummary().totalSalesQuantity());
+        assertEquals(new BigDecimal("59.90"), products.get(0).salesSummary().totalSalesAmount());
+        assertEquals(128, products.get(0).stockSummary().totalAvailableStock());
+        assertEquals("in_stock", products.get(0).stockSummary().stockStatus());
+        assertEquals(1, products.get(0).skuSummaries().size());
+        assertEquals("CDD-ORANGE-001", products.get(0).skuSummaries().get(0).skuCode());
         assertTrue(products.stream().anyMatch(product -> "draft".equals(product.status())));
         assertTrue(products.stream().anyMatch(product -> "off_shelf".equals(product.status())));
     }

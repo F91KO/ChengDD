@@ -16,3 +16,22 @@ export interface ConfigKvValueResponseRaw {
   source: string;
   merchant_id: string | null;
 }
+
+export interface ConfigPublishRecordResponseRaw {
+  task_no: string;
+  merchant_id: string;
+  store_id: string;
+  release_type: string;
+  release_status: string;
+  trigger_source: string;
+  operator_name: string;
+  publish_note: string;
+  rollback_reason: string | null;
+  rollback_target_task_no: string | null;
+  rollback_task_no: string | null;
+  started_at: string | null;
+  finished_at: string | null;
+  created_at: string;
+  config_count: number | null;
+  feature_switch_count: number | null;
+}

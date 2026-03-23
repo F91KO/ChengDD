@@ -2,6 +2,7 @@ package com.cdd.config.infrastructure.persistence;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.dao.DuplicateKeyException;
@@ -104,6 +105,66 @@ public class JdbcConfigKvRepository implements ConfigKvRepository {
                   AND deleted = 0
                 """, MERCHANT_ROW_MAPPER, merchantId, configGroup, configKey);
         return rows.stream().findFirst();
+    }
+
+    @Override
+    public List<ConfigKvRecord> listPlatform() {
+        return jdbcTemplate.query("""
+                SELECT config_group, config_key, config_value, config_desc
+                FROM cdd_config_kv
+                WHERE deleted = 0
+                ORDER BY config_group ASC, config_key ASC
+                """, PLATFORM_ROW_MAPPER);
+    }
+
+    @Override
+    public List<ConfigKvRecord> listMerchantOverrides(String merchantId) {
+        return jdbcTemplate.query("""
+                SELECT merchant_id, config_group, config_key, config_value
+                FROM cdd_config_kv_merchant_override
+                WHERE merchant_id = ?
+                  AND deleted = 0
+                ORDER BY config_group ASC, config_key ASC
+                """, MERCHANT_ROW_MAPPER, merchantId);
+    }
+
+    @Override
+    public void softDeletePlatformNotIn(List<ConfigKvRecord> records) {
+        if (records.isEmpty()) {
+            jdbcTemplate.update("""
+                    UPDATE cdd_config_kv
+                    SET deleted = 1, updated_by = 0, updated_at = CURRENT_TIMESTAMP
+                    WHERE deleted = 0
+                    """);
+            return;
+        }
+        StringBuilder sql = new StringBuilder("""
+                UPDATE cdd_config_kv
+                SET deleted = 1, updated_by = 0, updated_at = CURRENT_TIMESTAMP
+                WHERE deleted = 0
+                  AND (config_group, config_key) NOT IN (
+                """);
+        List<Object> args = new ArrayList<>();
+        for (int index = 0; index < records.size(); index++) {
+            if (index > 0) {
+                sql.append(", ");
+            }
+            sql.append("(?, ?)");
+            args.add(records.get(index).configGroup());
+            args.add(records.get(index).configKey());
+        }
+        sql.append(")");
+        jdbcTemplate.update(sql.toString(), args.toArray());
+    }
+
+    @Override
+    public void softDeleteMerchantOverrides(String merchantId) {
+        jdbcTemplate.update("""
+                UPDATE cdd_config_kv_merchant_override
+                SET deleted = 1, updated_by = 0, updated_at = CURRENT_TIMESTAMP
+                WHERE merchant_id = ?
+                  AND deleted = 0
+                """, merchantId);
     }
 
     private static ConfigKvRecord mapPlatformRow(ResultSet rs, int rowNum) throws SQLException {

@@ -29,6 +29,8 @@ docker exec "$container_name" mysql -uroot "-p${mysql_root_password}" -e \
 export CDD_DB_MIGRATION_URL="jdbc:mysql://127.0.0.1:${mysql_port}/${test_database}?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false"
 export CDD_DB_MIGRATION_USERNAME="$test_username"
 export CDD_DB_MIGRATION_PASSWORD="$test_password"
+export CDD_LOCAL_MYSQL_PORT="$mysql_port"
+export CDD_LOCAL_MYSQL_DATABASE="$test_database"
 
 export CDD_AUTH_DB_URL="${CDD_AUTH_DB_URL:-$CDD_DB_MIGRATION_URL}"
 export CDD_AUTH_DB_USERNAME="${CDD_AUTH_DB_USERNAME:-$test_username}"
@@ -49,6 +51,26 @@ export CDD_MERCHANT_DB_URL="${CDD_MERCHANT_DB_URL:-$CDD_DB_MIGRATION_URL}"
 export CDD_MERCHANT_DB_USERNAME="${CDD_MERCHANT_DB_USERNAME:-$test_username}"
 export CDD_MERCHANT_DB_PASSWORD="${CDD_MERCHANT_DB_PASSWORD:-$test_password}"
 export CDD_MERCHANT_DB_DRIVER_CLASS_NAME="${CDD_MERCHANT_DB_DRIVER_CLASS_NAME:-com.mysql.cj.jdbc.Driver}"
+
+export CDD_PRODUCT_DB_URL="${CDD_PRODUCT_DB_URL:-$CDD_DB_MIGRATION_URL}"
+export CDD_PRODUCT_DB_USERNAME="${CDD_PRODUCT_DB_USERNAME:-$test_username}"
+export CDD_PRODUCT_DB_PASSWORD="${CDD_PRODUCT_DB_PASSWORD:-$test_password}"
+export CDD_PRODUCT_DB_DRIVER_CLASS_NAME="${CDD_PRODUCT_DB_DRIVER_CLASS_NAME:-com.mysql.cj.jdbc.Driver}"
+
+export CDD_REPORT_DB_URL="${CDD_REPORT_DB_URL:-$CDD_DB_MIGRATION_URL}"
+export CDD_REPORT_DB_USERNAME="${CDD_REPORT_DB_USERNAME:-$test_username}"
+export CDD_REPORT_DB_PASSWORD="${CDD_REPORT_DB_PASSWORD:-$test_password}"
+export CDD_REPORT_DB_DRIVER_CLASS_NAME="${CDD_REPORT_DB_DRIVER_CLASS_NAME:-com.mysql.cj.jdbc.Driver}"
+
+export CDD_MARKETING_DB_URL="${CDD_MARKETING_DB_URL:-$CDD_DB_MIGRATION_URL}"
+export CDD_MARKETING_DB_USERNAME="${CDD_MARKETING_DB_USERNAME:-$test_username}"
+export CDD_MARKETING_DB_PASSWORD="${CDD_MARKETING_DB_PASSWORD:-$test_password}"
+export CDD_MARKETING_DB_DRIVER_CLASS_NAME="${CDD_MARKETING_DB_DRIVER_CLASS_NAME:-com.mysql.cj.jdbc.Driver}"
+
+export CDD_DECORATION_DB_URL="${CDD_DECORATION_DB_URL:-$CDD_DB_MIGRATION_URL}"
+export CDD_DECORATION_DB_USERNAME="${CDD_DECORATION_DB_USERNAME:-$test_username}"
+export CDD_DECORATION_DB_PASSWORD="${CDD_DECORATION_DB_PASSWORD:-$test_password}"
+export CDD_DECORATION_DB_DRIVER_CLASS_NAME="${CDD_DECORATION_DB_DRIVER_CLASS_NAME:-com.mysql.cj.jdbc.Driver}"
 
 export CDD_RELEASE_DB_URL="${CDD_RELEASE_DB_URL:-$CDD_DB_MIGRATION_URL}"
 export CDD_RELEASE_DB_USERNAME="${CDD_RELEASE_DB_USERNAME:-$test_username}"

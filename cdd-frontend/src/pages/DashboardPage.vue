@@ -18,16 +18,16 @@
           <div>
             <h2 :class="$style.heroTitle">{{ authStore.user.merchantName }}</h2>
             <p :class="$style.heroDescription">
-              欢迎回来，当前工作台运行模式为 {{ dashboardMode === 'remote' ? '实时报表' : '演示模式' }}。
+              欢迎回来，当前工作台运行模式为 {{ dashboardMode === 'remote' ? '实时报表' : '异常待排查' }}。
             </p>
           </div>
           <UiTag :tone="dashboardMode === 'remote' ? 'primary' : 'info'">
-            {{ dashboardMode === 'remote' ? '经营中' : '演示数据' }}
+            {{ dashboardMode === 'remote' ? '经营中' : '待修复' }}
           </UiTag>
         </div>
         <div :class="$style.heroActions">
-          <UiButton size="lg" leading="+">新增商品</UiButton>
-          <UiButton variant="secondary" size="lg">发布模板</UiButton>
+          <UiButton size="lg" leading="+" @click="void router.push('/products')">新增商品</UiButton>
+          <UiButton variant="secondary" size="lg" @click="void router.push('/config')">配置中心</UiButton>
         </div>
       </UiCard>
 
@@ -79,8 +79,8 @@
           </div>
         </div>
         <UiStatePanel
-          :tone="dashboardMode === 'remote' ? 'info' : 'loading'"
-          :title="dashboardMode === 'remote' ? '已接入真实报表接口' : '当前使用演示工作台数据'"
+          :tone="dashboardMode === 'remote' ? 'info' : 'error'"
+          :title="dashboardMode === 'remote' ? '已接入真实报表接口' : '报表链路异常'"
           :description="
             dashboardMode === 'remote'
               ? '工作台指标和趋势已接入 report-service，并基于本地 MySQL 报表数据返回。'
@@ -88,7 +88,12 @@
           "
         />
         <div :class="$style.actionGrid">
-          <button v-for="action in quickActions" :key="action" :class="$style.actionButton">
+          <button
+            v-for="action in quickActions"
+            :key="action"
+            :class="$style.actionButton"
+            @click="handleQuickAction(action)"
+          >
             {{ action }}
           </button>
         </div>
@@ -99,6 +104,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
+import { useRouter } from 'vue-router';
 import UiButton from '@/components/base/UiButton.vue';
 import UiCard from '@/components/base/UiCard.vue';
 import UiStatePanel from '@/components/base/UiStatePanel.vue';
@@ -109,9 +115,6 @@ import { fetchHomeEventDailyList, fetchMerchantDashboardSnapshot, fetchOrderDail
 import { useAuthStore } from '@/stores/auth';
 import {
   buildDashboardTrendOption,
-  dashboardMetrics,
-  dashboardTasks,
-  dashboardTrendOption as mockDashboardTrendOption,
   quickActions,
 } from '@/modules/dashboard/mock';
 import type { DashboardMetricItem, DashboardTaskItem } from '@/modules/dashboard/mock';
@@ -119,33 +122,26 @@ import type { MerchantDashboardSnapshotResponseRaw, ReportHomeEventDailyResponse
 import type { EChartsOption } from 'echarts';
 
 const authStore = useAuthStore();
-const dashboardMode = ref<'remote' | 'mock'>('mock');
-const dashboardNotice = ref('正在尝试连接真实报表接口，未接通时会回退到演示数据。');
-const metricItems = ref<DashboardMetricItem[]>(dashboardMetrics);
-const taskItems = ref<DashboardTaskItem[]>(dashboardTasks);
-const trendOption = ref<EChartsOption>(mockDashboardTrendOption);
+const router = useRouter();
+const dashboardMode = ref<'remote' | 'error'>('remote');
+const dashboardNotice = ref('正在加载真实报表接口。');
+const metricItems = ref<DashboardMetricItem[]>([]);
+const taskItems = ref<DashboardTaskItem[]>([]);
+const trendOption = ref<EChartsOption>(buildDashboardTrendOption([], []));
 
 const dashboardStatePanel = computed(() => {
-  if (authStore.authMode === 'mock') {
-    return {
-      tone: 'empty' as const,
-      title: '当前展示演示数据',
-      description: '认证服务未接通，工作台指标和业务清单仍使用演示数据。',
-    };
-  }
-
   if (!authStore.businessScope.derivedFromContext) {
     return {
-      tone: 'info' as const,
-      title: '当前使用回退业务上下文',
-      description: '鉴权上下文中的 merchant_id / store_id 不是数值型，工作台将使用默认测试上下文联调。',
+      tone: 'error' as const,
+      title: '工作台缺少真实业务上下文',
+      description: '鉴权上下文中的 merchant_id / store_id 不是数值型，当前无法继续查询真实报表。',
     };
   }
 
-  if (dashboardMode.value !== 'remote') {
+  if (dashboardMode.value === 'error') {
     return {
-      tone: 'info' as const,
-      title: '报表接口暂未接通',
+      tone: 'error' as const,
+      title: '报表接口调用失败',
       description: dashboardNotice.value,
     };
   }
@@ -173,10 +169,6 @@ function formatShortDate(raw: string): string {
 function formatNumber(value: unknown, fallback = 0): number {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
-}
-
-function defaultTaskItems(): DashboardTaskItem[] {
-  return dashboardTasks.map((item) => ({ ...item }));
 }
 
 function toTaskItems(snapshot: MerchantDashboardSnapshotResponseRaw): DashboardTaskItem[] {
@@ -208,7 +200,7 @@ function toTaskItems(snapshot: MerchantDashboardSnapshotResponseRaw): DashboardT
     }
   }
 
-  return defaultTaskItems();
+  return [];
 }
 
 function toMetricItems(
@@ -242,7 +234,7 @@ function toTrendOption(orderSeries: ReportOrderDailyResponseRaw[]): EChartsOptio
     .sort((left, right) => left.stat_date.localeCompare(right.stat_date))
     .slice(-7);
   if (sorted.length === 0) {
-    return mockDashboardTrendOption;
+    return buildDashboardTrendOption([], []);
   }
   return buildDashboardTrendOption(
     sorted.map((item) => formatShortDate(item.stat_date)),
@@ -250,12 +242,26 @@ function toTrendOption(orderSeries: ReportOrderDailyResponseRaw[]): EChartsOptio
   );
 }
 
-function fallbackToMock(message: string) {
-  dashboardMode.value = 'mock';
+function clearDashboard(message: string, mode: 'remote' | 'error' = 'error') {
+  dashboardMode.value = mode;
   dashboardNotice.value = message;
-  metricItems.value = dashboardMetrics.map((item) => ({ ...item }));
-  taskItems.value = defaultTaskItems();
-  trendOption.value = mockDashboardTrendOption;
+  metricItems.value = [];
+  taskItems.value = [];
+  trendOption.value = buildDashboardTrendOption([], []);
+}
+
+function handleQuickAction(action: string) {
+  if (action === '新增商品') {
+    void router.push('/products');
+    return;
+  }
+  if (action === '发布模板' || action === '同步配置') {
+    void router.push('/config');
+    return;
+  }
+  if (action === '导出订单') {
+    void router.push('/orders');
+  }
 }
 
 async function loadDashboard() {
@@ -264,7 +270,7 @@ async function loadDashboard() {
   const merchantId = authStore.merchantIdForQuery;
   const storeId = authStore.storeIdForQuery;
   if (!merchantId || !storeId) {
-    fallbackToMock('业务上下文未准备完成，工作台暂时回退到演示数据。');
+    clearDashboard('业务上下文未准备完成，无法查询真实报表。');
     return;
   }
 
@@ -282,7 +288,7 @@ async function loadDashboard() {
     ]);
 
     if (!homeEvents.length || !orderSeries.length) {
-      fallbackToMock('报表链路已接通，但本地数据库还没有完整的工作台日报数据，当前回退到演示数据。');
+      clearDashboard('报表接口已接通，但当前数据库还没有足够的工作台日报数据。');
       return;
     }
 
@@ -292,7 +298,7 @@ async function loadDashboard() {
     taskItems.value = toTaskItems(snapshot);
     trendOption.value = toTrendOption(orderSeries);
   } catch (error) {
-    fallbackToMock(`报表服务未就绪，工作台已回退到演示数据。${error instanceof Error ? error.message : ''}`.trim());
+    clearDashboard(error instanceof Error ? error.message : '报表服务未就绪。');
   }
 }
 

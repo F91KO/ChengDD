@@ -368,6 +368,108 @@ public class JdbcProductCatalogStore implements ProductCatalogStore {
     }
 
     @Override
+    public Optional<ProductRecord> updateProduct(long productId,
+                                                 long categoryId,
+                                                 String productName,
+                                                 String productSubTitle,
+                                                 List<SkuDraft> skuDrafts) {
+        Optional<ProductRecord> current = findProduct(productId);
+        if (current.isEmpty()) {
+            return Optional.empty();
+        }
+        ProductRecord existing = current.get();
+        jdbcTemplate.update("""
+                UPDATE cdd_product_spu
+                SET category_id = ?, product_name = ?, product_sub_title = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                  AND deleted = 0
+                """,
+                categoryId,
+                productName,
+                productSubTitle,
+                productId);
+        jdbcTemplate.update("""
+                DELETE FROM cdd_product_stock
+                WHERE product_id = ?
+                  AND deleted <> 0
+                """,
+                productId);
+        jdbcTemplate.update("""
+                DELETE FROM cdd_product_sku
+                WHERE product_id = ?
+                  AND deleted <> 0
+                """,
+                productId);
+        jdbcTemplate.update("""
+                UPDATE cdd_product_stock
+                SET deleted = 1, updated_at = CURRENT_TIMESTAMP
+                WHERE product_id = ?
+                  AND deleted = 0
+                """,
+                productId);
+        jdbcTemplate.update("""
+                UPDATE cdd_product_sku
+                SET deleted = 1, updated_at = CURRENT_TIMESTAMP
+                WHERE product_id = ?
+                  AND deleted = 0
+                """,
+                productId);
+
+        List<Long> skuIds = new ArrayList<>(skuDrafts.size());
+        for (SkuDraft draft : skuDrafts) {
+            long skuId = skuIdGenerator.incrementAndGet();
+            long stockId = stockIdGenerator.incrementAndGet();
+            skuIds.add(skuId);
+            jdbcTemplate.update("""
+                    INSERT INTO cdd_product_sku (
+                      id, merchant_id, store_id, product_id, sku_code, sku_name, sale_price, status,
+                      created_by, updated_by, deleted, version
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    skuId,
+                    existing.merchantId(),
+                    existing.storeId(),
+                    productId,
+                    draft.skuCode(),
+                    draft.skuName(),
+                    draft.salePrice(),
+                    "enabled",
+                    existing.merchantId(),
+                    existing.merchantId(),
+                    0,
+                    0L);
+            jdbcTemplate.update("""
+                    INSERT INTO cdd_product_stock (
+                      id, merchant_id, store_id, product_id, sku_id, available_stock, locked_stock, stock_status,
+                      updated_reason, created_by, updated_by, deleted, version
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    stockId,
+                    existing.merchantId(),
+                    existing.storeId(),
+                    productId,
+                    skuId,
+                    draft.availableStock(),
+                    0,
+                    toStockStatus(draft.availableStock()),
+                    "商品编辑重建库存",
+                    existing.merchantId(),
+                    existing.merchantId(),
+                    0,
+                    0L);
+        }
+        return Optional.of(new ProductRecord(
+                existing.id(),
+                existing.merchantId(),
+                existing.storeId(),
+                categoryId,
+                productName,
+                productSubTitle,
+                existing.status(),
+                List.copyOf(skuIds)));
+    }
+
+    @Override
     public boolean skuCodeExists(long merchantId, String skuCode) {
         Integer count = jdbcTemplate.queryForObject("""
                 SELECT COUNT(1)
@@ -501,6 +603,29 @@ public class JdbcProductCatalogStore implements ProductCatalogStore {
                 current.lockedStock(),
                 targetStatus,
                 reason));
+    }
+
+    @Override
+    public ProductSalesRecord summarizePaidOrderSales(long merchantId, long storeId, long productId) {
+        return jdbcTemplate.query("""
+                SELECT COALESCE(SUM(GREATEST(i.quantity - COALESCE(i.refunded_quantity, 0), 0)), 0) AS total_sales_quantity,
+                       COALESCE(SUM(i.line_amount - COALESCE(i.refunded_amount, 0.00)), 0.00) AS total_sales_amount
+                FROM cdd_order_item i
+                INNER JOIN cdd_order_info o ON o.id = i.order_id
+                WHERE i.merchant_id = ?
+                  AND i.store_id = ?
+                  AND i.product_id = ?
+                  AND i.deleted = 0
+                  AND o.deleted = 0
+                  AND o.pay_status = 'paid'
+                """, rs -> {
+            if (!rs.next()) {
+                return new ProductSalesRecord(0, BigDecimal.ZERO.setScale(2));
+            }
+            return new ProductSalesRecord(
+                    rs.getInt("total_sales_quantity"),
+                    rs.getBigDecimal("total_sales_amount"));
+        }, merchantId, storeId, productId);
     }
 
     private Optional<CategoryRecord> findCategoryByParentAndName(long merchantId,

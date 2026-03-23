@@ -79,33 +79,6 @@ function buildSessionFromRemote(tokenPayload: TokenResponseRaw, contextRaw: Curr
   };
 }
 
-function buildMockSession(accountName: string): AuthSession {
-  const mockMerchantId = ENV_DEFAULT_MERCHANT_ID ?? 1001;
-  const mockStoreId = ENV_DEFAULT_STORE_ID ?? 1001;
-  const now = Date.now();
-  const context: AuthContext = {
-    userId: `mock_${accountName}`,
-    accountName,
-    displayName: accountName,
-    accountType: 'merchant',
-    merchantId: `merchant_${mockMerchantId}`,
-    storeId: `store_${mockStoreId}`,
-    miniProgramId: null,
-    roleCodes: ['merchant_owner'],
-    tokenVersion: 0,
-  };
-
-  return {
-    accessToken: `mock-token-${accountName}-${now}`,
-    refreshToken: `mock-refresh-${accountName}-${now}`,
-    accessTokenExpiresAt: new Date(now + 30 * 60 * 1000).toISOString(),
-    refreshTokenExpiresAt: new Date(now + 7 * 24 * 60 * 60 * 1000).toISOString(),
-    authMode: 'mock',
-    context,
-    user: buildUser(context),
-  };
-}
-
 export const useAuthStore = defineStore('auth', () => {
   const session = ref<AuthSession | null>(null);
   const initialized = ref(false);
@@ -153,11 +126,17 @@ export const useAuthStore = defineStore('auth', () => {
 
   function hydrate() {
     const next = readAuthSession();
+    if (next?.authMode === 'mock') {
+      clearAuthSession();
+      session.value = null;
+      authNotice.value = '检测到旧的演示会话，已清理，请重新登录真实接口。';
+      initialized.value = true;
+      return;
+    }
+
     session.value = next;
     if (session.value?.authMode === 'remote') {
       authNotice.value = '当前连接真实接口。';
-    } else if (session.value?.authMode === 'mock') {
-      authNotice.value = '当前展示演示数据。';
     } else {
       authNotice.value = '请先登录。';
     }
@@ -165,7 +144,6 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function login(payload: { account: string; password?: string }) {
-    const mockFallbackEnabled = String(import.meta.env.VITE_ENABLE_API_MOCK_FALLBACK ?? 'true') !== 'false';
     const accountName = payload.account?.trim() || 'merchant_admin';
     const password = payload.password?.trim() || DEFAULT_LOGIN_PASSWORD;
     authenticating.value = true;
@@ -180,19 +158,6 @@ export const useAuthStore = defineStore('auth', () => {
       return {
         mode: 'remote' as const,
         message: '登录成功，已连接真实接口。',
-      };
-    } catch (error) {
-      if (!mockFallbackEnabled) {
-        throw error;
-      }
-
-      setSession(
-        buildMockSession(accountName),
-        `认证服务未接通，已切换到演示模式。${error instanceof Error ? error.message : ''}`.trim(),
-      );
-      return {
-        mode: 'mock' as const,
-        message: '认证服务未接通，已切换到演示模式。',
       };
     } finally {
       authenticating.value = false;

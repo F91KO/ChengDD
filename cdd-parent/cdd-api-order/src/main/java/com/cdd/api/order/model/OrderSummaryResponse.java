@@ -13,6 +13,12 @@ public record OrderSummaryResponse(
         long storeId,
         @JsonProperty("user_id")
         long userId,
+        @JsonProperty("customer_identifier")
+        String customerIdentifier,
+        @JsonProperty("channel")
+        String channel,
+        @JsonProperty("product_summary")
+        String productSummary,
         @JsonProperty("order_status")
         String orderStatus,
         @JsonProperty("pay_status")

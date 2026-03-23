@@ -21,6 +21,13 @@
       :description="afterSaleStatePanel.description"
     />
 
+    <UiStatePanel
+      v-if="actionMessage"
+      :tone="actionTone"
+      title="操作结果"
+      :description="actionMessage"
+    />
+
     <section :class="$style.cards">
       <UiCard
         v-for="record in filteredRecords"
@@ -52,8 +59,8 @@
           <div :class="$style.footer">
             <div :class="$style.updated">更新于 {{ record.updateTime }}</div>
             <div :class="$style.actions">
-              <UiButton variant="secondary">查看详情</UiButton>
-              <UiButton v-if="record.tabStatus === '待处理'">快速同意</UiButton>
+              <UiButton variant="secondary" @click="handleViewDetail(record)">查看详情</UiButton>
+              <UiButton v-if="record.tabStatus === '待处理'" @click="handleApprove(record)">快速同意</UiButton>
             </div>
           </div>
         </div>
@@ -67,20 +74,82 @@
         <UiButton variant="secondary" @click="activeTab = '全部'">查看全部售后</UiButton>
       </UiStatePanel>
     </section>
+
+    <UiCard v-if="detailRecord" elevated :class="$style.detailPanel">
+      <div :class="$style.cardHead">
+        <div>
+          <div :class="$style.caption">售后详情</div>
+          <h3 :class="$style.orderNo">{{ detailRecord.after_sale_no }}</h3>
+        </div>
+        <UiButton variant="secondary" @click="closeDetailPanel">关闭面板</UiButton>
+      </div>
+
+      <section :class="$style.detailGrid">
+        <div>
+          <div :class="$style.updated">商品</div>
+          <div :class="$style.product">{{ detailRecord.product_name || '-' }}</div>
+        </div>
+        <div>
+          <div :class="$style.updated">规格</div>
+          <div :class="$style.product">{{ detailRecord.sku_name || '-' }}</div>
+        </div>
+        <div>
+          <div :class="$style.updated">原因</div>
+          <div :class="$style.product">{{ detailRecord.reason_desc || '-' }}</div>
+        </div>
+        <div>
+          <div :class="$style.updated">退款金额</div>
+          <div :class="$style.product">{{ formatCurrency(detailRecord.refund_amount) }}</div>
+        </div>
+      </section>
+
+      <section :class="$style.detailBlock">
+        <div :class="$style.sectionTitle">售后日志</div>
+        <article
+          v-for="log in detailLogs"
+          :key="`${log.log_type}-${log.created_at}`"
+          :class="$style.logRow"
+        >
+          <div>{{ log.log_type }}</div>
+          <div>{{ log.message }}</div>
+          <div>{{ formatDateTime(log.created_at) }}</div>
+        </article>
+      </section>
+
+      <section v-if="detailTabStatus === '待处理'" :class="$style.detailBlock">
+        <div :class="$style.sectionTitle">审核处理</div>
+        <textarea
+          v-model="approveRemark"
+          :class="$style.textarea"
+          placeholder="请输入审核意见"
+        />
+        <div :class="$style.actions">
+          <UiButton variant="secondary" @click="approveRemark = ''">清空意见</UiButton>
+          <UiButton :disabled="submitting" @click="submitApprove">
+            {{ submitting ? '正在提交...' : '提交审核' }}
+          </UiButton>
+        </div>
+      </section>
+    </UiCard>
   </WorkspaceLayout>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import UiButton from '@/components/base/UiButton.vue';
 import UiCard from '@/components/base/UiCard.vue';
 import UiStatePanel from '@/components/base/UiStatePanel.vue';
 import UiTag from '@/components/base/UiTag.vue';
 import WorkspaceLayout from '@/components/layout/WorkspaceLayout.vue';
-import { fetchAfterSaleList } from '@/services/aftersales';
+import { fetchAfterSaleDetail, fetchAfterSaleList, fetchAfterSaleLogs } from '@/services/aftersales';
+import { reviewAfterSale } from '@/services/order';
 import { useAuthStore } from '@/stores/auth';
-import type { OrderAfterSaleSummaryResponseRaw } from '@/types/aftersales';
-import { aftersalesRecords, aftersalesTabs } from '@/modules/aftersales/mock';
+import type {
+  OrderAfterSaleDetailResponseRaw,
+  OrderAfterSaleLogResponseRaw,
+  OrderAfterSaleSummaryResponseRaw,
+} from '@/types/aftersales';
+import { aftersalesTabs } from '@/modules/aftersales/mock';
 
 type AfterSaleCardRecord = {
   serviceNo: string;
@@ -93,30 +162,31 @@ type AfterSaleCardRecord = {
   tabStatus: string;
   statusTone: 'primary' | 'info' | 'danger' | 'success';
   updateTime: string;
+  merchantId: number;
+  storeId: number;
+  userId: number;
 };
 
 const authStore = useAuthStore();
 const activeTab = ref('全部');
-const afterSalesMode = ref<'remote' | 'mock'>('mock');
+const afterSalesMode = ref<'remote' | 'error'>('remote');
 const afterSalesLoading = ref(true);
-const afterSalesNotice = ref('正在尝试连接真实售后接口，未接通时会回退到演示数据。');
-
-function toMockCardRecord(item: typeof aftersalesRecords[number]): AfterSaleCardRecord {
-  return {
-    ...item,
-    tabStatus: item.status === '退款中' ? '已同意' : item.status,
-    statusTone: item.statusTone as AfterSaleCardRecord['statusTone'],
-  };
-}
-
-const records = ref<AfterSaleCardRecord[]>(aftersalesRecords.map(toMockCardRecord));
+const afterSalesNotice = ref('正在加载真实售后接口。');
+const actionMessage = ref('');
+const actionTone = ref<'info' | 'error'>('info');
+const records = ref<AfterSaleCardRecord[]>([]);
+const detailRecord = ref<OrderAfterSaleDetailResponseRaw | null>(null);
+const detailLogs = ref<OrderAfterSaleLogResponseRaw[]>([]);
+const detailTabStatus = ref('');
+const approveRemark = ref('同意售后申请，请按流程处理');
+const submitting = ref(false);
 
 const afterSaleStatePanel = computed(() => {
   if (afterSalesLoading.value) {
     return {
       tone: 'loading' as const,
       title: '正在加载售后列表',
-      description: '页面会优先请求真实售后接口，接口不可用时自动回退到演示数据。',
+      description: '页面正在加载真实售后接口数据。',
     };
   }
 
@@ -124,21 +194,13 @@ const afterSaleStatePanel = computed(() => {
     return {
       tone: 'info' as const,
       title: '已接入真实售后列表接口',
-      description: '售后列表已从 order-service 读取，详情页和快捷处理动作后续继续补齐。',
-    };
-  }
-
-  if (authStore.authMode === 'mock') {
-    return {
-      tone: 'empty' as const,
-      title: '当前展示演示售后数据',
-      description: '认证服务未接通，售后列表暂时使用演示数据。',
+      description: afterSalesNotice.value,
     };
   }
 
   return {
-    tone: 'info' as const,
-    title: '售后接口暂未接通',
+    tone: 'error' as const,
+    title: '售后接口调用失败',
     description: afterSalesNotice.value,
   };
 });
@@ -150,6 +212,11 @@ const filteredRecords = computed(() => {
 
   return records.value.filter((record) => record.tabStatus === activeTab.value);
 });
+
+function setActionMessage(message: string, tone: 'info' | 'error' = 'info') {
+  actionMessage.value = message;
+  actionTone.value = tone;
+}
 
 function formatCurrency(value: number | string | null | undefined): string {
   const parsed = Number(value ?? 0);
@@ -227,13 +294,77 @@ function toCardRecord(item: OrderAfterSaleSummaryResponseRaw): AfterSaleCardReco
     tabStatus: status.tabStatus,
     statusTone: status.tone,
     updateTime: formatDateTime(item.updated_at),
+    merchantId: item.merchant_id,
+    storeId: item.store_id,
+    userId: item.user_id,
   };
 }
 
-function fallbackToMock(message: string) {
-  afterSalesMode.value = 'mock';
-  afterSalesNotice.value = message;
-  records.value = aftersalesRecords.map(toMockCardRecord);
+function mapTabToStatus(tab: string): string | undefined {
+  switch (tab) {
+    case '待处理':
+      return 'pending_merchant';
+    case '已同意':
+      return 'agreed';
+    case '已驳回':
+      return 'rejected';
+    case '待退货':
+      return 'waiting_return';
+    case '已完成':
+      return 'completed';
+    default:
+      return undefined;
+  }
+}
+
+async function handleViewDetail(record: AfterSaleCardRecord) {
+  try {
+    detailRecord.value = await fetchAfterSaleDetail({
+      afterSaleNo: record.serviceNo,
+      merchantId: record.merchantId,
+      storeId: record.storeId,
+    });
+    detailLogs.value = await fetchAfterSaleLogs({
+      afterSaleNo: record.serviceNo,
+      merchantId: record.merchantId,
+      storeId: record.storeId,
+    });
+    detailTabStatus.value = record.tabStatus;
+  } catch (error) {
+    setActionMessage(error instanceof Error ? error.message : '查询售后详情失败。', 'error');
+  }
+}
+
+async function handleApprove(record: AfterSaleCardRecord) {
+  await handleViewDetail(record);
+}
+
+async function submitApprove() {
+  try {
+    const operatorId = authStore.userIdForQuery;
+    if (!operatorId) {
+      throw new Error('当前上下文缺少操作人 ID。');
+    }
+    if (!detailRecord.value) {
+      throw new Error('请先选择售后单。');
+    }
+    submitting.value = true;
+    await reviewAfterSale({
+      afterSaleNo: detailRecord.value.after_sale_no,
+      merchantId: detailRecord.value.merchant_id,
+      storeId: detailRecord.value.store_id,
+      operatorId,
+      reviewAction: 'agree',
+      merchantResult: approveRemark.value.trim(),
+    });
+    await loadAfterSales();
+    setActionMessage(`售后单 ${detailRecord.value.after_sale_no} 已完成审核。`);
+    closeDetailPanel();
+  } catch (error) {
+    setActionMessage(error instanceof Error ? error.message : '审核售后失败。', 'error');
+  } finally {
+    submitting.value = false;
+  }
 }
 
 async function loadAfterSales() {
@@ -246,16 +377,17 @@ async function loadAfterSales() {
     const response = await fetchAfterSaleList({
       merchantId,
       storeId,
+      afterSaleStatus: mapTabToStatus(activeTab.value),
     });
-    if (response.length === 0) {
-      fallbackToMock('真实售后接口已接通，但当前商家暂无可展示的售后单。');
-      return;
-    }
     afterSalesMode.value = 'remote';
-    afterSalesNotice.value = '售后列表已连接真实接口。';
+    afterSalesNotice.value = response.length
+      ? '售后列表已连接真实接口。'
+      : '当前筛选条件下没有真实售后单。';
     records.value = response.map(toCardRecord);
   } catch (error) {
-    fallbackToMock(`售后服务未就绪，页面已回退到演示数据。${error instanceof Error ? error.message : ''}`.trim());
+    afterSalesMode.value = 'error';
+    afterSalesNotice.value = error instanceof Error ? error.message : '售后服务未就绪。';
+    records.value = [];
   } finally {
     afterSalesLoading.value = false;
   }
@@ -264,6 +396,17 @@ async function loadAfterSales() {
 onMounted(() => {
   void loadAfterSales();
 });
+
+watch(activeTab, () => {
+  void loadAfterSales();
+});
+
+function closeDetailPanel() {
+  detailRecord.value = null;
+  detailLogs.value = [];
+  detailTabStatus.value = '';
+  approveRemark.value = '同意售后申请，请按流程处理';
+}
 </script>
 
 <style module>
@@ -294,6 +437,39 @@ onMounted(() => {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 18px;
+}
+
+.detailPanel,
+.detailBlock {
+  margin-top: 18px;
+  display: grid;
+  gap: 14px;
+}
+
+.detailGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.logRow {
+  display: grid;
+  grid-template-columns: 0.8fr 1.6fr 1fr;
+  gap: 16px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: rgba(237, 244, 255, 0.72);
+}
+
+.textarea {
+  min-height: 96px;
+  width: 100%;
+  padding: 14px 16px;
+  border: 0;
+  border-radius: 18px;
+  background: rgba(237, 244, 255, 0.92);
+  color: var(--cdd-text);
+  resize: vertical;
 }
 
 .card {
@@ -402,7 +578,9 @@ onMounted(() => {
   .cardHead,
   .summary,
   .footer,
-  .actions {
+  .actions,
+  .detailGrid,
+  .logRow {
     grid-template-columns: 1fr;
     flex-direction: column;
     align-items: flex-start;

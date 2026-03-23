@@ -15,6 +15,9 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.containsString;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -527,6 +530,140 @@ class OrderControllerIntegrationTest {
                 .andExpect(jsonPath("$.data.length()").value(1))
                 .andExpect(jsonPath("$.data[0].after_sale_no").value(waitingReturnAfterSaleNo))
                 .andExpect(jsonPath("$.data[0].after_sale_status").value("waiting_return"));
+    }
+
+    @Test
+    void shouldReturnExtendedOrderSummaryAndExportCsv() throws Exception {
+        long merchantId = 3013L;
+        long storeId = 4013L;
+        long userId = 5013L;
+
+        String orderNo = createPaidOrderWithItems(
+                merchantId,
+                storeId,
+                userId,
+                "callback-order-export",
+                new OrderItemSeed(93401L, 94401L, 2, new BigDecimal("16.50")),
+                new OrderItemSeed(93402L, 94402L, 1, new BigDecimal("8.80")));
+
+        mockMvc.perform(get("/api/order/orders")
+                        .param("merchant_id", String.valueOf(merchantId))
+                        .param("store_id", String.valueOf(storeId))
+                        .param("user_id", String.valueOf(userId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data[0].order_no").value(orderNo))
+                .andExpect(jsonPath("$.data[0].customer_identifier").value(String.valueOf(userId)))
+                .andExpect(jsonPath("$.data[0].channel").value("wechat_pay"))
+                .andExpect(jsonPath("$.data[0].product_summary").value(containsString("商品#93401 / SKU#94401 x2")))
+                .andExpect(jsonPath("$.data[0].product_summary").value(containsString("商品#93402 / SKU#94402 x1")));
+
+        MvcResult exportResult = mockMvc.perform(get("/api/order/orders/export")
+                        .param("merchant_id", String.valueOf(merchantId))
+                        .param("store_id", String.valueOf(storeId))
+                        .param("user_id", String.valueOf(userId)))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Disposition", containsString("orders-export.csv")))
+                .andExpect(content().contentTypeCompatibleWith("text/csv"))
+                .andReturn();
+
+        String csv = exportResult.getResponse().getContentAsString();
+        assertThat(csv).contains("订单号,客户标识,渠道,商品摘要");
+        assertThat(csv).contains(orderNo);
+        assertThat(csv).contains(String.valueOf(userId));
+        assertThat(csv).contains("wechat_pay");
+        assertThat(csv).contains("商品#93401 / SKU#94401 x2");
+        assertThat(csv).contains("商品#93402 / SKU#94402 x1");
+    }
+
+    @Test
+    void shouldReturnAfterSaleDetailAndLogs() throws Exception {
+        long merchantId = 3014L;
+        long storeId = 4014L;
+        long userId = 5014L;
+
+        String orderNo = createPaidOrderWithItems(
+                merchantId,
+                storeId,
+                userId,
+                "callback-after-sale-detail",
+                new OrderItemSeed(93501L, 94501L, 1, new BigDecimal("25.00")));
+
+        JsonNode orderDetail = readData(mockMvc.perform(get("/api/order/orders/{order_no}", orderNo)
+                        .param("merchant_id", String.valueOf(merchantId))
+                        .param("store_id", String.valueOf(storeId))
+                        .param("user_id", String.valueOf(userId)))
+                .andExpect(status().isOk())
+                .andReturn());
+        long itemId = orderDetail.path("items").get(0).path("id").asLong();
+
+        String afterSaleNo = readData(mockMvc.perform(post("/api/order/orders/{order_no}/after-sales", orderNo)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(writeJson(Map.of(
+                                "merchant_id", merchantId,
+                                "store_id", storeId,
+                                "user_id", userId,
+                                "order_item_id", itemId,
+                                "after_sale_type", "return_refund",
+                                "refund_quantity", 1,
+                                "refund_amount", new BigDecimal("25.00"),
+                                "reason_code", "quality_issue",
+                                "reason_desc", "商品质量问题",
+                                "proof_urls", new String[]{"https://img.example.com/a.jpg"}))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.after_sale_status").value("pending_merchant"))
+                .andReturn()).path("after_sale_no").asText();
+
+        mockMvc.perform(post("/api/order/after-sales/{after_sale_no}/review", afterSaleNo)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(writeJson(Map.of(
+                                "merchant_id", merchantId,
+                                "store_id", storeId,
+                                "operator_id", 90014L,
+                                "review_action", "agree",
+                                "merchant_result", "请寄回商品"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.after_sale_status").value("waiting_return"));
+
+        String refundNo = readData(mockMvc.perform(post("/api/order/after-sales/{after_sale_no}/return", afterSaleNo)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(writeJson(Map.of(
+                                "merchant_id", merchantId,
+                                "store_id", storeId,
+                                "user_id", userId,
+                                "return_company", "SF",
+                                "return_logistics_no", "SF3014"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.after_sale_status").value("refunding"))
+                .andReturn()).path("refund_no").asText();
+
+        mockMvc.perform(get("/api/order/after-sales/{after_sale_no}", afterSaleNo)
+                        .param("merchant_id", String.valueOf(merchantId))
+                        .param("store_id", String.valueOf(storeId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.after_sale_no").value(afterSaleNo))
+                .andExpect(jsonPath("$.data.order_no").value(orderNo))
+                .andExpect(jsonPath("$.data.product_name").value("商品#93501"))
+                .andExpect(jsonPath("$.data.sku_name").value("SKU#94501"))
+                .andExpect(jsonPath("$.data.proof_urls[0]").value("https://img.example.com/a.jpg"))
+                .andExpect(jsonPath("$.data.refund_no").value(refundNo))
+                .andExpect(jsonPath("$.data.refund_status").value("processing"))
+                .andExpect(jsonPath("$.data.pay_status").value("paid"))
+                .andExpect(jsonPath("$.data.return_company").value("SF"))
+                .andExpect(jsonPath("$.data.return_logistics_no").value("SF3014"));
+
+        mockMvc.perform(get("/api/order/after-sales/{after_sale_no}/logs", afterSaleNo)
+                        .param("merchant_id", String.valueOf(merchantId))
+                        .param("store_id", String.valueOf(storeId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data[0].log_type").value("apply"))
+                .andExpect(jsonPath("$.data[1].log_type").value("merchant_review"))
+                .andExpect(jsonPath("$.data[2].log_type").value("refund_apply"))
+                .andExpect(jsonPath("$.data[3].log_type").value("return_submit"))
+                .andExpect(jsonPath("$.data[1].operator_id").value(90014L))
+                .andExpect(jsonPath("$.data[1].message").value("请寄回商品"));
     }
 
     private String createPaidOrderByCallback(long merchantId,

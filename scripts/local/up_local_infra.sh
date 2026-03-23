@@ -24,6 +24,7 @@ echo
 echo "本地基础设施已启动。"
 echo "MySQL: 127.0.0.1:${CDD_LOCAL_MYSQL_PORT:-3306}  数据库: ${CDD_LOCAL_MYSQL_DATABASE:-chengdd}"
 echo "Nacos: http://127.0.0.1:${CDD_LOCAL_NACOS_PORT:-8848}/nacos"
+echo "Redis: 127.0.0.1:${CDD_LOCAL_REDIS_PORT:-6379}"
 echo
 echo "下一步建议："
 echo "1. 查看状态: bash scripts/local/status_local_infra.sh"

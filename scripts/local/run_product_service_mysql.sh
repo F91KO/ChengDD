@@ -49,6 +49,10 @@ export CDD_PRODUCT_DB_PASSWORD="${CDD_PRODUCT_DB_PASSWORD:-$mysql_password}"
 export CDD_PRODUCT_DB_DRIVER_CLASS_NAME="${CDD_PRODUCT_DB_DRIVER_CLASS_NAME:-com.mysql.cj.jdbc.Driver}"
 export CDD_PRODUCT_SQL_INIT_MODE="${CDD_PRODUCT_SQL_INIT_MODE:-never}"
 
+mvn -q -s "$settings_file" "-Dmaven.repo.local=$work_repo" -f "${parent_root}/pom.xml" \
+  -pl cdd-product-service -am \
+  -DskipTests install
+
 mvn -q -s "$settings_file" "-Dmaven.repo.local=$work_repo" -f "${parent_root}/cdd-product-service/pom.xml" \
   spring-boot:run \
   -Dspring-boot.run.arguments="--server.port=${CDD_PRODUCT_SERVER_PORT:-8084}"

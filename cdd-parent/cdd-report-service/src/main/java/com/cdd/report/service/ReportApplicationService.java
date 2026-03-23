@@ -4,6 +4,9 @@ import com.cdd.api.report.model.MerchantDashboardSnapshotResponse;
 import com.cdd.api.report.model.MerchantDashboardSnapshotUpsertRequest;
 import com.cdd.api.report.model.PlatformDashboardSnapshotResponse;
 import com.cdd.api.report.model.PlatformDashboardSnapshotUpsertRequest;
+import com.cdd.api.report.model.ReportDataHealthResponse;
+import com.cdd.api.report.model.ReportHealthItemResponse;
+import com.cdd.api.report.model.ReportHealthResponse;
 import com.cdd.api.report.model.ReportHomeEventDailyResponse;
 import com.cdd.api.report.model.ReportHomeEventDailyUpsertRequest;
 import com.cdd.api.report.model.ReportOrderDailyResponse;
@@ -32,6 +35,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -136,6 +140,68 @@ public class ReportApplicationService {
                 .orElseThrow(() -> new BusinessException(ReportErrorCode.REPORT_MERCHANT_DASHBOARD_NOT_FOUND));
     }
 
+    public ReportHealthResponse getReportHealth(long merchantId, long storeId) {
+        List<ReportHealthItemResponse> items = List.of(
+                buildDailyHealthItem(
+                        "home_event_daily",
+                        "首页事件日报",
+                        reportRepository.findLatestHomeEventDaily(merchantId, storeId)
+                                .map(record -> formatDate(record.statDate()))
+                                .orElse(null)),
+                buildDailyHealthItem(
+                        "order_daily",
+                        "订单日报",
+                        reportRepository.findLatestOrderDaily(merchantId, storeId)
+                                .map(record -> formatDate(record.statDate()))
+                                .orElse(null)),
+                buildDailyHealthItem(
+                        "product_daily",
+                        "商品日报",
+                        reportRepository.findLatestProductDaily(merchantId, storeId)
+                                .map(record -> formatDate(record.statDate()))
+                                .orElse(null)),
+                buildSnapshotHealthItem(
+                        "merchant_dashboard",
+                        "商家看板快照",
+                        reportRepository.findLatestMerchantDashboardSnapshot(merchantId, storeId)
+                                .map(record -> formatDateTime(record.snapshotTime()))
+                                .orElse(null)));
+        boolean ready = items.stream().allMatch(item -> "ready".equals(item.status()));
+        String summary = ready ? "报表数据已准备完成。" : "报表数据未完全准备，请先补齐缺失数据。";
+        return new ReportHealthResponse(merchantId, storeId, ready, summary, items);
+    }
+
+    public ReportDataHealthResponse getReportDataHealth() {
+        long homeEventDailyCount = reportRepository.countHomeEventDaily();
+        long orderDailyCount = reportRepository.countOrderDaily();
+        long productDailyCount = reportRepository.countProductDaily();
+        long merchantDashboardSnapshotCount = reportRepository.countMerchantDashboardSnapshots();
+        long platformDashboardSnapshotCount = reportRepository.countPlatformDashboardSnapshots();
+
+        List<String> issues = Stream.of(
+                        homeEventDailyCount == 0 ? "首页事件日报为空" : null,
+                        orderDailyCount == 0 ? "订单日报为空" : null,
+                        productDailyCount == 0 ? "商品日报为空" : null,
+                        merchantDashboardSnapshotCount == 0 ? "商家看板快照为空" : null,
+                        platformDashboardSnapshotCount == 0 ? "平台看板快照为空" : null)
+                .filter(StringUtils::hasText)
+                .toList();
+        return new ReportDataHealthResponse(
+                issues.isEmpty() ? "healthy" : "degraded",
+                formatDateTime(Timestamp.valueOf(LocalDateTime.now())),
+                homeEventDailyCount,
+                orderDailyCount,
+                productDailyCount,
+                merchantDashboardSnapshotCount,
+                platformDashboardSnapshotCount,
+                reportRepository.findLatestHomeEventStatDate().map(this::formatDate).orElse(null),
+                reportRepository.findLatestOrderStatDate().map(this::formatDate).orElse(null),
+                reportRepository.findLatestProductStatDate().map(this::formatDate).orElse(null),
+                reportRepository.findLatestMerchantDashboardSnapshotTime().map(this::formatDateTime).orElse(null),
+                reportRepository.findLatestPlatformDashboardSnapshotTime().map(this::formatDateTime).orElse(null),
+                issues);
+    }
+
     public MerchantDashboardOverviewResponse getMerchantDashboardOverview(long merchantId, long storeId) {
         ReportRepository.MerchantDashboardSnapshotRecord snapshot = reportRepository.findLatestMerchantDashboardSnapshot(merchantId, storeId)
                 .orElseThrow(() -> new BusinessException(ReportErrorCode.REPORT_MERCHANT_DASHBOARD_NOT_FOUND));
@@ -188,6 +254,20 @@ public class ReportApplicationService {
         return latestSnapshots.values().stream()
                 .map(this::toPlatformMerchantStatResponse)
                 .toList();
+    }
+
+    private ReportHealthItemResponse buildDailyHealthItem(String code, String name, String latestDataTime) {
+        if (latestDataTime == null) {
+            return new ReportHealthItemResponse(code, name, "missing", null, "暂无数据，请先完成日报写入。");
+        }
+        return new ReportHealthItemResponse(code, name, "ready", latestDataTime, "最近一条日报数据可用。");
+    }
+
+    private ReportHealthItemResponse buildSnapshotHealthItem(String code, String name, String latestDataTime) {
+        if (latestDataTime == null) {
+            return new ReportHealthItemResponse(code, name, "missing", null, "暂无看板快照，请先刷新看板快照。");
+        }
+        return new ReportHealthItemResponse(code, name, "ready", latestDataTime, "最近一条看板快照可用。");
     }
 
     private ReportHomeEventDailyResponse toHomeEventResponse(ReportRepository.HomeEventDailyRecord record) {
