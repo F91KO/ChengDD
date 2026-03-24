@@ -199,3 +199,30 @@ databaseChangeLog:
             relativeToChangelogFile: true
             splitStatements: true
             stripComments: false
+  - changeSet:
+      id: V23__local_demo_release_seed
+      author: codex
+      changes:
+        - sqlFile:
+            path: ../../db/migration/V23__local_demo_release_seed.sql
+            relativeToChangelogFile: true
+            splitStatements: true
+            stripComments: false
+  - changeSet:
+      id: V24__product_category_template_nodes_and_fresh_templates
+      author: codex
+      changes:
+        - sqlFile:
+            path: ../../db/migration/V24__product_category_template_nodes_and_fresh_templates.sql
+            relativeToChangelogFile: true
+            splitStatements: true
+            stripComments: false
+  - changeSet:
+      id: V25__rename_product_category_template_names
+      author: codex
+      changes:
+        - sqlFile:
+            path: ../../db/migration/V25__rename_product_category_template_names.sql
+            relativeToChangelogFile: true
+            splitStatements: true
+            stripComments: false

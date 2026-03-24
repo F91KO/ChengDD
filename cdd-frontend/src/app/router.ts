@@ -1,7 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
-import { loadProducts } from '@/modules/products/mock';
-import { loadOrders } from '@/modules/orders/mock';
 
 const routes = [
   {
@@ -34,6 +32,22 @@ const routes = [
     },
   },
   {
+    path: '/categories',
+    name: 'categories',
+    component: () => import('@/pages/CategoryManagementPage.vue'),
+    meta: {
+      title: '商品分类',
+    },
+  },
+  {
+    path: '/category-templates',
+    name: 'category-templates',
+    component: () => import('@/pages/CategoryTemplatesPage.vue'),
+    meta: {
+      title: '分类模板',
+    },
+  },
+  {
     path: '/orders',
     name: 'orders',
     component: () => import('@/pages/OrdersPage.vue'),
@@ -55,6 +69,14 @@ const routes = [
     component: () => import('@/pages/ConfigCenterPage.vue'),
     meta: {
       title: '配置中心',
+    },
+  },
+  {
+    path: '/releases',
+    name: 'releases',
+    component: () => import('@/pages/ReleaseGovernancePage.vue'),
+    meta: {
+      title: '发布治理',
     },
   },
 ];
@@ -90,16 +112,4 @@ router.beforeEach((to) => {
 router.afterEach((to) => {
   const title = typeof to.meta.title === 'string' ? to.meta.title : '商家后台';
   document.title = `${title} | ChengDD 商家后台`;
-
-  if (to.name === 'products') {
-    void loadProducts();
-    return;
-  }
-  if (to.name === 'orders') {
-    void loadOrders();
-    return;
-  }
-  if (to.name === 'dashboard') {
-    void Promise.all([loadProducts(), loadOrders()]);
-  }
 });

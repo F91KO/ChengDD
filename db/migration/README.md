@@ -15,6 +15,20 @@
 - `V9__idempotency_and_compensation.sql`
 - `V10__auth_persistence.sql`
 - `V11__auth_seed_accounts.sql`
+- `V12__merchant_onboarding_baseline.sql`
+- `V13__release_governance_baseline.sql`
+- `V14__config_switches_baseline.sql`
+- `V15__product_catalog_baseline.sql`
+- `V16__order_baseline.sql`
+- `V17__order_item_level_after_sale_refund.sql`
+- `V18__local_demo_product_order_seed.sql`
+- `V19__local_demo_product_seed_patch.sql`
+- `V20__local_demo_report_seed.sql`
+- `V21__local_demo_dashboard_refresh.sql`
+- `V22__local_demo_after_sale_seed.sql`
+- `V23__local_demo_release_seed.sql`
+- `V24__product_category_template_nodes_and_fresh_templates.sql`
+- `V25__rename_product_category_template_names.sql`
 
 说明：
 

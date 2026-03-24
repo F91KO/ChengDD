@@ -1,8 +1,8 @@
 import { reactive } from 'vue';
-import { fetchProductDetail, fetchProductList } from '@/services/product';
+import { fetchCategoryList, fetchProductList } from '@/services/product';
 import { fetchProductDailyList } from '@/services/report';
 import { useAuthStore } from '@/stores/auth';
-import type { ProductDetailResponseRaw, ProductSummaryResponseRaw } from '@/types/product';
+import type { ProductCategoryResponseRaw, ProductSummaryResponseRaw } from '@/types/product';
 import type { ReportProductDailyResponseRaw } from '@/types/report';
 
 export type ProductCard = {
@@ -10,6 +10,7 @@ export type ProductCard = {
   merchantId: number;
   storeId: number;
   categoryId: number;
+  categoryName: string;
   name: string;
   sku: string;
   price: string;
@@ -67,43 +68,44 @@ function formatCurrency(value: number | string): string {
   return `¥${parsed.toFixed(2)}`;
 }
 
-function buildPriceLabel(detail?: ProductDetailResponseRaw): string {
-  if (!detail?.skus.length) {
+function buildPriceLabel(item: ProductSummaryResponseRaw): string {
+  const minPrice = Number(item.price_summary?.min_sale_price);
+  const maxPrice = Number(item.price_summary?.max_sale_price);
+  if (!Number.isFinite(minPrice) || !Number.isFinite(maxPrice)) {
     return '未配置售价';
   }
-  const prices = detail.skus
-    .map((sku) => Number(sku.sale_price))
-    .filter((value) => Number.isFinite(value))
-    .sort((left, right) => left - right);
-  if (!prices.length) {
-    return '未配置售价';
+  if (minPrice === maxPrice) {
+    return formatCurrency(minPrice);
   }
-  if (prices[0] === prices[prices.length - 1]) {
-    return formatCurrency(prices[0]);
-  }
-  return `${formatCurrency(prices[0])} - ${formatCurrency(prices[prices.length - 1])}`;
+  return `${formatCurrency(minPrice)} - ${formatCurrency(maxPrice)}`;
 }
 
-function buildInventoryLabel(detail: ProductDetailResponseRaw | undefined, skuCount: number): string {
-  if (!detail?.skus.length) {
-    return `${skuCount} 个 SKU`;
+function buildInventoryLabel(item: ProductSummaryResponseRaw): string {
+  if (!item.stock_summary) {
+    return `${item.sku_count} 个 SKU`;
   }
-  const available = detail.skus.reduce((sum, sku) => sum + sku.available_stock, 0);
-  const locked = detail.skus.reduce((sum, sku) => sum + sku.locked_stock, 0);
+  const available = item.stock_summary.total_available_stock;
+  const locked = item.stock_summary.total_locked_stock;
+  if (!Number.isFinite(available) || !Number.isFinite(locked)) {
+    return `${item.sku_count} 个 SKU`;
+  }
   return locked > 0 ? `${available} 可售 / ${locked} 锁定` : `${available} 可售`;
 }
 
-function buildSalesLabel(rows: ReportProductDailyResponseRaw[] | undefined): string {
+function buildSalesLabel(item: ProductSummaryResponseRaw, rows: ReportProductDailyResponseRaw[] | undefined): string {
+  const totalFromSummary = Number(item.sales_summary?.total_sales_quantity);
+  if (Number.isFinite(totalFromSummary) && totalFromSummary > 0) {
+    return `${totalFromSummary} 件`;
+  }
   if (!rows?.length) {
     return '近日报表暂无销量';
   }
-  const totalSaleCount = rows.reduce((sum, row) => sum + Number(row.sale_count || 0), 0);
-  return `${totalSaleCount} 件`;
+  return `${rows.reduce((sum, row) => sum + Number(row.sale_count || 0), 0)} 件`;
 }
 
 function mapRemoteProduct(
   item: ProductSummaryResponseRaw,
-  detail?: ProductDetailResponseRaw,
+  categories: Map<number, ProductCategoryResponseRaw>,
   reportRows: ReportProductDailyResponseRaw[] = [],
 ): ProductCard {
   const mappedStatus = statusToCard(item.status);
@@ -112,11 +114,12 @@ function mapRemoteProduct(
     merchantId: item.merchant_id,
     storeId: item.store_id,
     categoryId: item.category_id,
+    categoryName: categories.get(item.category_id)?.category_name ?? `分类 ${item.category_id}`,
     name: item.product_name,
     sku: `SPU-${item.id}`,
-    price: buildPriceLabel(detail),
-    sales: buildSalesLabel(reportRows),
-    inventory: buildInventoryLabel(detail, item.sku_count),
+    price: buildPriceLabel(item),
+    sales: buildSalesLabel(item, reportRows),
+    inventory: buildInventoryLabel(item),
     status: mappedStatus.text,
     statusRaw: item.status,
     skuCount: item.sku_count,
@@ -133,20 +136,6 @@ function buildStatsFromRemote(items: ProductSummaryResponseRaw[]): ProductStat[]
     { label: '待发布', value: String(draftCount), tone: 'info' },
     { label: '已下架', value: String(offShelfCount), tone: 'danger' },
   ];
-}
-
-function buildDetailMap(
-  items: ProductSummaryResponseRaw[],
-  results: PromiseSettledResult<ProductDetailResponseRaw>[],
-): Map<number, ProductDetailResponseRaw> {
-  const detailMap = new Map<number, ProductDetailResponseRaw>();
-  items.forEach((item, index) => {
-    const result = results[index];
-    if (result?.status === 'fulfilled') {
-      detailMap.set(item.id, result.value);
-    }
-  });
-  return detailMap;
 }
 
 function buildReportMap(rows: ReportProductDailyResponseRaw[]): Map<number, ReportProductDailyResponseRaw[]> {
@@ -191,16 +180,16 @@ export async function loadProducts(force = false, status?: string): Promise<void
         status,
       });
 
-      const [detailResults, reportRows] = await Promise.all([
-        Promise.allSettled(remoteProducts.map((item) => fetchProductDetail(item.id))),
+      const [categories, reportRows] = await Promise.all([
+        fetchCategoryList({ merchantId, storeId }).catch(() => []),
         fetchProductDailyList({ merchantId, storeId }).catch(() => []),
       ]);
 
-      const detailMap = buildDetailMap(remoteProducts, detailResults);
+      const categoryMap = new Map(categories.map((item) => [item.id, item]));
       const reportMap = buildReportMap(reportRows);
 
       replaceProductData(
-        remoteProducts.map((item) => mapRemoteProduct(item, detailMap.get(item.id), reportMap.get(item.id))),
+        remoteProducts.map((item) => mapRemoteProduct(item, categoryMap, reportMap.get(item.id))),
         buildStatsFromRemote(remoteProducts),
       );
       productLoadState.loaded = true;

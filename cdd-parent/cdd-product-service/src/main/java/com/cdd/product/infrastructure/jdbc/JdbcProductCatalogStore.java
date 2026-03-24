@@ -22,6 +22,8 @@ import org.springframework.util.StringUtils;
 public class JdbcProductCatalogStore implements ProductCatalogStore {
 
     private static final RowMapper<CategoryRow> CATEGORY_ROW_MAPPER = JdbcProductCatalogStore::mapCategoryRow;
+    private static final RowMapper<TemplateRow> TEMPLATE_ROW_MAPPER = JdbcProductCatalogStore::mapTemplateRow;
+    private static final RowMapper<TemplateNodeRow> TEMPLATE_NODE_ROW_MAPPER = JdbcProductCatalogStore::mapTemplateNodeRow;
     private static final RowMapper<ProductRow> PRODUCT_ROW_MAPPER = JdbcProductCatalogStore::mapProductRow;
     private static final RowMapper<SkuRow> SKU_ROW_MAPPER = JdbcProductCatalogStore::mapSkuRow;
     private static final RowMapper<StockRow> STOCK_ROW_MAPPER = JdbcProductCatalogStore::mapStockRow;
@@ -35,12 +37,8 @@ public class JdbcProductCatalogStore implements ProductCatalogStore {
     private final AtomicLong stockIdGenerator = new AtomicLong(3_300_000L);
     private final AtomicLong stockChangeLogIdGenerator = new AtomicLong(3_400_000L);
 
-    private final Map<Long, CategoryTemplateRecord> categoryTemplates = new HashMap<>();
-    private final Map<Long, CategoryTemplateNodeRecord> categoryTemplateNodes = new HashMap<>();
-
     public JdbcProductCatalogStore(JdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
-        seedDefaultTemplate();
         initializeIdGenerators();
     }
 
@@ -52,10 +50,32 @@ public class JdbcProductCatalogStore implements ProductCatalogStore {
                                                                      String templateDesc,
                                                                      List<TemplateNodeDraft> nodeDrafts) {
         long templateId = templateIdGenerator.incrementAndGet();
+        jdbcTemplate.update("""
+                INSERT INTO cdd_product_category_template (
+                  id, template_name, industry_code, template_version, max_level, status, template_desc,
+                  created_by, updated_by, deleted, version
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                templateId,
+                templateName,
+                industryCode,
+                templateVersion,
+                maxLevel,
+                "enabled",
+                templateDesc,
+                0L,
+                0L,
+                0,
+                0L);
         List<Long> nodeIds = new ArrayList<>(nodeDrafts.size());
         for (TemplateNodeDraft draft : nodeDrafts) {
             long nodeId = templateNodeIdGenerator.incrementAndGet();
-            CategoryTemplateNodeRecord node = new CategoryTemplateNodeRecord(
+            jdbcTemplate.update("""
+                    INSERT INTO cdd_product_category_template_node (
+                      id, template_id, template_category_code, parent_template_category_code, category_name,
+                      category_level, sort_order, is_enabled, is_visible, status, created_by, updated_by, deleted, version
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
                     nodeId,
                     templateId,
                     draft.templateCategoryCode(),
@@ -63,13 +83,16 @@ public class JdbcProductCatalogStore implements ProductCatalogStore {
                     draft.categoryName(),
                     draft.categoryLevel(),
                     draft.sortOrder(),
-                    draft.enabled(),
-                    draft.visible(),
-                    "enabled");
-            categoryTemplateNodes.put(nodeId, node);
+                    draft.enabled() ? 1 : 0,
+                    draft.visible() ? 1 : 0,
+                    "enabled",
+                    0L,
+                    0L,
+                    0,
+                    0L);
             nodeIds.add(nodeId);
         }
-        CategoryTemplateRecord created = new CategoryTemplateRecord(
+        return new CategoryTemplateRecord(
                 templateId,
                 templateName,
                 industryCode,
@@ -78,52 +101,62 @@ public class JdbcProductCatalogStore implements ProductCatalogStore {
                 "enabled",
                 templateDesc,
                 List.copyOf(nodeIds));
-        categoryTemplates.put(templateId, created);
-        return created;
     }
 
     @Override
     public Optional<CategoryTemplateRecord> findCategoryTemplate(long templateId) {
-        return Optional.ofNullable(categoryTemplates.get(templateId));
+        List<TemplateRow> rows = jdbcTemplate.query("""
+                SELECT id, template_name, industry_code, template_version, max_level, status, template_desc
+                FROM cdd_product_category_template
+                WHERE id = ?
+                  AND deleted = 0
+                LIMIT 1
+                """, TEMPLATE_ROW_MAPPER, templateId);
+        return rows.stream().findFirst().map(this::toCategoryTemplateRecord);
     }
 
     @Override
     public List<CategoryTemplateRecord> listCategoryTemplates() {
-        return categoryTemplates.values().stream()
-                .sorted(Comparator.comparingLong(CategoryTemplateRecord::id))
+        return jdbcTemplate.query("""
+                SELECT id, template_name, industry_code, template_version, max_level, status, template_desc
+                FROM cdd_product_category_template
+                WHERE deleted = 0
+                ORDER BY id ASC
+                """, TEMPLATE_ROW_MAPPER).stream()
+                .map(this::toCategoryTemplateRecord)
                 .toList();
     }
 
     @Override
     public List<CategoryTemplateNodeRecord> listTemplateNodes(long templateId) {
-        CategoryTemplateRecord template = categoryTemplates.get(templateId);
-        if (template == null) {
-            return List.of();
-        }
-        List<CategoryTemplateNodeRecord> result = new ArrayList<>(template.nodeIds().size());
-        for (Long nodeId : template.nodeIds()) {
-            CategoryTemplateNodeRecord node = categoryTemplateNodes.get(nodeId);
-            if (node != null) {
-                result.add(node);
-            }
-        }
-        result.sort(Comparator.comparingInt(CategoryTemplateNodeRecord::categoryLevel)
-                .thenComparingInt(CategoryTemplateNodeRecord::sortOrder)
-                .thenComparingLong(CategoryTemplateNodeRecord::id));
-        return result;
+        return jdbcTemplate.query("""
+                SELECT id, template_id, template_category_code, parent_template_category_code, category_name,
+                       category_level, sort_order, is_enabled, is_visible, status
+                FROM cdd_product_category_template_node
+                WHERE template_id = ?
+                  AND deleted = 0
+                ORDER BY category_level ASC, sort_order ASC, id ASC
+                """, TEMPLATE_NODE_ROW_MAPPER, templateId).stream()
+                .map(this::toCategoryTemplateNodeRecord)
+                .toList();
     }
 
     @Override
     public boolean categoryTemplateExists(String templateName, String templateVersion) {
-        return categoryTemplates.values().stream()
-                .anyMatch(template -> template.templateName().equals(templateName)
-                        && template.templateVersion().equals(templateVersion));
+        Integer count = jdbcTemplate.queryForObject("""
+                SELECT COUNT(1)
+                FROM cdd_product_category_template
+                WHERE template_name = ?
+                  AND template_version = ?
+                  AND deleted = 0
+                """, Integer.class, templateName, templateVersion);
+        return count != null && count > 0;
     }
 
     @Override
     public synchronized InitializeResult initializeCategoryTree(long merchantId, long storeId, long templateId) {
-        CategoryTemplateRecord template = categoryTemplates.get(templateId);
-        if (template == null) {
+        Optional<CategoryTemplateRecord> template = findCategoryTemplate(templateId);
+        if (template.isEmpty()) {
             return new InitializeResult(templateId, 0);
         }
         List<CategoryTemplateNodeRecord> nodes = listTemplateNodes(templateId);
@@ -151,7 +184,7 @@ public class JdbcProductCatalogStore implements ProductCatalogStore {
                     node.sortOrder(),
                     node.enabled(),
                     node.visible(),
-                    templateId,
+                    template.get().id(),
                     node.categoryLevel());
             categoryIdMapping.put(node.templateCategoryCode(), created.id());
             initializedCount += 1;
@@ -646,16 +679,9 @@ public class JdbcProductCatalogStore implements ProductCatalogStore {
         return rows.stream().findFirst().map(this::toCategoryRecord);
     }
 
-    private void seedDefaultTemplate() {
-        createCategoryTemplate("默认零售模板", "retail", "v1.0.0", 3, "一期默认分类模板", List.of(
-                new TemplateNodeDraft("fresh", null, "生鲜", 1, 10, true, true),
-                new TemplateNodeDraft("fresh-fruit", "fresh", "水果", 2, 10, true, true),
-                new TemplateNodeDraft("fresh-vegetable", "fresh", "蔬菜", 2, 20, true, true),
-                new TemplateNodeDraft("drink", null, "酒水饮料", 1, 20, true, true),
-                new TemplateNodeDraft("drink-tea", "drink", "茶饮", 2, 10, true, true)));
-    }
-
     private void initializeIdGenerators() {
+        templateIdGenerator.set(Math.max(templateIdGenerator.get(), maxId("cdd_product_category_template")));
+        templateNodeIdGenerator.set(Math.max(templateNodeIdGenerator.get(), maxId("cdd_product_category_template_node")));
         categoryIdGenerator.set(Math.max(categoryIdGenerator.get(), maxId("cdd_product_category")));
         productIdGenerator.set(Math.max(productIdGenerator.get(), maxId("cdd_product_spu")));
         skuIdGenerator.set(Math.max(skuIdGenerator.get(), maxId("cdd_product_sku")));
@@ -680,6 +706,35 @@ public class JdbcProductCatalogStore implements ProductCatalogStore {
                 row.sortOrder(),
                 row.enabled(),
                 row.visible());
+    }
+
+    private CategoryTemplateRecord toCategoryTemplateRecord(TemplateRow row) {
+        List<Long> nodeIds = listTemplateNodes(row.id()).stream()
+                .map(CategoryTemplateNodeRecord::id)
+                .toList();
+        return new CategoryTemplateRecord(
+                row.id(),
+                row.templateName(),
+                row.industryCode(),
+                row.templateVersion(),
+                row.maxLevel(),
+                row.status(),
+                row.templateDesc(),
+                nodeIds);
+    }
+
+    private CategoryTemplateNodeRecord toCategoryTemplateNodeRecord(TemplateNodeRow row) {
+        return new CategoryTemplateNodeRecord(
+                row.id(),
+                row.templateId(),
+                row.templateCategoryCode(),
+                row.parentTemplateCategoryCode(),
+                row.categoryName(),
+                row.categoryLevel(),
+                row.sortOrder(),
+                row.enabled(),
+                row.visible(),
+                row.status());
     }
 
     private ProductRecord toProductRecord(ProductRow row) {
@@ -714,6 +769,31 @@ public class JdbcProductCatalogStore implements ProductCatalogStore {
                 rs.getInt("sort_order"),
                 rs.getBoolean("is_enabled"),
                 rs.getBoolean("is_visible"));
+    }
+
+    private static TemplateRow mapTemplateRow(ResultSet rs, int rowNum) throws SQLException {
+        return new TemplateRow(
+                rs.getLong("id"),
+                rs.getString("template_name"),
+                rs.getString("industry_code"),
+                rs.getString("template_version"),
+                rs.getInt("max_level"),
+                rs.getString("status"),
+                rs.getString("template_desc"));
+    }
+
+    private static TemplateNodeRow mapTemplateNodeRow(ResultSet rs, int rowNum) throws SQLException {
+        return new TemplateNodeRow(
+                rs.getLong("id"),
+                rs.getLong("template_id"),
+                rs.getString("template_category_code"),
+                rs.getString("parent_template_category_code"),
+                rs.getString("category_name"),
+                rs.getInt("category_level"),
+                rs.getInt("sort_order"),
+                rs.getBoolean("is_enabled"),
+                rs.getBoolean("is_visible"),
+                rs.getString("status"));
     }
 
     private static ProductRow mapProductRow(ResultSet rs, int rowNum) throws SQLException {
@@ -776,6 +856,29 @@ public class JdbcProductCatalogStore implements ProductCatalogStore {
             int sortOrder,
             boolean enabled,
             boolean visible) {
+    }
+
+    private record TemplateRow(
+            long id,
+            String templateName,
+            String industryCode,
+            String templateVersion,
+            int maxLevel,
+            String status,
+            String templateDesc) {
+    }
+
+    private record TemplateNodeRow(
+            long id,
+            long templateId,
+            String templateCategoryCode,
+            String parentTemplateCategoryCode,
+            String categoryName,
+            int categoryLevel,
+            int sortOrder,
+            boolean enabled,
+            boolean visible,
+            String status) {
     }
 
     private record ProductRow(

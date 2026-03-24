@@ -29,6 +29,8 @@ class ProductCatalogApplicationServiceTest {
     private static final long MERCHANT_ID = 3001L;
     private static final long STORE_ID = 4001L;
     private static final long DEFAULT_TEMPLATE_ID = 2_000_001L;
+    private static final long PREMIUM_FRESH_TEMPLATE_ID = 2_000_002L;
+    private static final long COMMUNITY_DELIVERY_TEMPLATE_ID = 2_000_003L;
     private static final String APPLE_SKU_CODE = "APPLE-001";
 
     @Autowired
@@ -112,5 +114,53 @@ class ProductCatalogApplicationServiceTest {
         assertEquals("CDD-ORANGE-001", products.get(0).skuSummaries().get(0).skuCode());
         assertTrue(products.stream().anyMatch(product -> "draft".equals(product.status())));
         assertTrue(products.stream().anyMatch(product -> "off_shelf".equals(product.status())));
+    }
+
+    @Test
+    void shouldListCategoryTemplatesIncludingNeutralNamedTemplates() {
+        var templates = service.listCategoryTemplates();
+
+        assertTrue(templates.size() >= 3);
+        assertTrue(templates.stream().anyMatch(template -> template.id() == DEFAULT_TEMPLATE_ID));
+        assertTrue(templates.stream().anyMatch(template -> template.id() == PREMIUM_FRESH_TEMPLATE_ID
+                && "品质精选生鲜模板".equals(template.templateName())));
+        assertTrue(templates.stream().anyMatch(template -> template.id() == COMMUNITY_DELIVERY_TEMPLATE_ID
+                && "社区民生到家模板".equals(template.templateName())));
+
+        var premiumTemplate = templates.stream()
+                .filter(template -> template.id() == PREMIUM_FRESH_TEMPLATE_ID)
+                .findFirst()
+                .orElseThrow();
+        assertTrue(premiumTemplate.categories().size() > 0);
+
+        var communityTemplate = templates.stream()
+                .filter(template -> template.id() == COMMUNITY_DELIVERY_TEMPLATE_ID)
+                .findFirst()
+                .orElseThrow();
+        assertTrue(communityTemplate.categories().size() > 0);
+    }
+
+    @Test
+    void shouldInitializeCategoryTreeFromPremiumFreshTemplate() {
+        var result = service.initializeCategoryTree(new InitializeCategoryTreeRequest(
+                MERCHANT_ID,
+                STORE_ID,
+                PREMIUM_FRESH_TEMPLATE_ID));
+
+        assertTrue(result.initializedCategoryCount() > 0);
+        assertEquals(PREMIUM_FRESH_TEMPLATE_ID, result.templateId());
+
+        var categories = service.listCategories(MERCHANT_ID, STORE_ID);
+        assertTrue(categories.stream().anyMatch(category ->
+                "水果鲜切".equals(category.categoryName()) && category.categoryLevel() == 1));
+        assertTrue(categories.stream().anyMatch(category ->
+                "应季水果".equals(category.categoryName()) && category.categoryLevel() == 2));
+
+        var repeat = service.initializeCategoryTree(new InitializeCategoryTreeRequest(
+                MERCHANT_ID,
+                STORE_ID,
+                PREMIUM_FRESH_TEMPLATE_ID));
+        assertEquals(0, repeat.initializedCategoryCount());
+        assertEquals("商家分类树已存在，无需重复初始化", repeat.message());
     }
 }

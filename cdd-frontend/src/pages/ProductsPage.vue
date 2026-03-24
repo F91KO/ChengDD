@@ -58,7 +58,9 @@
               <div :class="$style.productHead">
                 <div>
                   <h3 :class="$style.productName">{{ product.name }}</h3>
-                  <div :class="$style.productSku">分类 {{ product.categoryId }} · SKU {{ product.skuCount }} 个</div>
+                  <div :class="$style.productSku">
+                    {{ product.categoryName }} · SKU {{ product.skuCount }} 个
+                  </div>
                 </div>
                 <UiTag :tone="product.statusTone as 'default' | 'primary' | 'info'">
                   {{ product.status }}
@@ -102,20 +104,20 @@
         <div :class="$style.panelHead">
           <div>
             <div :class="$style.panelEyebrow">
-              {{ panelMode === 'create' ? '创建商品' : '编辑面板' }}
+              {{ panelMode === 'create' ? '创建商品' : '编辑商品' }}
             </div>
             <h3 :class="$style.panelTitle">
-              {{ panelMode === 'create' ? '新增真实商品' : detail?.product_name || selectedProduct?.name || '商品详情' }}
+              {{ panelMode === 'create' ? '新增真实商品' : detail?.product_name || selectedProduct?.name || '编辑商品' }}
             </h3>
           </div>
           <UiButton variant="secondary" @click="closePanel">收起面板</UiButton>
         </div>
 
         <UiStatePanel
-          v-if="panelMode === 'detail'"
+          v-if="panelMode === 'edit'"
           tone="info"
-          title="当前已接入真实详情与可执行动作"
-          description="商品基础字段更新接口尚未开放，当前编辑面板支持查看详情、上/下架和库存调整。"
+          title="当前已接入真实商品编辑接口"
+          description="商品基础字段、SKU、上下架和库存调整都走真实接口。"
         />
 
         <UiStatePanel
@@ -158,8 +160,8 @@
               <div :class="$style.summaryValue">{{ detail.id }}</div>
             </div>
             <div>
-              <div :class="$style.summaryLabel">分类 ID</div>
-              <div :class="$style.summaryValue">{{ detail.category_id }}</div>
+              <div :class="$style.summaryLabel">商品分类</div>
+              <div :class="$style.summaryValue">{{ resolveCategoryName(detail.category_id) }}</div>
             </div>
             <div>
               <div :class="$style.summaryLabel">当前状态</div>
@@ -167,24 +169,48 @@
             </div>
           </section>
 
-          <label :class="$style.field">
-            <span :class="$style.fieldLabel">商品副标题</span>
-            <input :value="detail.product_sub_title || '未设置副标题'" :class="$style.readonlyInput" readonly />
-          </label>
+          <div :class="$style.formGrid">
+            <label :class="$style.field">
+              <span :class="$style.fieldLabel">商品分类</span>
+              <select v-model="editForm.categoryId" :class="$style.select">
+                <option value="">请选择分类</option>
+                <option v-for="category in categories" :key="category.id" :value="String(category.id)">
+                  {{ category.category_name }}（ID {{ category.id }}）
+                </option>
+              </select>
+            </label>
+            <UiInput v-model="editForm.productName" label="商品名称" placeholder="请输入商品名称" />
+            <UiInput v-model="editForm.productSubTitle" label="商品副标题" placeholder="请输入商品副标题" />
+          </div>
 
           <div :class="$style.skuSection">
-            <div :class="$style.sectionTitle">SKU 明细</div>
-            <article v-for="sku in detail.skus" :key="sku.id" :class="$style.skuCard">
-              <div>
-                <div :class="$style.skuName">{{ sku.sku_name }}</div>
-                <div :class="$style.skuMeta">
-                  编码 {{ sku.sku_code }} · 售价 {{ formatCurrency(sku.sale_price) }}
-                </div>
+            <div :class="$style.skuSectionHead">
+              <div :class="$style.sectionTitle">SKU 编辑</div>
+              <UiButton variant="secondary" @click="addEditSku">新增 SKU</UiButton>
+            </div>
+            <article v-for="sku in editForm.skus" :key="sku.clientId" :class="$style.skuEditorCard">
+              <div :class="$style.skuEditorGrid">
+                <UiInput v-model="sku.skuName" label="SKU 名称" placeholder="例如：标准装" />
+                <UiInput v-model="sku.skuCode" label="SKU 编码" placeholder="例如：CDD-DEMO-001" />
+                <UiInput v-model="sku.salePrice" label="销售价" placeholder="例如：99.00" />
+                <UiInput v-model="sku.availableStock" label="可售库存" placeholder="例如：100" />
               </div>
-              <div :class="$style.skuStock">
-                可售 {{ sku.available_stock }} / 锁定 {{ sku.locked_stock }}
+              <div :class="$style.panelActions">
+                <UiButton
+                  variant="secondary"
+                  :disabled="editForm.skus.length <= 1"
+                  @click="removeEditSku(sku.clientId)"
+                >
+                  删除 SKU
+                </UiButton>
               </div>
             </article>
+          </div>
+
+          <div :class="$style.panelActions">
+            <UiButton variant="secondary" :disabled="submitting" @click="handleUpdateProduct">
+              {{ submitting ? '正在保存...' : '保存商品信息' }}
+            </UiButton>
           </div>
 
           <div :class="$style.skuSection">
@@ -195,7 +221,7 @@
                 <select v-model="stockForm.skuId" :class="$style.select">
                   <option value="">请选择 SKU</option>
                   <option v-for="sku in detail.skus" :key="sku.id" :value="String(sku.id)">
-                    {{ sku.sku_name }}（可售 {{ sku.available_stock }}）
+                    {{ sku.sku_name }}（可售 {{ sku.available_stock }} / 锁定 {{ sku.locked_stock }}）
                   </option>
                 </select>
               </label>
@@ -254,6 +280,7 @@ import {
   fetchProductDetail,
   publishProduct,
   unpublishProduct,
+  updateProduct,
 } from '@/services/product';
 import {
   type ProductCard,
@@ -265,7 +292,14 @@ import {
 import { useAuthStore } from '@/stores/auth';
 import type { ProductCategoryResponseRaw, ProductDetailResponseRaw } from '@/types/product';
 
-type PanelMode = 'create' | 'detail' | null;
+type PanelMode = 'create' | 'edit' | null;
+type EditableSkuForm = {
+  clientId: string;
+  skuCode: string;
+  skuName: string;
+  salePrice: string;
+  availableStock: string;
+};
 
 const authStore = useAuthStore();
 const keyword = ref('');
@@ -286,6 +320,13 @@ const createForm = reactive({
   skuCode: '',
   salePrice: '99.00',
   availableStock: '100',
+});
+
+const editForm = reactive({
+  categoryId: '',
+  productName: '',
+  productSubTitle: '',
+  skus: [] as EditableSkuForm[],
 });
 
 const stockForm = reactive({
@@ -319,6 +360,10 @@ function formatCurrency(value: number | string): string {
   return `¥${parsed.toFixed(2)}`;
 }
 
+function resolveCategoryName(categoryId: number): string {
+  return categories.value.find((item) => item.id === categoryId)?.category_name ?? `分类 ${categoryId}`;
+}
+
 function getRequiredScope() {
   const merchantId = authStore.merchantIdForQuery;
   const storeId = authStore.storeIdForQuery;
@@ -338,10 +383,42 @@ function resetCreateForm() {
   createForm.availableStock = '100';
 }
 
+function buildEditableSku(detailSku?: ProductDetailResponseRaw['skus'][number], index = 0): EditableSkuForm {
+  return {
+    clientId: detailSku ? `sku-${detailSku.id}` : `new-${Date.now()}-${index}`,
+    skuCode: detailSku?.sku_code ?? '',
+    skuName: detailSku?.sku_name ?? '',
+    salePrice: detailSku ? String(detailSku.sale_price) : '99.00',
+    availableStock: detailSku ? String(detailSku.available_stock) : '100',
+  };
+}
+
+function resetEditForm(detailValue: ProductDetailResponseRaw) {
+  editForm.categoryId = String(detailValue.category_id);
+  editForm.productName = detailValue.product_name;
+  editForm.productSubTitle = detailValue.product_sub_title ?? '';
+  editForm.skus = detailValue.skus.length
+    ? detailValue.skus.map((sku, index) => buildEditableSku(sku, index))
+    : [buildEditableSku(undefined, 0)];
+}
+
 function resetStockForm(detailValue: ProductDetailResponseRaw | null) {
   stockForm.skuId = detailValue?.skus[0] ? String(detailValue.skus[0].id) : '';
   stockForm.deltaStock = '';
   stockForm.reason = '';
+}
+
+function addEditSku() {
+  editForm.skus.push(buildEditableSku(undefined, editForm.skus.length));
+}
+
+function removeEditSku(clientId: string) {
+  if (editForm.skus.length <= 1) {
+    setActionMessage('商品至少需要保留 1 个 SKU。', 'error');
+    return;
+  }
+
+  editForm.skus = editForm.skus.filter((item) => item.clientId !== clientId);
 }
 
 async function ensureCategories() {
@@ -381,11 +458,13 @@ async function openCreatePanel() {
 }
 
 async function openDetailPanel(product: ProductCard) {
-  panelMode.value = 'detail';
+  panelMode.value = 'edit';
   panelLoading.value = true;
   selectedProduct.value = product;
   try {
+    await ensureCategories();
     detail.value = await fetchProductDetail(product.id);
+    resetEditForm(detail.value);
     resetStockForm(detail.value);
   } catch (error) {
     setActionMessage(error instanceof Error ? error.message : '加载商品详情失败。', 'error');
@@ -397,6 +476,13 @@ async function openDetailPanel(product: ProductCard) {
 
 async function openStockPanel(product: ProductCard) {
   await openDetailPanel(product);
+}
+
+async function refreshSelectedProduct(productId: number) {
+  selectedProduct.value = products.find((item) => item.id === productId) ?? selectedProduct.value;
+  detail.value = await fetchProductDetail(productId);
+  resetEditForm(detail.value);
+  resetStockForm(detail.value);
 }
 
 async function handleCreateProduct() {
@@ -444,6 +530,65 @@ async function handleCreateProduct() {
   }
 }
 
+async function handleUpdateProduct() {
+  try {
+    if (!selectedProduct.value || !detail.value) {
+      throw new Error('请先选择要编辑的商品。');
+    }
+
+    const { merchantId, storeId } = getRequiredScope();
+    const categoryId = Number(editForm.categoryId);
+    if (!Number.isFinite(categoryId)) {
+      throw new Error('请选择有效的商品分类。');
+    }
+    if (!editForm.productName.trim()) {
+      throw new Error('商品名称不能为空。');
+    }
+    if (!editForm.skus.length) {
+      throw new Error('商品至少需要 1 个 SKU。');
+    }
+
+    const normalizedSkus = editForm.skus.map((sku) => {
+      const salePrice = Number(sku.salePrice);
+      const availableStock = Number(sku.availableStock);
+      if (!sku.skuCode.trim() || !sku.skuName.trim()) {
+        throw new Error('请完整填写 SKU 编码和名称。');
+      }
+      if (!Number.isFinite(salePrice) || salePrice < 0) {
+        throw new Error('SKU 销售价必须是大于等于 0 的数字。');
+      }
+      if (!Number.isFinite(availableStock) || availableStock < 0) {
+        throw new Error('SKU 库存必须是大于等于 0 的数字。');
+      }
+
+      return {
+        skuCode: sku.skuCode.trim(),
+        skuName: sku.skuName.trim(),
+        salePrice,
+        availableStock,
+      };
+    });
+
+    submitting.value = true;
+    await updateProduct({
+      productId: selectedProduct.value.id,
+      merchantId,
+      storeId,
+      categoryId,
+      productName: editForm.productName.trim(),
+      productSubTitle: editForm.productSubTitle.trim(),
+      skus: normalizedSkus,
+    });
+    await refreshProducts();
+    await refreshSelectedProduct(selectedProduct.value.id);
+    setActionMessage(`商品“${editForm.productName.trim()}”已保存。`);
+  } catch (error) {
+    setActionMessage(error instanceof Error ? error.message : '更新商品失败。', 'error');
+  } finally {
+    submitting.value = false;
+  }
+}
+
 async function handleAdjustStock() {
   try {
     if (!selectedProduct.value || !detail.value) {
@@ -471,9 +616,8 @@ async function handleAdjustStock() {
       deltaStock,
       reason: stockForm.reason.trim(),
     });
-    detail.value = await fetchProductDetail(selectedProduct.value.id);
-    resetStockForm(detail.value);
     await refreshProducts();
+    await refreshSelectedProduct(selectedProduct.value.id);
     setActionMessage(`商品“${selectedProduct.value.name}”的库存已更新。`);
   } catch (error) {
     setActionMessage(error instanceof Error ? error.message : '库存调整失败。', 'error');
@@ -494,9 +638,7 @@ async function handleTogglePublish(product: ProductCard) {
     }
     await refreshProducts();
     if (selectedProduct.value?.id === product.id) {
-      selectedProduct.value = products.find((item) => item.id === product.id) ?? null;
-      detail.value = await fetchProductDetail(product.id);
-      resetStockForm(detail.value);
+      await refreshSelectedProduct(product.id);
     }
   } catch (error) {
     setActionMessage(error instanceof Error ? error.message : '商品状态更新失败。', 'error');
@@ -757,11 +899,19 @@ onMounted(() => {
   gap: 12px;
 }
 
+.skuSectionHead {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
 .sectionTitle {
   font-size: 15px;
   font-weight: 800;
 }
 
+.skuEditorCard,
 .skuCard {
   display: flex;
   justify-content: space-between;
@@ -774,6 +924,13 @@ onMounted(() => {
 .skuName {
   font-size: 14px;
   font-weight: 800;
+}
+
+.skuEditorGrid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
 }
 
 .skuMeta,
@@ -798,7 +955,8 @@ onMounted(() => {
 @media (max-width: 960px) {
   .filters,
   .stats,
-  .detailSummary {
+  .detailSummary,
+  .skuEditorGrid {
     grid-template-columns: 1fr;
   }
 
@@ -813,6 +971,8 @@ onMounted(() => {
   .actions,
   .panelHead,
   .panelActions,
+  .skuSectionHead,
+  .skuEditorCard,
   .skuCard {
     flex-direction: column;
     align-items: flex-start;

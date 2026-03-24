@@ -34,6 +34,8 @@ import org.springframework.transaction.annotation.Transactional;
 class ProductControllerIntegrationTest {
 
     private static final long DEFAULT_TEMPLATE_ID = 2_000_001L;
+    private static final long PREMIUM_FRESH_TEMPLATE_ID = 2_000_002L;
+    private static final long COMMUNITY_DELIVERY_TEMPLATE_ID = 2_000_003L;
     private static final long MERCHANT_ID = 3001L;
     private static final long STORE_ID = 4001L;
 
@@ -163,6 +165,30 @@ class ProductControllerIntegrationTest {
                 .andExpect(jsonPath("$.data.skus.length()").value(2));
     }
 
+    @Test
+    void shouldExposeCategoryTemplatesEndpoint() throws Exception {
+        MvcResult result = mockMvc.perform(get("/api/product/category-templates"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andReturn();
+
+        JsonNode templates = readData(result);
+        assertThat(templates.isArray()).isTrue();
+        assertThat(templates.size()).isGreaterThanOrEqualTo(3);
+
+        JsonNode premiumTemplate = findTemplate(templates, PREMIUM_FRESH_TEMPLATE_ID);
+        assertThat(premiumTemplate.path("template_name").asText()).isEqualTo("品质精选生鲜模板");
+        assertThat(premiumTemplate.path("industry_code").asText()).isEqualTo("fresh_retail");
+        assertThat(premiumTemplate.path("categories").isArray()).isTrue();
+        assertThat(premiumTemplate.path("categories").size()).isGreaterThan(0);
+
+        JsonNode communityTemplate = findTemplate(templates, COMMUNITY_DELIVERY_TEMPLATE_ID);
+        assertThat(communityTemplate.path("template_name").asText()).isEqualTo("社区民生到家模板");
+        assertThat(communityTemplate.path("industry_code").asText()).isEqualTo("community_fresh");
+        assertThat(communityTemplate.path("categories").isArray()).isTrue();
+        assertThat(communityTemplate.path("categories").size()).isGreaterThan(0);
+    }
+
     private JsonNode readData(MvcResult result) throws Exception {
         return objectMapper.readTree(result.getResponse().getContentAsByteArray()).path("data");
     }
@@ -174,6 +200,15 @@ class ProductControllerIntegrationTest {
             }
         }
         throw new IllegalStateException("未找到商品: " + productId);
+    }
+
+    private JsonNode findTemplate(JsonNode templates, long templateId) {
+        for (JsonNode template : templates) {
+            if (template.path("id").asLong() == templateId) {
+                return template;
+            }
+        }
+        throw new IllegalStateException("未找到分类模板: " + templateId);
     }
 
     private String writeJson(Object value) throws Exception {
