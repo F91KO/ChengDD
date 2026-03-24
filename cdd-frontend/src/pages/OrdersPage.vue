@@ -2,7 +2,7 @@
   <WorkspaceLayout
     eyebrow="Orders"
     title="订单管理"
-    description="先提供筛选、状态总览和重点订单列表，后续再把详情抽屉、发货与退款动作接进来。"
+    description="当前页面已接入真实订单列表、详情、履约推进、状态日志和导出能力。"
   >
     <section :class="$style.toolbar">
       <div :class="$style.filters">

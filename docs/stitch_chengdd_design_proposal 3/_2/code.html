@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#FF6B00",
+                        "primary-hover": "#E66000",
+                        "on-primary": "#ffffff",
+                        "surface": "#f7f9ff",
+                        "on-surface": "#091d2e",
+                        "on-surface-variant": "#5a4136",
+                        "surface-container": "#e3efff",
+                        "surface-container-low": "#edf4ff",
+                        "surface-container-lowest": "#ffffff",
+                        "outline": "#8e7164",
+                        "outline-variant": "#e2bfb0",
+                    },
+                    fontFamily: {
+                        "headline": ["Manrope", "sans-serif"],
+                        "body": ["Manrope", "sans-serif"],
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.75rem", // 12px rounding
+                        "lg": "0.75rem",
+                        "xl": "1rem",
+                        "full": "9999px",
+                    },
+                    boxShadow: {
+                        'nexus': '0 4px 20px -2px rgba(9, 29, 46, 0.06), 0 2px 8px -2px rgba(9, 29, 46, 0.04)',
+                        'nexus-hover': '0 12px 30px -4px rgba(9, 29, 46, 0.08), 0 4px 12px -2px rgba(9, 29, 46, 0.06)',
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .orange-gradient {
+            background: linear-gradient(135deg, #FF6B00 0%, #FF8533 100%);
+        }
+        .tree-line {
+            position: relative;
+        }
+        .tree-line::after {
+            content: '';
+            position: absolute;
+            right: -24px;
+            top: 50%;
+            width: 24px;
+            height: 1px;
+            background: #e2e8f0;
+        }
+        body { font-family: 'Manrope', sans-serif; }
+    </style>
+</head>
+<body class="bg-surface text-on-surface antialiased">
+<!-- WorkspaceLayout Sidebar -->
+<aside class="flex flex-col fixed left-0 top-0 h-full w-64 bg-white border-r border-slate-100 z-50">
+<div class="p-8">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-xl orange-gradient flex items-center justify-center text-white font-black text-xl shadow-lg shadow-primary/20">C</div>
+<div>
+<h1 class="text-xl font-bold text-slate-900 leading-tight">程哒哒</h1>
+<p class="text-[10px] text-slate-400 tracking-widest uppercase font-bold">PRECISION CURATOR</p>
+</div>
+</div>
+</div>
+<nav class="flex-1 px-4 space-y-1.5">
+<a class="flex items-center gap-3 px-4 py-3 text-slate-500 hover:bg-slate-50 hover:text-primary transition-all rounded-xl group" href="#">
+<span class="material-symbols-outlined text-xl">dashboard</span>
+<span class="text-sm font-semibold">仪表盘</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-slate-500 hover:bg-slate-50 hover:text-primary transition-all rounded-xl group" href="#">
+<span class="material-symbols-outlined text-xl">category</span>
+<span class="text-sm font-semibold">类目管理</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 bg-primary/5 text-primary font-bold rounded-xl" href="#">
+<span class="material-symbols-outlined text-xl">layers</span>
+<span class="text-sm">模板配置</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-slate-500 hover:bg-slate-50 hover:text-primary transition-all rounded-xl group" href="#">
+<span class="material-symbols-outlined text-xl">inventory_2</span>
+<span class="text-sm font-semibold">库存管理</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-slate-500 hover:bg-slate-50 hover:text-primary transition-all rounded-xl group" href="#">
+<span class="material-symbols-outlined text-xl">settings</span>
+<span class="text-sm font-semibold">系统设置</span>
+</a>
+</nav>
+<div class="p-6 border-t border-slate-50 space-y-4">
+<button class="w-full orange-gradient text-white py-3.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2 shadow-lg shadow-primary/30 hover:shadow-primary/40 active:scale-[0.98] transition-all">
+<span class="material-symbols-outlined text-lg">add</span>
+                发布新商品
+            </button>
+<div class="flex items-center gap-3 px-4 py-2 text-slate-400 hover:text-slate-600 cursor-pointer transition-colors">
+<span class="material-symbols-outlined text-xl font-light">help</span>
+<span class="text-sm font-medium">帮助中心</span>
+</div>
+</div>
+</aside>
+<!-- Main Canvas -->
+<main class="ml-64 min-h-screen">
+<!-- Top Nav Bar -->
+<header class="flex justify-between items-center w-full px-10 py-5 sticky top-0 z-40 bg-white/80 backdrop-blur-xl border-b border-slate-100/50">
+<div class="flex items-center gap-4">
+<h2 class="text-lg font-bold text-slate-900">类目模板管理 <span class="ml-3 px-2.5 py-0.5 bg-primary/10 text-primary text-[10px] rounded-full font-black uppercase tracking-wider">确认版 V2.0</span></h2>
+</div>
+<div class="flex items-center gap-6">
+<div class="flex gap-4">
+<span class="material-symbols-outlined text-slate-400 hover:text-primary cursor-pointer transition-all">search</span>
+<div class="relative">
+<span class="material-symbols-outlined text-slate-400 hover:text-primary cursor-pointer transition-all">notifications</span>
+<span class="absolute top-0 right-0 w-2 h-2 bg-primary rounded-full ring-2 ring-white"></span>
+</div>
+<span class="material-symbols-outlined text-slate-400 hover:text-primary cursor-pointer transition-all">mail</span>
+</div>
+<div class="h-6 w-px bg-slate-200 mx-2"></div>
+<div class="flex items-center gap-3 pl-2 cursor-pointer group">
+<div class="text-right">
+<p class="text-xs font-bold text-slate-900 group-hover:text-primary transition-colors">管理员</p>
+<p class="text-[10px] text-slate-400">ChengDD Enterprise</p>
+</div>
+<img alt="User" class="w-10 h-10 rounded-xl object-cover ring-2 ring-transparent group-hover:ring-primary/20 transition-all shadow-sm" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBjicOJmP3maOFiRKdkM0S1SNOXidCYsxh3N59Hoz2LQqIiuDO2SwMO7Vj-4oos7zpSgBzZMhm-zQmll6aBpYdmtPR6p28GiNisjzONaNfhnkKtcmyHRmQMXQXkrCJOa2fs7CW33puL2irdRpd8rm_vIhtJBReNWBlMSt4J2gTwZt3p0LEro9KkYPXSaDumGN6y_5fPMGHQr13ljebld5VAU5dQ58ZhYueJaCFDXJ4RwEHGx0wE1oQ1M-RoXh8gHfcgVRZ6ZC_6uETh"/>
+</div>
+</div>
+</header>
+<div class="p-10 max-w-[1400px] mx-auto space-y-10">
+<!-- Header Section -->
+<div class="flex justify-between items-end">
+<div class="space-y-2">
+<h3 class="text-3xl font-black text-on-surface tracking-tight">分类模板配置</h3>
+<p class="text-on-surface-variant font-medium text-slate-500">管理平台全局零售类目结构，支持跨行业动态模板适配</p>
+</div>
+<div class="flex gap-3">
+<button class="px-6 py-3 bg-white text-slate-600 font-bold rounded-xl border border-slate-200 flex items-center gap-2 hover:bg-slate-50 transition-all shadow-sm">
+<span class="material-symbols-outlined text-lg">refresh</span>
+                        刷新视图
+                    </button>
+<button class="px-8 py-3 orange-gradient text-white font-bold rounded-xl flex items-center gap-2 shadow-xl shadow-primary/20 hover:shadow-primary/30 active:scale-95 transition-all">
+<span class="material-symbols-outlined text-lg">add_circle</span>
+                        新建分类模板
+                    </button>
+</div>
+</div>
+<!-- Stats Bento Grid -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+<div class="bg-white p-7 rounded-xl shadow-nexus flex flex-col justify-between h-36 relative overflow-hidden">
+<div class="absolute -right-2 -top-2 w-20 h-20 bg-primary/5 rounded-full"></div>
+<span class="text-slate-500 text-xs font-bold tracking-widest uppercase">模板总数</span>
+<div class="flex items-baseline gap-2">
+<span class="text-4xl font-black text-on-surface tracking-tighter">12</span>
+<span class="text-xs font-bold text-primary flex items-center gap-0.5"><span class="material-symbols-outlined text-[14px]">trending_up</span>+2</span>
+</div>
+</div>
+<div class="bg-white p-7 rounded-xl shadow-nexus flex flex-col justify-between h-36">
+<span class="text-slate-500 text-xs font-bold tracking-widest uppercase">当前推荐</span>
+<div class="flex items-baseline gap-2">
+<span class="text-4xl font-black text-on-surface tracking-tighter">5</span>
+<span class="px-2 py-0.5 bg-green-100 text-green-600 text-[10px] font-bold rounded-full">运行中</span>
+</div>
+</div>
+<div class="bg-white p-7 rounded-xl shadow-nexus flex flex-col justify-between h-36">
+<span class="text-slate-500 text-xs font-bold tracking-widest uppercase">行业覆盖率</span>
+<div class="flex items-baseline gap-2">
+<span class="text-4xl font-black text-on-surface tracking-tighter">94</span>
+<span class="text-xl font-bold text-primary tracking-tighter">%</span>
+</div>
+</div>
+<div class="bg-primary p-7 rounded-xl shadow-nexus shadow-primary/20 flex flex-col justify-between h-36 text-white overflow-hidden relative">
+<div class="absolute inset-0 bg-white/10 opacity-20 transform -skew-x-12 translate-x-10"></div>
+<span class="text-white/70 text-xs font-bold tracking-widest uppercase">累计接入商家</span>
+<div class="flex items-baseline gap-2">
+<span class="text-4xl font-black tracking-tighter">1.2k</span>
+<span class="text-xs font-medium text-white/80">家</span>
+</div>
+</div>
+</div>
+<!-- Template Grid -->
+<div class="space-y-6">
+<div class="flex items-center justify-between">
+<h4 class="text-xl font-bold text-on-surface flex items-center gap-3">
+<span class="w-1.5 h-6 bg-primary rounded-full"></span>
+                        核心模板库
+                    </h4>
+<div class="flex items-center gap-2 text-sm text-slate-400 font-medium">
+                        排序方式: <span class="text-on-surface font-bold cursor-pointer">最近更新</span>
+<span class="material-symbols-outlined text-sm">expand_more</span>
+</div>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-8">
+<!-- Template Card 1: Hema -->
+<div class="bg-white p-6 rounded-xl border-2 border-primary shadow-nexus-hover hover:scale-[1.02] transition-all cursor-pointer group">
+<div class="flex justify-between items-start mb-6">
+<div class="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-colors">
+<span class="material-symbols-outlined text-2xl">grocery</span>
+</div>
+<span class="px-3 py-1 bg-primary text-white text-[10px] font-black rounded-full uppercase tracking-widest">使用中</span>
+</div>
+<h5 class="text-xl font-black text-on-surface mb-2 tracking-tight">盒马生鲜标准模板</h5>
+<p class="text-sm text-slate-500 mb-8 leading-relaxed">融合新零售生鲜、半成品及冷链物流特性的动态分级体系，支持前置仓实时库存关联。</p>
+<div class="flex items-center justify-between py-4 border-t border-slate-50">
+<div>
+<p class="text-[9px] text-slate-400 font-bold uppercase tracking-wider mb-1">行业垂直</p>
+<p class="text-xs font-bold text-slate-700">生鲜/O2O零售</p>
+</div>
+<div class="text-center">
+<p class="text-[9px] text-slate-400 font-bold uppercase tracking-wider mb-1">层级</p>
+<p class="text-xs font-bold text-slate-700">3 级</p>
+</div>
+<div class="text-right">
+<p class="text-[9px] text-slate-400 font-bold uppercase tracking-wider mb-1">系统版本</p>
+<p class="text-xs font-bold text-primary">V2.4 Enterprise</p>
+</div>
+</div>
+</div>
+<!-- Template Card 2: 7-Eleven Style -->
+<div class="bg-white p-6 rounded-xl border border-slate-100 shadow-nexus hover:shadow-nexus-hover hover:border-primary/20 hover:scale-[1.02] transition-all cursor-pointer group">
+<div class="flex justify-between items-start mb-6">
+<div class="w-12 h-12 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400 group-hover:bg-primary/10 group-hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-2xl">store</span>
+</div>
+<span class="px-3 py-1 bg-slate-100 text-slate-500 text-[10px] font-black rounded-full uppercase tracking-widest">备选</span>
+</div>
+<h5 class="text-xl font-black text-on-surface mb-2 tracking-tight">7-Fresh/便利店模板</h5>
+<p class="text-sm text-slate-500 mb-8 leading-relaxed">针对高频快消品、鲜食加工品设计的精细化管理结构，优化单店SKU展示效率。</p>
+<div class="flex items-center justify-between py-4 border-t border-slate-50">
+<div>
+<p class="text-[9px] text-slate-400 font-bold uppercase tracking-wider mb-1">行业垂直</p>
+<p class="text-xs font-bold text-slate-700">连锁便利/商超</p>
+</div>
+<div class="text-center">
+<p class="text-[9px] text-slate-400 font-bold uppercase tracking-wider mb-1">层级</p>
+<p class="text-xs font-bold text-slate-700">4 级</p>
+</div>
+<div class="text-right">
+<p class="text-[9px] text-slate-400 font-bold uppercase tracking-wider mb-1">系统版本</p>
+<p class="text-xs font-bold text-slate-700">V1.8 Standard</p>
+</div>
+</div>
+</div>
+<!-- Template Card 3 -->
+<div class="bg-white p-6 rounded-xl border border-slate-100 shadow-nexus hover:shadow-nexus-hover hover:border-primary/20 hover:scale-[1.02] transition-all cursor-pointer group opacity-90">
+<div class="flex justify-between items-start mb-6">
+<div class="w-12 h-12 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400 group-hover:bg-primary/10 group-hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-2xl">checkroom</span>
+</div>
+<span class="px-3 py-1 bg-slate-100 text-slate-500 text-[10px] font-black rounded-full uppercase tracking-widest">草稿</span>
+</div>
+<h5 class="text-xl font-black text-on-surface mb-2 tracking-tight">快时尚通用分级</h5>
+<p class="text-sm text-slate-500 mb-8 leading-relaxed">支持服装属性（色、码、料）多维交叉分类，适配快反供应链SKU频繁迭代。</p>
+<div class="flex items-center justify-between py-4 border-t border-slate-50">
+<div>
+<p class="text-[9px] text-slate-400 font-bold uppercase tracking-wider mb-1">行业垂直</p>
+<p class="text-xs font-bold text-slate-700">服饰/美妆</p>
+</div>
+<div class="text-center">
+<p class="text-[9px] text-slate-400 font-bold uppercase tracking-wider mb-1">层级</p>
+<p class="text-xs font-bold text-slate-700">3 级</p>
+</div>
+<div class="text-right">
+<p class="text-[9px] text-slate-400 font-bold uppercase tracking-wider mb-1">系统版本</p>
+<p class="text-xs font-bold text-slate-700">V0.9 Beta</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Preview Section -->
+<div class="bg-slate-50/50 rounded-2xl p-8 border border-slate-100 space-y-8">
+<div class="flex justify-between items-center">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-2xl orange-gradient flex items-center justify-center text-white shadow-lg shadow-primary/20">
+<span class="material-symbols-outlined text-2xl">account_tree</span>
+</div>
+<div>
+<h4 class="text-xl font-black text-on-surface">模板详情实时预览</h4>
+<p class="text-sm font-medium text-slate-500">当前视角：<span class="text-primary font-bold">盒马生鲜标准模板 (Enterprise V2.4)</span></p>
+</div>
+</div>
+<button class="px-5 py-2.5 bg-white text-primary text-sm font-bold border border-primary/20 rounded-xl flex items-center gap-2 hover:bg-primary hover:text-white transition-all shadow-sm">
+<span class="material-symbols-outlined text-lg">edit_note</span>
+                        进入类目设计器
+                    </button>
+</div>
+<!-- Tree Structure Admin Tool -->
+<div class="bg-white rounded-2xl p-10 shadow-nexus border border-slate-50 min-h-[400px]">
+<div class="grid grid-cols-3 gap-16 relative">
+<!-- Level 1 -->
+<div class="space-y-4">
+<p class="text-[11px] font-black text-slate-400 tracking-[0.2em] mb-6 flex items-center gap-3">
+<span class="w-2 h-2 rounded-full bg-primary"></span> 核心一级分类 (ROOT)
+                            </p>
+<div class="tree-line">
+<div class="p-5 bg-primary text-white rounded-xl font-bold shadow-lg shadow-primary/30 flex justify-between items-center hover:scale-[1.02] transition-transform cursor-pointer">
+<span class="flex items-center gap-3">
+<span class="material-symbols-outlined text-lg">restaurant</span>
+                                        生鲜蔬菜
+                                    </span>
+<span class="material-symbols-outlined text-sm">chevron_right</span>
+</div>
+</div>
+<div class="p-5 bg-slate-50 text-slate-600 rounded-xl font-semibold hover:bg-slate-100 cursor-pointer transition-all flex justify-between items-center">
+<span class="flex items-center gap-3">
+<span class="material-symbols-outlined text-lg text-slate-400">nutrition</span>
+                                    时令水果
+                                </span>
+<span class="material-symbols-outlined text-sm text-slate-300">chevron_right</span>
+</div>
+<div class="p-5 bg-slate-50 text-slate-600 rounded-xl font-semibold hover:bg-slate-100 cursor-pointer transition-all flex justify-between items-center">
+<span class="flex items-center gap-3">
+<span class="material-symbols-outlined text-lg text-slate-400">egg_alt</span>
+                                    肉禽蛋品
+                                </span>
+<span class="material-symbols-outlined text-sm text-slate-300">chevron_right</span>
+</div>
+<div class="p-5 bg-slate-50 text-slate-600 rounded-xl font-semibold hover:bg-slate-100 cursor-pointer transition-all flex justify-between items-center">
+<span class="flex items-center gap-3">
+<span class="material-symbols-outlined text-lg text-slate-400">set_meal</span>
+                                    海鲜水产
+                                </span>
+<span class="material-symbols-outlined text-sm text-slate-300">chevron_right</span>
+</div>
+</div>
+<!-- Level 2 -->
+<div class="space-y-4">
+<p class="text-[11px] font-black text-slate-400 tracking-[0.2em] mb-6 flex items-center gap-3">
+<span class="w-2 h-2 rounded-full bg-slate-300"></span> 业务二级子类 (MID)
+                            </p>
+<div class="tree-line">
+<div class="p-5 bg-primary/5 text-primary border-2 border-primary/20 rounded-xl font-black flex justify-between items-center hover:bg-primary/10 transition-colors cursor-pointer">
+<span class="flex items-center gap-3">
+<span class="material-symbols-outlined text-lg">eco</span>
+                                        叶菜类
+                                    </span>
+<span class="material-symbols-outlined text-sm">chevron_right</span>
+</div>
+</div>
+<div class="p-5 bg-slate-50/50 text-slate-500 rounded-xl font-medium border border-transparent hover:border-slate-200 cursor-pointer transition-all flex justify-between items-center">
+<span class="flex items-center gap-3">根茎类</span>
+<span class="material-symbols-outlined text-sm text-slate-200">chevron_right</span>
+</div>
+<div class="p-5 bg-slate-50/50 text-slate-500 rounded-xl font-medium border border-transparent hover:border-slate-200 cursor-pointer transition-all flex justify-between items-center">
+<span class="flex items-center gap-3">瓜果类</span>
+<span class="material-symbols-outlined text-sm text-slate-200">chevron_right</span>
+</div>
+<div class="p-5 bg-slate-50/50 text-slate-500 rounded-xl font-medium border border-transparent hover:border-slate-200 cursor-pointer transition-all flex justify-between items-center">
+<span class="flex items-center gap-3">菌菇类</span>
+<span class="material-symbols-outlined text-sm text-slate-200">chevron_right</span>
+</div>
+</div>
+<!-- Level 3 -->
+<div class="space-y-4">
+<p class="text-[11px] font-black text-slate-400 tracking-[0.2em] mb-6 flex items-center gap-3">
+<span class="w-2 h-2 rounded-full bg-slate-200"></span> 终端叶子类目 (LEAF)
+                            </p>
+<div class="p-5 bg-white border-2 border-primary/40 text-primary rounded-xl font-black flex items-center gap-4 shadow-sm ring-4 ring-primary/5">
+<span class="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+<span class="material-symbols-outlined text-sm">spa</span>
+</span>
+                                菠菜 (Spinach)
+                            </div>
+<div class="p-5 bg-slate-50/30 text-slate-400 rounded-xl font-medium flex items-center gap-4 border border-slate-100 italic">
+<span class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center">
+<span class="material-symbols-outlined text-sm">spa</span>
+</span>
+                                油麦菜
+                            </div>
+<div class="p-5 bg-slate-50/30 text-slate-400 rounded-xl font-medium flex items-center gap-4 border border-slate-100 italic">
+<span class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center">
+<span class="material-symbols-outlined text-sm">spa</span>
+</span>
+                                小白菜
+                            </div>
+<div class="p-5 bg-slate-50/30 text-slate-400 rounded-xl font-medium flex items-center gap-4 border border-slate-100 italic">
+<span class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center">
+<span class="material-symbols-outlined text-sm">spa</span>
+</span>
+                                生菜
+                            </div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Footer -->
+<footer class="p-10 text-center border-t border-slate-100">
+<p class="text-[11px] text-slate-300 font-bold tracking-[0.3em] uppercase">ChengDD Enterprise UI Nexus © 2024 PRECISION CURATOR SYSTEM | ALL RIGHTS RESERVED</p>
+</footer>
+</main>
+</body></html>

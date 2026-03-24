@@ -32,6 +32,61 @@ export async function fetchReleaseTask(taskNo: string): Promise<ReleaseTaskRespo
   });
 }
 
+export async function updateReleaseTaskStatus(payload: {
+  taskNo: string;
+  targetStatus: string;
+  currentStepCode?: string;
+  errorCode?: string;
+  errorMessage?: string;
+}): Promise<ReleaseTaskResponseRaw> {
+  return requestApi<ReleaseTaskResponseRaw>({
+    method: 'POST',
+    url: `/release/tasks/${payload.taskNo}/status`,
+    data: {
+      target_status: payload.targetStatus,
+      current_step_code: payload.currentStepCode ?? '',
+      error_code: payload.errorCode ?? '',
+      error_message: payload.errorMessage ?? '',
+    },
+  });
+}
+
+export async function updateReleaseTaskStep(payload: {
+  taskNo: string;
+  stepCode: string;
+  stepName: string;
+  stepOrder: number;
+  stepStatus: string;
+  resultMessage?: string;
+  errorCode?: string;
+}): Promise<ReleaseTaskResponseRaw> {
+  return requestApi<ReleaseTaskResponseRaw>({
+    method: 'POST',
+    url: `/release/tasks/${payload.taskNo}/steps`,
+    data: {
+      step_code: payload.stepCode,
+      step_name: payload.stepName,
+      step_order: payload.stepOrder,
+      step_status: payload.stepStatus,
+      result_message: payload.resultMessage ?? '',
+      error_code: payload.errorCode ?? '',
+    },
+  });
+}
+
+export async function syncReleaseTaskResult(payload: {
+  taskNo: string;
+  mappingStatus: string;
+}): Promise<ReleaseTaskResponseRaw> {
+  return requestApi<ReleaseTaskResponseRaw>({
+    method: 'POST',
+    url: `/release/tasks/${payload.taskNo}/sync`,
+    data: {
+      mapping_status: payload.mappingStatus,
+    },
+  });
+}
+
 export async function rollbackReleaseTask(payload: {
   taskNo: string;
   rollbackTargetVersion: string;

@@ -3,8 +3,8 @@ export interface ReleaseTaskStepResponseRaw {
   step_name: string;
   step_order: number;
   step_status: string;
-  step_message: string | null;
-  last_error_message: string | null;
+  result_message: string | null;
+  error_code: string | null;
   retry_count: number;
   started_at: string | null;
   finished_at: string | null;

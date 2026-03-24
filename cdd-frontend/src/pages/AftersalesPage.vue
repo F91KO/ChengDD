@@ -61,6 +61,13 @@
             <div :class="$style.actions">
               <UiButton variant="secondary" @click="handleViewDetail(record)">查看详情</UiButton>
               <UiButton v-if="record.tabStatus === '待处理'" @click="handleApprove(record)">快速同意</UiButton>
+              <UiButton
+                v-if="record.tabStatus === '待处理'"
+                variant="secondary"
+                @click="handleReject(record)"
+              >
+                快速驳回
+              </UiButton>
             </div>
           </div>
         </div>
@@ -103,6 +110,31 @@
         </div>
       </section>
 
+      <section :class="$style.detailGrid">
+        <div>
+          <div :class="$style.updated">退款单号</div>
+          <div :class="$style.product">{{ detailRecord.refund_no || '-' }}</div>
+        </div>
+        <div>
+          <div :class="$style.updated">退款状态</div>
+          <div :class="$style.product">{{ detailRecord.refund_status || '-' }}</div>
+        </div>
+        <div>
+          <div :class="$style.updated">退货物流</div>
+          <div :class="$style.product">
+            {{
+              detailRecord.return_company && detailRecord.return_logistics_no
+                ? `${detailRecord.return_company} / ${detailRecord.return_logistics_no}`
+                : '-'
+            }}
+          </div>
+        </div>
+        <div>
+          <div :class="$style.updated">商家处理结果</div>
+          <div :class="$style.product">{{ detailRecord.merchant_result || '-' }}</div>
+        </div>
+      </section>
+
       <section :class="$style.detailBlock">
         <div :class="$style.sectionTitle">售后日志</div>
         <article
@@ -125,8 +157,39 @@
         />
         <div :class="$style.actions">
           <UiButton variant="secondary" @click="approveRemark = ''">清空意见</UiButton>
-          <UiButton :disabled="submitting" @click="submitApprove">
-            {{ submitting ? '正在提交...' : '提交审核' }}
+          <UiButton variant="secondary" :disabled="submitting" @click="submitReview('reject')">
+            {{ submitting ? '正在提交...' : '驳回申请' }}
+          </UiButton>
+          <UiButton :disabled="submitting" @click="submitReview('agree')">
+            {{ submitting ? '正在提交...' : '同意申请' }}
+          </UiButton>
+        </div>
+      </section>
+
+      <section v-if="detailRecord.after_sale_status === 'waiting_return'" :class="$style.detailBlock">
+        <div :class="$style.sectionTitle">退货物流录入</div>
+        <div :class="$style.detailGrid">
+          <label :class="$style.field">
+            <span :class="$style.updated">物流公司</span>
+            <input
+              v-model="returnCompany"
+              :class="$style.input"
+              placeholder="请输入物流公司"
+            />
+          </label>
+          <label :class="$style.field">
+            <span :class="$style.updated">物流单号</span>
+            <input
+              v-model="returnLogisticsNo"
+              :class="$style.input"
+              placeholder="请输入物流单号"
+            />
+          </label>
+        </div>
+        <div :class="$style.actions">
+          <UiButton variant="secondary" @click="resetReturnForm">清空物流信息</UiButton>
+          <UiButton :disabled="submitting" @click="submitReturnLogistics">
+            {{ submitting ? '正在提交...' : '提交退货物流' }}
           </UiButton>
         </div>
       </section>
@@ -142,7 +205,7 @@ import UiStatePanel from '@/components/base/UiStatePanel.vue';
 import UiTag from '@/components/base/UiTag.vue';
 import WorkspaceLayout from '@/components/layout/WorkspaceLayout.vue';
 import { fetchAfterSaleDetail, fetchAfterSaleList, fetchAfterSaleLogs } from '@/services/aftersales';
-import { reviewAfterSale } from '@/services/order';
+import { reviewAfterSale, submitAfterSaleReturn } from '@/services/order';
 import { useAuthStore } from '@/stores/auth';
 import type {
   OrderAfterSaleDetailResponseRaw,
@@ -179,6 +242,8 @@ const detailRecord = ref<OrderAfterSaleDetailResponseRaw | null>(null);
 const detailLogs = ref<OrderAfterSaleLogResponseRaw[]>([]);
 const detailTabStatus = ref('');
 const approveRemark = ref('同意售后申请，请按流程处理');
+const returnCompany = ref('');
+const returnLogisticsNo = ref('');
 const submitting = ref(false);
 
 const afterSaleStatePanel = computed(() => {
@@ -339,7 +404,12 @@ async function handleApprove(record: AfterSaleCardRecord) {
   await handleViewDetail(record);
 }
 
-async function submitApprove() {
+async function handleReject(record: AfterSaleCardRecord) {
+  await handleViewDetail(record);
+  approveRemark.value = '驳回售后申请，请补充凭证后再提交';
+}
+
+async function submitReview(reviewAction: 'agree' | 'reject') {
   try {
     const operatorId = authStore.userIdForQuery;
     if (!operatorId) {
@@ -354,14 +424,43 @@ async function submitApprove() {
       merchantId: detailRecord.value.merchant_id,
       storeId: detailRecord.value.store_id,
       operatorId,
-      reviewAction: 'agree',
+      reviewAction,
       merchantResult: approveRemark.value.trim(),
     });
     await loadAfterSales();
-    setActionMessage(`售后单 ${detailRecord.value.after_sale_no} 已完成审核。`);
+    setActionMessage(
+      `售后单 ${detailRecord.value.after_sale_no} 已${reviewAction === 'agree' ? '同意' : '驳回'}。`,
+    );
     closeDetailPanel();
   } catch (error) {
     setActionMessage(error instanceof Error ? error.message : '审核售后失败。', 'error');
+  } finally {
+    submitting.value = false;
+  }
+}
+
+async function submitReturnLogistics() {
+  try {
+    if (!detailRecord.value) {
+      throw new Error('请先选择售后单。');
+    }
+    if (!returnCompany.value.trim() || !returnLogisticsNo.value.trim()) {
+      throw new Error('请完整填写退货物流公司和单号。');
+    }
+    submitting.value = true;
+    await submitAfterSaleReturn({
+      afterSaleNo: detailRecord.value.after_sale_no,
+      merchantId: detailRecord.value.merchant_id,
+      storeId: detailRecord.value.store_id,
+      userId: detailRecord.value.user_id,
+      returnCompany: returnCompany.value.trim(),
+      returnLogisticsNo: returnLogisticsNo.value.trim(),
+    });
+    await loadAfterSales();
+    setActionMessage(`售后单 ${detailRecord.value.after_sale_no} 已提交退货物流。`);
+    closeDetailPanel();
+  } catch (error) {
+    setActionMessage(error instanceof Error ? error.message : '提交退货物流失败。', 'error');
   } finally {
     submitting.value = false;
   }
@@ -406,6 +505,12 @@ function closeDetailPanel() {
   detailLogs.value = [];
   detailTabStatus.value = '';
   approveRemark.value = '同意售后申请，请按流程处理';
+  resetReturnForm();
+}
+
+function resetReturnForm() {
+  returnCompany.value = '';
+  returnLogisticsNo.value = '';
 }
 </script>
 
@@ -452,6 +557,11 @@ function closeDetailPanel() {
   gap: 16px;
 }
 
+.field {
+  display: grid;
+  gap: 8px;
+}
+
 .logRow {
   display: grid;
   grid-template-columns: 0.8fr 1.6fr 1fr;
@@ -461,6 +571,7 @@ function closeDetailPanel() {
   background: rgba(237, 244, 255, 0.72);
 }
 
+.input,
 .textarea {
   min-height: 96px;
   width: 100%;
@@ -470,6 +581,11 @@ function closeDetailPanel() {
   background: rgba(237, 244, 255, 0.92);
   color: var(--cdd-text);
   resize: vertical;
+}
+
+.input {
+  min-height: 54px;
+  resize: none;
 }
 
 .card {

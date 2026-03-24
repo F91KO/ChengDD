@@ -10,6 +10,12 @@
       :title="dashboardStatePanel.title"
       :description="dashboardStatePanel.description"
     />
+    <UiStatePanel
+      v-if="quickActionNotice"
+      :tone="quickActionTone"
+      title="快捷动作结果"
+      :description="quickActionNotice"
+    />
 
     <section :class="$style.heroGrid">
       <UiCard elevated :class="$style.heroCard">
@@ -92,9 +98,10 @@
             v-for="action in quickActions"
             :key="action"
             :class="$style.actionButton"
+            :disabled="quickActionPending === action"
             @click="handleQuickAction(action)"
           >
-            {{ action }}
+            {{ quickActionPending === action ? `${action}处理中...` : action }}
           </button>
         </div>
       </UiCard>
@@ -111,7 +118,10 @@ import UiStatePanel from '@/components/base/UiStatePanel.vue';
 import UiTag from '@/components/base/UiTag.vue';
 import TrendChart from '@/components/charts/TrendChart.vue';
 import WorkspaceLayout from '@/components/layout/WorkspaceLayout.vue';
+import { createPublishRecord } from '@/services/config';
+import { exportOrdersCsv } from '@/services/order';
 import { fetchHomeEventDailyList, fetchMerchantDashboardSnapshot, fetchOrderDailyList } from '@/services/report';
+import { createReleaseTask } from '@/services/release';
 import { useAuthStore } from '@/stores/auth';
 import {
   buildDashboardTrendOption,
@@ -128,6 +138,9 @@ const dashboardNotice = ref('正在加载真实报表接口。');
 const metricItems = ref<DashboardMetricItem[]>([]);
 const taskItems = ref<DashboardTaskItem[]>([]);
 const trendOption = ref<EChartsOption>(buildDashboardTrendOption([], []));
+const quickActionNotice = ref('');
+const quickActionTone = ref<'info' | 'error'>('info');
+const quickActionPending = ref('');
 
 const dashboardStatePanel = computed(() => {
   if (!authStore.businessScope.derivedFromContext) {
@@ -250,17 +263,116 @@ function clearDashboard(message: string, mode: 'remote' | 'error' = 'error') {
   trendOption.value = buildDashboardTrendOption([], []);
 }
 
-function handleQuickAction(action: string) {
-  if (action === '新增商品') {
-    void router.push('/products');
-    return;
+function setQuickActionNotice(message: string, tone: 'info' | 'error' = 'info') {
+  quickActionNotice.value = message;
+  quickActionTone.value = tone;
+}
+
+function parseNumericTail(raw: string | null | undefined): number | null {
+  if (!raw) {
+    return null;
   }
-  if (action === '发布模板' || action === '同步配置') {
-    void router.push('/config');
-    return;
+
+  const matched = raw.match(/(\d+)$/);
+  if (!matched) {
+    return null;
   }
-  if (action === '导出订单') {
-    void router.push('/orders');
+
+  return Number(matched[1]);
+}
+
+async function downloadOrdersFromDashboard() {
+  const merchantId = authStore.merchantIdForQuery;
+  const storeId = authStore.storeIdForQuery;
+  const userId = authStore.userIdForQuery;
+  if (!merchantId || !storeId) {
+    throw new Error('当前缺少商家或店铺上下文，无法导出订单。');
+  }
+
+  const blob = await exportOrdersCsv({
+    merchantId,
+    storeId,
+    userId,
+  });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = `orders-${merchantId}-${storeId}.csv`;
+  anchor.click();
+  URL.revokeObjectURL(url);
+  setQuickActionNotice('订单导出已开始，请查看浏览器下载列表。');
+}
+
+async function syncConfigFromDashboard() {
+  const merchantId = authStore.context?.merchantId;
+  const storeId = authStore.context?.storeId;
+  if (!merchantId || !storeId) {
+    throw new Error('当前缺少配置中心上下文，无法发起配置同步。');
+  }
+
+  const record = await createPublishRecord({
+    merchantId,
+    storeId,
+    operatorName: authStore.user.operatorName || '商家管理员',
+    publishNote: '工作台快捷动作发起配置同步',
+  });
+  setQuickActionNotice(`已创建配置同步记录 ${record.task_no}，正在跳转配置中心。`);
+  await router.push('/config');
+}
+
+async function createReleaseFromDashboard() {
+  const merchantId = authStore.merchantIdForQuery;
+  const storeId = authStore.storeIdForQuery;
+  const miniProgramId = parseNumericTail(authStore.context?.miniProgramId) ?? storeId;
+  if (!merchantId || !storeId || !miniProgramId) {
+    throw new Error('当前缺少小程序发布上下文，无法创建发布任务。');
+  }
+
+  const task = await createReleaseTask({
+    merchantId,
+    storeId,
+    miniProgramId,
+    templateVersionId: 9800001,
+    releaseType: 'full_release',
+    triggerSource: 'dashboard_manual',
+    releaseSnapshotJson: JSON.stringify({
+      source: 'dashboard_quick_action',
+      operator_name: authStore.user.operatorName,
+      merchant_id: merchantId,
+      store_id: storeId,
+    }),
+  });
+  setQuickActionNotice(`已创建发布任务 ${task.task_no}，当前状态 ${task.release_status}。`);
+  await router.push({
+    path: '/releases',
+    query: {
+      task_no: task.task_no,
+    },
+  });
+}
+
+async function handleQuickAction(action: string) {
+  try {
+    quickActionPending.value = action;
+    if (action === '新增商品') {
+      await router.push('/products');
+      return;
+    }
+    if (action === '导出订单') {
+      await downloadOrdersFromDashboard();
+      return;
+    }
+    if (action === '同步配置') {
+      await syncConfigFromDashboard();
+      return;
+    }
+    if (action === '发布模板') {
+      await createReleaseFromDashboard();
+    }
+  } catch (error) {
+    setQuickActionNotice(error instanceof Error ? error.message : `${action}执行失败。`, 'error');
+  } finally {
+    quickActionPending.value = '';
   }
 }
 

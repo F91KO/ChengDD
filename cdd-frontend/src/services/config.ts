@@ -153,6 +153,13 @@ export async function fetchPublishRecords(params: {
   });
 }
 
+export async function fetchPublishRecord(taskNo: string): Promise<ConfigPublishRecordResponseRaw> {
+  return requestApi<ConfigPublishRecordResponseRaw>({
+    method: 'GET',
+    url: `/config/publish-records/${taskNo}`,
+  });
+}
+
 export async function createPublishRecord(payload: {
   merchantId: string;
   storeId: string;
