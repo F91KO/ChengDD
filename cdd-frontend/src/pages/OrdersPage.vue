@@ -100,11 +100,11 @@
             <div :class="$style.rowActions">
               <UiButton variant="secondary" @click="handleViewDetail(order)">查看详情</UiButton>
               <UiButton
-                v-if="order.status === '待发货' || order.status === '运输中'"
+                v-if="canProgressDelivery(order)"
                 variant="secondary"
                 @click="openDeliveryPanel(order)"
               >
-                推进履约
+                {{ getDeliveryActionLabel(order) }}
               </UiButton>
             </div>
           </div>
@@ -254,16 +254,16 @@
           </div>
         </section>
 
-        <section v-if="deliveryTarget" :class="$style.deliveryBlock">
+        <section v-if="deliveryTarget && deliveryAction" :class="$style.deliveryBlock">
           <div :class="$style.deliveryHead">
             <div>
               <div :class="$style.sectionTitle">履约操作</div>
               <div :class="$style.deliveryHint">
-                当前将订单推进到 {{ deliveryTarget.status === '待发货' ? '已发货' : '已签收' }}
+                当前将订单推进到 {{ deliveryAction.targetLabel }}
               </div>
             </div>
-            <UiTag :tone="deliveryTarget.status === '待发货' ? 'primary' : 'info'">
-              {{ deliveryTarget.status === '待发货' ? '发货推进' : '签收推进' }}
+            <UiTag :tone="deliveryAction.tone">
+              {{ deliveryAction.panelLabel }}
             </UiTag>
           </div>
 
@@ -276,7 +276,7 @@
           <div :class="$style.toolbarActions">
             <UiButton variant="secondary" @click="deliveryRemark = ''">清空备注</UiButton>
             <UiButton :disabled="submitting" @click="submitDelivery">
-              {{ submitting ? '正在提交...' : '提交履约' }}
+              {{ submitting ? '正在提交...' : deliveryAction.buttonLabel }}
             </UiButton>
           </div>
         </section>
@@ -286,7 +286,7 @@
 </template>
 
 <script setup lang="ts">
-import { nextTick, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import UiButton from '@/components/base/UiButton.vue';
 import UiCard from '@/components/base/UiCard.vue';
 import UiPagination from '@/components/base/UiPagination.vue';
@@ -313,6 +313,14 @@ const deliveryTarget = ref<OrderCard | null>(null);
 const deliveryRemark = ref('');
 const submitting = ref(false);
 const detailAnchor = ref<HTMLElement | null>(null);
+
+type DeliveryAction = {
+  nextStatus: 'preparing' | 'shipped' | 'received';
+  buttonLabel: string;
+  panelLabel: string;
+  targetLabel: string;
+  tone: 'primary' | 'info' | 'success';
+};
 
 function setActionMessage(message: string, tone: 'info' | 'error' = 'info') {
   actionMessage.value = message;
@@ -362,7 +370,10 @@ function formatOrderStatus(status: string | null | undefined): string {
   if (normalized.includes('pending_pay')) {
     return '待支付';
   }
-  if (normalized === 'paid' || normalized.includes('preparing')) {
+  if (normalized.includes('preparing')) {
+    return '备货中';
+  }
+  if (normalized === 'paid') {
     return '已支付';
   }
   if (normalized.includes('shipped')) {
@@ -405,11 +416,14 @@ function formatDeliveryStatus(status: string | null | undefined): string {
   if (normalized.includes('pending')) {
     return '待履约';
   }
+  if (normalized.includes('preparing')) {
+    return '备货中';
+  }
+  if (normalized.includes('delivered') || normalized.includes('received') || normalized.includes('signed')) {
+    return '已签收';
+  }
   if (normalized.includes('ship') || normalized.includes('deliver')) {
     return '配送中';
-  }
-  if (normalized.includes('received') || normalized.includes('signed')) {
-    return '已签收';
   }
   if (normalized.includes('finish') || normalized.includes('complete')) {
     return '已完成';
@@ -436,6 +450,55 @@ function formatOperateType(type: string | null | undefined): string {
   }
   return type || '状态更新';
 }
+
+function getDeliveryAction(order: Pick<OrderCard, 'statusRaw' | 'deliveryStatusRaw'>): DeliveryAction | null {
+  const orderStatus = (order.statusRaw || '').toLowerCase();
+  const deliveryStatus = (order.deliveryStatusRaw || '').toLowerCase();
+
+  if (orderStatus === 'paid' && deliveryStatus === 'pending') {
+    return {
+      nextStatus: 'preparing',
+      buttonLabel: '开始备货',
+      panelLabel: '备货推进',
+      targetLabel: '备货中',
+      tone: 'primary',
+    };
+  }
+  if (orderStatus.includes('preparing') || deliveryStatus.includes('preparing')) {
+    return {
+      nextStatus: 'shipped',
+      buttonLabel: '推进发货',
+      panelLabel: '发货推进',
+      targetLabel: '已发货',
+      tone: 'info',
+    };
+  }
+  if (orderStatus.includes('shipped') || deliveryStatus.includes('shipped')) {
+    return {
+      nextStatus: 'received',
+      buttonLabel: '确认签收',
+      panelLabel: '签收推进',
+      targetLabel: '已签收',
+      tone: 'success',
+    };
+  }
+  return null;
+}
+
+function canProgressDelivery(order: Pick<OrderCard, 'statusRaw' | 'deliveryStatusRaw'>): boolean {
+  return getDeliveryAction(order) !== null;
+}
+
+function getDeliveryActionLabel(order: Pick<OrderCard, 'statusRaw' | 'deliveryStatusRaw'>): string {
+  return getDeliveryAction(order)?.buttonLabel ?? '';
+}
+
+const deliveryAction = computed(() => {
+  if (!deliveryTarget.value) {
+    return null;
+  }
+  return getDeliveryAction(deliveryTarget.value);
+});
 
 async function refreshOrders() {
   await loadOrders(true, filterToOrderStatus(activeFilter.value), orderPagination.page, orderPagination.pageSize);
@@ -476,13 +539,14 @@ async function openDeliveryPanel(order: OrderCard) {
 }
 
 async function submitDelivery() {
-  if (!deliveryTarget.value) {
+  if (!deliveryTarget.value || !deliveryAction.value) {
     return;
   }
 
   try {
     submitting.value = true;
-    const nextStatus = deliveryTarget.value.status === '待发货' ? 'shipped' : 'received';
+    const action = deliveryAction.value;
+    const nextStatus = action.nextStatus;
     const orderNo = deliveryTarget.value.orderNo;
     await updateOrderDelivery({
       orderNo,
@@ -497,7 +561,7 @@ async function submitDelivery() {
     const refreshedTarget = orders.find((item) => item.orderNo === orderNo) ?? deliveryTarget.value;
     await handleViewDetail(refreshedTarget);
     deliveryTarget.value = refreshedTarget;
-    setActionMessage(`订单 ${orderNo} 已推进到 ${nextStatus === 'shipped' ? '已发货' : '已签收'}。`);
+    setActionMessage(`订单 ${orderNo} 已推进到 ${action.targetLabel}。`);
   } catch (error) {
     setActionMessage(error instanceof Error ? error.message : '履约推进失败。', 'error');
   } finally {
@@ -506,7 +570,7 @@ async function submitDelivery() {
 }
 
 function openDeliveryPanelFromList() {
-  const target = orders.find((item) => item.status === '待发货' || item.status === '运输中');
+  const target = orders.find((item) => canProgressDelivery(item));
   if (!target) {
     setActionMessage('当前列表没有可推进履约的订单。', 'error');
     return;

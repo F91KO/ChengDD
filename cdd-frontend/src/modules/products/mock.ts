@@ -212,7 +212,7 @@ export async function loadProducts(force = false, status?: string, keyword?: str
     }
 
     try {
-      const [initialPage, categories, reportRows, onShelfPage, draftPage, offShelfPage] = await Promise.all([
+      const [initialPage, categoryPage, reportRows, onShelfPage, draftPage, offShelfPage] = await Promise.all([
         fetchProductList({
           merchantId,
           storeId,
@@ -221,7 +221,12 @@ export async function loadProducts(force = false, status?: string, keyword?: str
           page: normalizedPage,
           pageSize: normalizedPageSize,
         }),
-        fetchCategoryList({ merchantId, storeId }).catch(() => []),
+        fetchCategoryList({ merchantId, storeId, page: 1, pageSize: 200 }).catch(() => ({
+          list: [],
+          page: 1,
+          page_size: 200,
+          total: 0,
+        })),
         fetchProductDailyList({ merchantId, storeId }).catch(() => []),
         fetchProductList({ merchantId, storeId, status: 'on_shelf', keyword: normalizedKeyword || undefined, page: 1, pageSize: 1 }),
         fetchProductList({ merchantId, storeId, status: 'draft', keyword: normalizedKeyword || undefined, page: 1, pageSize: 1 }),
@@ -241,7 +246,7 @@ export async function loadProducts(force = false, status?: string, keyword?: str
         })
         : initialPage;
 
-      const categoryMap = new Map(categories.map((item) => [item.id, item]));
+      const categoryMap = new Map(categoryPage.list.map((item) => [item.id, item]));
       const reportMap = buildReportMap(reportRows);
 
       replaceProductData(

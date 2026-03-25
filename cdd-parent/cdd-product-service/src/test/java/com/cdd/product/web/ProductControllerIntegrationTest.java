@@ -176,8 +176,12 @@ class ProductControllerIntegrationTest {
                 .andExpect(jsonPath("$.code").value(0))
                 .andReturn();
 
-        JsonNode templates = readData(result);
+        JsonNode data = readData(result);
+        assertThat(data.path("page").asInt()).isEqualTo(1);
+        assertThat(data.path("page_size").asInt()).isEqualTo(20);
+        JsonNode templates = data.path("list");
         assertThat(templates.isArray()).isTrue();
+        assertThat(data.path("total").asInt()).isGreaterThanOrEqualTo(3);
         assertThat(templates.size()).isGreaterThanOrEqualTo(3);
 
         JsonNode premiumTemplate = findTemplate(templates, PREMIUM_FRESH_TEMPLATE_ID);
@@ -191,6 +195,30 @@ class ProductControllerIntegrationTest {
         assertThat(communityTemplate.path("industry_code").asText()).isEqualTo("community_fresh");
         assertThat(communityTemplate.path("categories").isArray()).isTrue();
         assertThat(communityTemplate.path("categories").size()).isGreaterThan(0);
+    }
+
+    @Test
+    void shouldExposeCategoryListAsPagedTreeOrder() throws Exception {
+        service.initializeCategoryTree(new InitializeCategoryTreeRequest(MERCHANT_ID, STORE_ID, DEFAULT_TEMPLATE_ID));
+
+        MvcResult result = mockMvc.perform(get("/api/product/categories")
+                        .param("merchant_id", String.valueOf(MERCHANT_ID))
+                        .param("store_id", String.valueOf(STORE_ID))
+                        .param("page", "1")
+                        .param("page_size", "20"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andReturn();
+
+        JsonNode data = readData(result);
+        assertThat(data.path("page").asInt()).isEqualTo(1);
+        assertThat(data.path("page_size").asInt()).isEqualTo(20);
+        assertThat(data.path("total").asInt()).isGreaterThan(0);
+        JsonNode categories = data.path("list");
+        assertThat(categories.isArray()).isTrue();
+        assertThat(categories.size()).isGreaterThan(0);
+        assertThat(categories.get(0).path("parent_id").asLong()).isEqualTo(0L);
+        assertThat(categories.get(0).path("category_level").asInt()).isEqualTo(1);
     }
 
     private JsonNode readData(MvcResult result) throws Exception {

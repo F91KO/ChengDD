@@ -142,21 +142,32 @@ export async function adjustProductStock(payload: {
 export async function fetchCategoryList(params: {
   merchantId: number;
   storeId: number;
-}): Promise<ProductCategoryResponseRaw[]> {
-  return requestApi<ProductCategoryResponseRaw[]>({
+  page?: number;
+  pageSize?: number;
+}): Promise<PageResponseRaw<ProductCategoryResponseRaw>> {
+  return requestApi<PageResponseRaw<ProductCategoryResponseRaw>>({
     method: 'GET',
     url: '/product/categories',
     params: {
       merchant_id: params.merchantId,
       store_id: params.storeId,
+      page: params.page,
+      page_size: params.pageSize,
     },
   });
 }
 
-export async function fetchCategoryTemplateList(): Promise<ProductCategoryTemplateResponseRaw[]> {
-  return requestApi<ProductCategoryTemplateResponseRaw[]>({
+export async function fetchCategoryTemplateList(params?: {
+  page?: number;
+  pageSize?: number;
+}): Promise<PageResponseRaw<ProductCategoryTemplateResponseRaw>> {
+  return requestApi<PageResponseRaw<ProductCategoryTemplateResponseRaw>>({
     method: 'GET',
     url: '/product/category-templates',
+    params: {
+      page: params?.page,
+      page_size: params?.pageSize,
+    },
   });
 }
 

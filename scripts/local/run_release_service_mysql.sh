@@ -3,13 +3,9 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 parent_root="$repo_root/cdd-parent"
-source "$repo_root/scripts/local/backend_runtime_guard.sh"
+source "$repo_root/scripts/local/run_packaged_module.sh"
 
-if command -v /usr/libexec/java_home >/dev/null 2>&1; then
-  export JAVA_HOME="${JAVA_HOME:-$(/usr/libexec/java_home -v 21)}"
-fi
-
-if [[ -z "${JAVA_HOME:-}" ]]; then
+if ! resolve_java_home 21; then
   echo "未设置 JAVA_HOME，且未自动发现 JDK 21。" >&2
   exit 1
 fi
@@ -51,9 +47,4 @@ export CDD_RELEASE_DB_DRIVER_CLASS_NAME="${CDD_RELEASE_DB_DRIVER_CLASS_NAME:-com
 export CDD_RELEASE_SQL_INIT_MODE="${CDD_RELEASE_SQL_INIT_MODE:-never}"
 release_port="${CDD_RELEASE_SERVER_PORT:-8087}"
 
-record_backend_runtime_state "$repo_root" "release-service" "cdd-release-service" "$release_port"
-
-mvn -q -s "$settings_file" "-Dmaven.repo.local=$work_repo" -f "${parent_root}/pom.xml" \
-  -pl cdd-release-service -am \
-  spring-boot:run \
-  -Dspring-boot.run.arguments="--server.port=${release_port}"
+run_packaged_module "$repo_root" "$parent_root" "$settings_file" "$work_repo" "cdd-release-service" "release-service" "$release_port"

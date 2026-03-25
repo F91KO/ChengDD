@@ -48,7 +48,7 @@
 
         <div :class="$style.templateList">
           <button
-            v-for="template in sortedTemplates"
+            v-for="template in pagedTemplates"
             :key="template.id"
             type="button"
             :class="[$style.templateCard, selectedTemplate?.id === template.id ? $style.templateCardActive : '']"
@@ -71,6 +71,16 @@
             </div>
           </button>
         </div>
+
+        <UiPagination
+          v-if="templatePagination.total"
+          :page="templatePagination.page"
+          :page-size="templatePagination.pageSize"
+          :total="templatePagination.total"
+          :disabled="loading"
+          @update:page="handleTemplatePageChange"
+          @update:page-size="handleTemplatePageSizeChange"
+        />
       </UiCard>
 
       <UiCard elevated :class="$style.sidePanel">
@@ -200,6 +210,7 @@ import { computed, onMounted, reactive, ref } from 'vue';
 import UiButton from '@/components/base/UiButton.vue';
 import UiCard from '@/components/base/UiCard.vue';
 import UiInput from '@/components/base/UiInput.vue';
+import UiPagination from '@/components/base/UiPagination.vue';
 import UiStatePanel from '@/components/base/UiStatePanel.vue';
 import UiTag from '@/components/base/UiTag.vue';
 import WorkspaceLayout from '@/components/layout/WorkspaceLayout.vue';
@@ -223,6 +234,11 @@ const actionTone = ref<'info' | 'error'>('info');
 const templates = ref<ProductCategoryTemplateResponseRaw[]>([]);
 const selectedTemplateId = ref<number | null>(null);
 const showCreateForm = ref(false);
+const templatePagination = reactive({
+  page: 1,
+  pageSize: 10,
+  total: 0,
+});
 
 const form = reactive({
   templateName: '',
@@ -268,11 +284,15 @@ const sortedTemplates = computed(() =>
   }),
 );
 
+const pagedTemplates = computed(() => {
+  return sortedTemplates.value;
+});
+
 const stats = computed(() => [
-  { label: '模板总数', value: String(templates.value.length), hint: '平台可选模板', emphasis: false },
-  { label: '推荐模板', value: String(templates.value.filter((item) => item.status === 'recommended').length), hint: '建议优先初始化', emphasis: false },
-  { label: '行业覆盖率', value: templates.value.length ? `${Math.round((new Set(templates.value.map((item) => item.industry_code)).size / templates.value.length) * 100)}%` : '0%', hint: '行业编码占比', emphasis: false },
-  { label: '启用模板', value: String(templates.value.filter((item) => item.status !== 'disabled').length), hint: '当前可初始化', emphasis: true },
+  { label: '模板总数', value: String(templatePagination.total), hint: '平台可选模板', emphasis: false },
+  { label: '当前页推荐', value: String(templates.value.filter((item) => item.status === 'recommended').length), hint: '建议优先初始化', emphasis: false },
+  { label: '当前页行业覆盖率', value: templates.value.length ? `${Math.round((new Set(templates.value.map((item) => item.industry_code)).size / templates.value.length) * 100)}%` : '0%', hint: '当前页行业编码占比', emphasis: false },
+  { label: '当前页启用', value: String(templates.value.filter((item) => item.status !== 'disabled').length), hint: '当前页可初始化', emphasis: true },
 ]);
 
 function setActionMessage(message: string, tone: 'info' | 'error' = 'info') {
@@ -373,6 +393,17 @@ function toggleCreateForm() {
   }
 }
 
+function handleTemplatePageChange(page: number) {
+  templatePagination.page = page;
+  void loadTemplates();
+}
+
+function handleTemplatePageSizeChange(pageSize: number) {
+  templatePagination.page = 1;
+  templatePagination.pageSize = pageSize;
+  void loadTemplates();
+}
+
 function addNode() {
   form.nodes.push(buildNode(undefined, form.nodes.length));
 }
@@ -388,10 +419,16 @@ function removeNode(clientId: string) {
 async function loadTemplates() {
   loading.value = true;
   try {
-    const templateList = await fetchCategoryTemplateList();
-    templates.value = templateList;
-    if (!selectedTemplateId.value && templateList[0]) {
-      selectedTemplateId.value = templateList[0].id;
+    const templatePage = await fetchCategoryTemplateList({
+      page: templatePagination.page,
+      pageSize: templatePagination.pageSize,
+    });
+    templates.value = templatePage.list;
+    templatePagination.page = templatePage.page;
+    templatePagination.pageSize = templatePage.page_size;
+    templatePagination.total = templatePage.total;
+    if (!selectedTemplateId.value || !templatePage.list.some((item) => item.id === selectedTemplateId.value)) {
+      selectedTemplateId.value = templatePage.list[0]?.id ?? null;
     }
   } catch (error) {
     setActionMessage(error instanceof Error ? error.message : '加载分类模板失败。', 'error');
@@ -446,8 +483,9 @@ async function handleCreateTemplate() {
         };
       }),
     });
+    templatePagination.page = 1;
     await loadTemplates();
-    selectedTemplateId.value = created.id;
+    selectedTemplateId.value = templates.value.find((item) => item.id === created.id)?.id ?? templates.value[0]?.id ?? null;
     showCreateForm.value = false;
     resetForm();
     setActionMessage(`模板“${created.template_name}”已创建。`);

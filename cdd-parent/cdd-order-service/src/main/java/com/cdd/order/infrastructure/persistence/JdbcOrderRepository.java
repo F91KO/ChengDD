@@ -8,6 +8,8 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -1518,8 +1520,22 @@ public class JdbcOrderRepository implements OrderRepository {
             args.add(userId);
         }
         if (StringUtils.hasText(orderStatus)) {
-            whereClause.append(" AND order_status = ?\n");
-            args.add(orderStatus.trim().toLowerCase());
+            List<String> orderStatuses = Arrays.stream(orderStatus.split(","))
+                    .map(String::trim)
+                    .filter(StringUtils::hasText)
+                    .map(String::toLowerCase)
+                    .distinct()
+                    .toList();
+            if (!orderStatuses.isEmpty()) {
+                if (orderStatuses.size() == 1) {
+                    whereClause.append(" AND order_status = ?\n");
+                } else {
+                    whereClause.append(" AND order_status IN (")
+                            .append(String.join(", ", Collections.nCopies(orderStatuses.size(), "?")))
+                            .append(")\n");
+                }
+                args.addAll(orderStatuses);
+            }
         }
         return new OrderListQuery(whereClause.toString(), List.copyOf(args));
     }

@@ -49,8 +49,10 @@ public class ProductController {
     }
 
     @GetMapping("/category-templates")
-    public ApiResponse<List<CategoryTemplateResponse>> listCategoryTemplates() {
-        return ApiResponses.success(productCatalogApplicationService.listCategoryTemplates());
+    public ApiResponse<PageResponse<CategoryTemplateResponse>> listCategoryTemplates(
+            @RequestParam(name = "page", required = false, defaultValue = "1") Integer page,
+            @RequestParam(name = "page_size", required = false, defaultValue = "20") Integer pageSize) {
+        return ApiResponses.success(productCatalogApplicationService.pageCategoryTemplates(new PageQuery(page, pageSize)));
     }
 
     @PostMapping("/categories/init")
@@ -72,10 +74,15 @@ public class ProductController {
     }
 
     @GetMapping("/categories")
-    public ApiResponse<List<CategoryResponse>> listCategories(
+    public ApiResponse<PageResponse<CategoryResponse>> listCategories(
             @RequestParam(name = "merchant_id") @NotNull(message = "商家ID不能为空") Long merchantId,
-            @RequestParam(name = "store_id") @NotNull(message = "门店ID不能为空") Long storeId) {
-        return ApiResponses.success(productCatalogApplicationService.listCategories(merchantId, storeId));
+            @RequestParam(name = "store_id") @NotNull(message = "门店ID不能为空") Long storeId,
+            @RequestParam(name = "page", required = false, defaultValue = "1") Integer page,
+            @RequestParam(name = "page_size", required = false, defaultValue = "20") Integer pageSize) {
+        return ApiResponses.success(productCatalogApplicationService.pageCategories(
+                merchantId,
+                storeId,
+                new PageQuery(page, pageSize)));
     }
 
     @PostMapping("/spu")

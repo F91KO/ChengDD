@@ -197,6 +197,49 @@ class OrderControllerIntegrationTest {
     }
 
     @Test
+    void shouldSupportMultiOrderStatusFilterForOrderListAndExport() throws Exception {
+        long merchantId = 3015L;
+        long storeId = 4015L;
+        long userId = 5015L;
+
+        String preparingOrderNo = createPaidOrderByCallback(merchantId, storeId, userId, new BigDecimal("42.00"), "callback-multi-filter-1");
+
+        mockMvc.perform(post("/api/order/orders/{order_no}/delivery", preparingOrderNo)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(writeJson(Map.of(
+                                "merchant_id", merchantId,
+                                "store_id", storeId,
+                                "user_id", userId,
+                                "delivery_status", "preparing",
+                                "remark", "开始备货"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.order_status").value("preparing"))
+                .andExpect(jsonPath("$.data.delivery_status").value("preparing"));
+
+        String paidOrderNo = createPaidOrderByCallback(merchantId, storeId, userId + 1, new BigDecimal("58.00"), "callback-multi-filter-2");
+
+        mockMvc.perform(get("/api/order/orders")
+                        .param("merchant_id", String.valueOf(merchantId))
+                        .param("store_id", String.valueOf(storeId))
+                        .param("order_status", "paid,preparing"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.total").value(2))
+                .andExpect(jsonPath("$.data.list[0].order_no").value(paidOrderNo))
+                .andExpect(jsonPath("$.data.list[1].order_no").value(preparingOrderNo));
+
+        mockMvc.perform(get("/api/order/orders/export")
+                        .param("merchant_id", String.valueOf(merchantId))
+                        .param("store_id", String.valueOf(storeId))
+                        .param("order_status", "paid,preparing"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Disposition", containsString("orders-export.csv")))
+                .andExpect(content().string(containsString(preparingOrderNo)))
+                .andExpect(content().string(containsString(paidOrderNo)));
+    }
+
+    @Test
     void shouldCreateCompensationTaskWhenRefundCallbackFails() throws Exception {
         long merchantId = 3003L;
         long storeId = 4003L;

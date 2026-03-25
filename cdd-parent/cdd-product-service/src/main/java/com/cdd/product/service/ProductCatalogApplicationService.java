@@ -27,6 +27,7 @@ import com.cdd.product.error.ProductErrorCode;
 import com.cdd.product.infrastructure.ProductCatalogStore;
 import com.cdd.product.support.BusinessCodeGenerator;
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -113,9 +114,14 @@ public class ProductCatalogApplicationService {
     }
 
     public List<CategoryTemplateResponse> listCategoryTemplates() {
-        return store.listCategoryTemplates().stream()
+        return pageCategoryTemplates(new PageQuery(1, Integer.MAX_VALUE)).getList();
+    }
+
+    public PageResponse<CategoryTemplateResponse> pageCategoryTemplates(PageQuery pageQuery) {
+        List<CategoryTemplateResponse> templates = store.listCategoryTemplates().stream()
                 .map(this::toCategoryTemplateResponse)
                 .toList();
+        return pageList(templates, pageQuery);
     }
 
     public InitializeCategoryTreeResponse initializeCategoryTree(InitializeCategoryTreeRequest request) {
@@ -199,9 +205,14 @@ public class ProductCatalogApplicationService {
     }
 
     public List<CategoryResponse> listCategories(long merchantId, long storeId) {
-        return store.listCategories(merchantId, storeId).stream()
+        return pageCategories(merchantId, storeId, new PageQuery(1, Integer.MAX_VALUE)).getList();
+    }
+
+    public PageResponse<CategoryResponse> pageCategories(long merchantId, long storeId, PageQuery pageQuery) {
+        List<CategoryResponse> categories = flattenCategoryTree(store.listCategories(merchantId, storeId).stream()
                 .map(this::toCategoryResponse)
-                .toList();
+                .toList());
+        return pageList(categories, pageQuery);
     }
 
     @Transactional
@@ -266,6 +277,46 @@ public class ProductCatalogApplicationService {
                 pageQuery.page(),
                 pageQuery.pageSize(),
                 pageResult.total());
+    }
+
+    private <T> PageResponse<T> pageList(List<T> list, PageQuery pageQuery) {
+        int fromIndex = Math.min((pageQuery.page() - 1) * pageQuery.pageSize(), list.size());
+        int toIndex = Math.min(fromIndex + pageQuery.pageSize(), list.size());
+        return PageResponse.of(
+                list.subList(fromIndex, toIndex),
+                pageQuery.page(),
+                pageQuery.pageSize(),
+                list.size());
+    }
+
+    private List<CategoryResponse> flattenCategoryTree(List<CategoryResponse> categories) {
+        Map<Long, List<CategoryResponse>> byParent = new HashMap<>();
+        categories.forEach(category -> byParent
+                .computeIfAbsent(category.parentId(), ignored -> new ArrayList<>())
+                .add(category));
+        byParent.values().forEach(items -> items.sort((left, right) -> {
+            if (left.sortOrder() != right.sortOrder()) {
+                return Integer.compare(left.sortOrder(), right.sortOrder());
+            }
+            return Long.compare(left.id(), right.id());
+        }));
+
+        List<CategoryResponse> ordered = new ArrayList<>(categories.size());
+        walkCategoryTree(byParent, ordered, 0L);
+        return ordered;
+    }
+
+    private void walkCategoryTree(Map<Long, List<CategoryResponse>> byParent,
+                                  List<CategoryResponse> ordered,
+                                  long parentId) {
+        List<CategoryResponse> children = byParent.get(parentId);
+        if (children == null || children.isEmpty()) {
+            return;
+        }
+        for (CategoryResponse child : children) {
+            ordered.add(child);
+            walkCategoryTree(byParent, ordered, child.id());
+        }
     }
 
     public ProductDetailResponse publishProduct(long productId) {

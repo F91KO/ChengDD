@@ -422,7 +422,8 @@ async function ensureCategories() {
     return;
   }
   const { merchantId, storeId } = getRequiredScope();
-  categories.value = await fetchCategoryList({ merchantId, storeId });
+  const categoryPage = await fetchCategoryList({ merchantId, storeId, page: 1, pageSize: 200 });
+  categories.value = categoryPage.list;
 }
 
 async function refreshProducts() {

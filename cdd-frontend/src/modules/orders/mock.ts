@@ -107,7 +107,7 @@ function normalizeStatus(item: OrderSummaryResponseRaw): {
   if (deliveryStatus.includes('deliver') || deliveryStatus.includes('ship')) {
     return { text: '运输中', tone: 'info' };
   }
-  if (payStatus.includes('paid') || status.includes('paid') || status.includes('preparing')) {
+  if (deliveryStatus.includes('preparing') || payStatus.includes('paid') || status.includes('paid') || status.includes('preparing')) {
     return { text: '待发货', tone: 'primary' };
   }
   return { text: '待支付', tone: 'info' };
@@ -139,11 +139,11 @@ export function filterToOrderStatus(filter: string): string | undefined {
     case '待支付':
       return 'pending_pay';
     case '待发货':
-      return 'paid';
+      return 'paid,preparing';
     case '运输中':
       return 'shipped';
     case '已完成':
-      return 'finished';
+      return 'completed,finished';
     case '异常单':
       return 'cancelled';
     default:
