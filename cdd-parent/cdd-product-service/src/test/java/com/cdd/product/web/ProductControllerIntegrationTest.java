@@ -57,7 +57,10 @@ class ProductControllerIntegrationTest {
                 .andExpect(jsonPath("$.code").value(0))
                 .andReturn();
 
-        JsonNode firstProduct = readData(result).get(0);
+        JsonNode data = readData(result);
+        assertThat(data.path("page").asInt()).isEqualTo(1);
+        assertThat(data.path("page_size").asInt()).isEqualTo(20);
+        JsonNode firstProduct = data.path("list").get(0);
         assertThat(firstProduct.path("product_name").asText()).isEqualTo("赣南脐橙礼盒");
         assertThat(firstProduct.path("product_sub_title").asText()).isEqualTo("当季现发 12 枚装");
         assertThat(firstProduct.path("price_summary").path("min_sale_price").decimalValue()).isEqualByComparingTo("59.90");
@@ -126,7 +129,8 @@ class ProductControllerIntegrationTest {
                 .andExpect(jsonPath("$.code").value(0))
                 .andReturn();
 
-        JsonNode productNode = findProduct(readData(listResult), created.id());
+        JsonNode listData = readData(listResult);
+        JsonNode productNode = findProduct(listData.path("list"), created.id());
         assertThat(productNode.path("product_name").asText()).isEqualTo("编辑后商品");
         assertThat(productNode.path("product_sub_title").asText()).isEqualTo("编辑后副标题");
         assertThat(productNode.path("category_id").asLong()).isEqualTo(updatedCategoryId);

@@ -1,5 +1,6 @@
 import { requestApi } from '@/services/http';
 import { readAccessToken } from '@/services/session';
+import type { PageResponseRaw } from '@/types/page';
 import type {
   OrderDetailResponseRaw,
   OrderStatusLogResponseRaw,
@@ -12,8 +13,10 @@ export async function fetchOrderList(params: {
   storeId: number;
   userId?: number | null;
   orderStatus?: string;
-}): Promise<OrderSummaryResponseRaw[]> {
-  return requestApi<OrderSummaryResponseRaw[]>({
+  page?: number;
+  pageSize?: number;
+}): Promise<PageResponseRaw<OrderSummaryResponseRaw>> {
+  return requestApi<PageResponseRaw<OrderSummaryResponseRaw>>({
     method: 'GET',
     url: '/order/orders',
     params: {
@@ -21,6 +24,8 @@ export async function fetchOrderList(params: {
       store_id: params.storeId,
       user_id: params.userId ?? undefined,
       order_status: params.orderStatus,
+      page: params.page,
+      page_size: params.pageSize,
     },
   });
 }

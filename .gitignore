@@ -1,7 +1,7 @@
 .DS_Store
 /.idea/
 /.vscode/
-/.m2/
+/.local/
 config/migration/application-migration.local.yml
 **/__pycache__/
 **/target/

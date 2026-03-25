@@ -32,6 +32,8 @@ type LoadProductsArgs = {
   force?: boolean;
   status?: string;
   keyword?: string;
+  page?: number;
+  pageSize?: number;
 };
 
 export const products = reactive<ProductCard[]>([]);
@@ -40,6 +42,11 @@ export const productStats = reactive<ProductStat[]>([
   { label: '待发布', value: '0', tone: 'info' },
   { label: '已下架', value: '0', tone: 'danger' },
 ]);
+export const productPagination = reactive({
+  page: 1,
+  pageSize: 20,
+  total: 0,
+});
 
 export const productLoadState = reactive({
   loading: false,
@@ -52,13 +59,16 @@ let loadPromise: Promise<void> | null = null;
 let lastRequestKey = '';
 let pendingArgs: LoadProductsArgs | null = null;
 
-function replaceProductData(nextProducts: ProductCard[], nextStats: ProductStat[]) {
+function replaceProductData(nextProducts: ProductCard[], nextStats: ProductStat[], page: number, pageSize: number, total: number) {
   products.splice(0, products.length, ...nextProducts);
   productStats.splice(0, productStats.length, ...nextStats);
+  productPagination.page = page;
+  productPagination.pageSize = pageSize;
+  productPagination.total = total;
 }
 
-function buildRequestKey(status?: string, keyword?: string): string {
-  return `${status ?? ''}::${keyword?.trim().toLowerCase() ?? ''}`;
+function buildRequestKey(status?: string, keyword?: string, page = 1, pageSize = 20): string {
+  return `${status ?? ''}::${keyword?.trim().toLowerCase() ?? ''}::${page}::${pageSize}`;
 }
 
 function statusToCard(status: string): { text: string; tone: ProductCard['statusTone'] } {
@@ -139,14 +149,11 @@ function mapRemoteProduct(
   };
 }
 
-function buildStatsFromRemote(items: ProductSummaryResponseRaw[]): ProductStat[] {
-  const onShelfCount = items.filter((item) => item.status.toLowerCase() === 'on_shelf').length;
-  const draftCount = items.filter((item) => item.status.toLowerCase() === 'draft').length;
-  const offShelfCount = items.filter((item) => item.status.toLowerCase() === 'off_shelf').length;
+function buildStats(onShelfTotal: number, draftTotal: number, offShelfTotal: number): ProductStat[] {
   return [
-    { label: '在售中', value: String(onShelfCount), tone: 'primary' },
-    { label: '待发布', value: String(draftCount), tone: 'info' },
-    { label: '已下架', value: String(offShelfCount), tone: 'danger' },
+    { label: '在售中', value: String(onShelfTotal), tone: 'primary' },
+    { label: '待发布', value: String(draftTotal), tone: 'info' },
+    { label: '已下架', value: String(offShelfTotal), tone: 'danger' },
   ];
 }
 
@@ -160,17 +167,25 @@ function buildReportMap(rows: ReportProductDailyResponseRaw[]): Map<number, Repo
   return reportMap;
 }
 
-export async function loadProducts(force = false, status?: string, keyword?: string): Promise<void> {
+export async function loadProducts(force = false, status?: string, keyword?: string, page = productPagination.page, pageSize = productPagination.pageSize): Promise<void> {
   const normalizedKeyword = keyword?.trim() || '';
-  const requestKey = buildRequestKey(status, normalizedKeyword);
+  const normalizedPage = Math.max(1, page);
+  const normalizedPageSize = Math.max(1, pageSize);
+  const requestKey = buildRequestKey(status, normalizedKeyword, normalizedPage, normalizedPageSize);
 
   if (productLoadState.loading) {
-    pendingArgs = { force, status, keyword: normalizedKeyword };
+    pendingArgs = { force, status, keyword: normalizedKeyword, page: normalizedPage, pageSize: normalizedPageSize };
     await loadPromise;
     if (pendingArgs) {
       const nextArgs = pendingArgs;
       pendingArgs = null;
-      return loadProducts(nextArgs.force ?? false, nextArgs.status, nextArgs.keyword);
+      return loadProducts(
+        nextArgs.force ?? false,
+        nextArgs.status,
+        nextArgs.keyword,
+        nextArgs.page ?? 1,
+        nextArgs.pageSize ?? normalizedPageSize,
+      );
     }
     return;
   }
@@ -188,7 +203,7 @@ export async function loadProducts(force = false, status?: string, keyword?: str
     const merchantId = authStore.merchantIdForQuery;
     const storeId = authStore.storeIdForQuery;
     if (!merchantId || !storeId) {
-      replaceProductData([], buildStatsFromRemote([]));
+      replaceProductData([], buildStats(0, 0, 0), normalizedPage, normalizedPageSize, 0);
       productLoadState.loaded = true;
       productLoadState.message = '当前账号缺少真实商户上下文，无法加载商品数据。';
       productLoadState.errorMessage = productLoadState.message;
@@ -197,36 +212,56 @@ export async function loadProducts(force = false, status?: string, keyword?: str
     }
 
     try {
-      const remoteProducts = await fetchProductList({
-        merchantId,
-        storeId,
-        status,
-        keyword: normalizedKeyword || undefined,
-      });
-
-      const [categories, reportRows] = await Promise.all([
+      const [initialPage, categories, reportRows, onShelfPage, draftPage, offShelfPage] = await Promise.all([
+        fetchProductList({
+          merchantId,
+          storeId,
+          status,
+          keyword: normalizedKeyword || undefined,
+          page: normalizedPage,
+          pageSize: normalizedPageSize,
+        }),
         fetchCategoryList({ merchantId, storeId }).catch(() => []),
         fetchProductDailyList({ merchantId, storeId }).catch(() => []),
+        fetchProductList({ merchantId, storeId, status: 'on_shelf', keyword: normalizedKeyword || undefined, page: 1, pageSize: 1 }),
+        fetchProductList({ merchantId, storeId, status: 'draft', keyword: normalizedKeyword || undefined, page: 1, pageSize: 1 }),
+        fetchProductList({ merchantId, storeId, status: 'off_shelf', keyword: normalizedKeyword || undefined, page: 1, pageSize: 1 }),
       ]);
+      const fallbackPage = initialPage.total > 0 && initialPage.list.length === 0 && initialPage.page > 1
+        ? Math.max(1, Math.ceil(initialPage.total / initialPage.page_size))
+        : null;
+      const remotePage = fallbackPage
+        ? await fetchProductList({
+          merchantId,
+          storeId,
+          status,
+          keyword: normalizedKeyword || undefined,
+          page: fallbackPage,
+          pageSize: initialPage.page_size,
+        })
+        : initialPage;
 
       const categoryMap = new Map(categories.map((item) => [item.id, item]));
       const reportMap = buildReportMap(reportRows);
 
       replaceProductData(
-        remoteProducts.map((item) => mapRemoteProduct(item, categoryMap, reportMap.get(item.id))),
-        buildStatsFromRemote(remoteProducts),
+        remotePage.list.map((item) => mapRemoteProduct(item, categoryMap, reportMap.get(item.id))),
+        buildStats(onShelfPage.total, draftPage.total, offShelfPage.total),
+        remotePage.page,
+        remotePage.page_size,
+        remotePage.total,
       );
       productLoadState.loaded = true;
       lastRequestKey = requestKey;
       productLoadState.message = normalizedKeyword
-        ? remoteProducts.length
-          ? `已通过后端搜索“${normalizedKeyword}”并返回商品结果。`
+        ? remotePage.total
+          ? `已通过后端搜索“${normalizedKeyword}”，共返回 ${remotePage.total} 条商品。`
           : `后端搜索“${normalizedKeyword}”未返回商品结果。`
-        : remoteProducts.length
-          ? '已加载真实商品摘要、SKU 价格与库存信息。'
+        : remotePage.total
+          ? `已加载真实商品摘要、SKU 价格与库存信息，共 ${remotePage.total} 条。`
           : '当前商家暂无商品数据。';
     } catch (error) {
-      replaceProductData([], buildStatsFromRemote([]));
+      replaceProductData([], buildStats(0, 0, 0), normalizedPage, normalizedPageSize, 0);
       productLoadState.loaded = true;
       productLoadState.errorMessage = error instanceof Error ? error.message : '商品接口调用失败。';
       productLoadState.message = productLoadState.errorMessage;

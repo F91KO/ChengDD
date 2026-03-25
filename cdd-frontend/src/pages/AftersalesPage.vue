@@ -87,10 +87,19 @@
         tone="empty"
         title="当前状态下没有售后单"
         description="可以切换到其他状态查看，或者等待新的用户售后申请。"
-      >
-        <UiButton variant="secondary" @click="activeTab = '全部'">查看全部售后</UiButton>
-      </UiStatePanel>
+        >
+          <UiButton variant="secondary" @click="activeTab = '全部'">查看全部售后</UiButton>
+        </UiStatePanel>
     </section>
+
+    <UiPagination
+      :page="pagination.page"
+      :page-size="pagination.pageSize"
+      :total="pagination.total"
+      :disabled="afterSalesLoading"
+      @update:page="handlePageChange"
+      @update:page-size="handlePageSizeChange"
+    />
 
     <UiCard v-if="detailRecord" ref="detailAnchor" elevated :class="$style.detailPanel">
       <div :class="$style.cardHead">
@@ -252,9 +261,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue';
 import UiButton from '@/components/base/UiButton.vue';
 import UiCard from '@/components/base/UiCard.vue';
+import UiPagination from '@/components/base/UiPagination.vue';
 import UiStatePanel from '@/components/base/UiStatePanel.vue';
 import UiTag from '@/components/base/UiTag.vue';
 import WorkspaceLayout from '@/components/layout/WorkspaceLayout.vue';
@@ -295,6 +305,11 @@ const afterSalesNotice = ref('正在加载真实售后接口。');
 const actionMessage = ref('');
 const actionTone = ref<'info' | 'error'>('info');
 const records = ref<AfterSaleCardRecord[]>([]);
+const pagination = reactive({
+  page: 1,
+  pageSize: 20,
+  total: 0,
+});
 const detailRecord = ref<OrderAfterSaleDetailResponseRaw | null>(null);
 const detailLogs = ref<OrderAfterSaleLogResponseRaw[]>([]);
 const approveRemark = ref('同意售后申请，请按流程继续处理。');
@@ -328,11 +343,7 @@ const afterSaleStatePanel = computed(() => {
 });
 
 const filteredRecords = computed(() => {
-  if (activeTab.value === '全部') {
-    return records.value;
-  }
-
-  return records.value.filter((record) => record.tabStatus === activeTab.value);
+  return records.value;
 });
 
 function setActionMessage(message: string, tone: 'info' | 'error' = 'info') {
@@ -594,23 +605,52 @@ async function loadAfterSales() {
   const storeId = authStore.storeIdForQuery ?? 1001;
 
   try {
-    const response = await fetchAfterSaleList({
+    const initialResponse = await fetchAfterSaleList({
       merchantId,
       storeId,
       afterSaleStatus: mapTabToStatus(activeTab.value),
+      page: pagination.page,
+      pageSize: pagination.pageSize,
     });
+    const fallbackPage = initialResponse.total > 0 && initialResponse.list.length === 0 && initialResponse.page > 1
+      ? Math.max(1, Math.ceil(initialResponse.total / initialResponse.page_size))
+      : null;
+    const response = fallbackPage
+      ? await fetchAfterSaleList({
+        merchantId,
+        storeId,
+        afterSaleStatus: mapTabToStatus(activeTab.value),
+        page: fallbackPage,
+        pageSize: initialResponse.page_size,
+      })
+      : initialResponse;
     afterSalesMode.value = 'remote';
-    afterSalesNotice.value = response.length
-      ? '当前列表展示的是售后服务真实数据。'
+    pagination.page = response.page;
+    pagination.pageSize = response.page_size;
+    pagination.total = response.total;
+    afterSalesNotice.value = response.total
+      ? `当前列表展示的是售后服务真实数据，共 ${response.total} 条。`
       : '当前筛选条件下没有售后单。';
-    records.value = response.map(toCardRecord);
+    records.value = response.list.map(toCardRecord);
   } catch (error) {
     afterSalesMode.value = 'error';
     afterSalesNotice.value = error instanceof Error ? error.message : '售后服务暂未就绪。';
+    pagination.total = 0;
     records.value = [];
   } finally {
     afterSalesLoading.value = false;
   }
+}
+
+function handlePageChange(page: number) {
+  pagination.page = page;
+  void loadAfterSales();
+}
+
+function handlePageSizeChange(pageSize: number) {
+  pagination.page = 1;
+  pagination.pageSize = pageSize;
+  void loadAfterSales();
 }
 
 function closeDetailPanel() {
@@ -630,6 +670,7 @@ onMounted(() => {
 });
 
 watch(activeTab, () => {
+  pagination.page = 1;
   void loadAfterSales();
 });
 </script>

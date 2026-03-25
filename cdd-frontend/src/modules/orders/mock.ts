@@ -22,6 +22,11 @@ export type OrderCard = {
 export const orderFilters = ['全部', '待支付', '待发货', '运输中', '已完成', '异常单'];
 
 export const orders = reactive<OrderCard[]>([]);
+export const orderPagination = reactive({
+  page: 1,
+  pageSize: 20,
+  total: 0,
+});
 export const orderLoadState = reactive({
   loading: false,
   loaded: false,
@@ -30,9 +35,14 @@ export const orderLoadState = reactive({
 });
 
 let loadPromise: Promise<void> | null = null;
+let lastRequestKey = '';
+let pendingArgs: { force?: boolean; orderStatus?: string; page?: number; pageSize?: number } | null = null;
 
-function replaceOrders(nextOrders: OrderCard[]) {
+function replaceOrders(nextOrders: OrderCard[], page: number, pageSize: number, total: number) {
   orders.splice(0, orders.length, ...nextOrders);
+  orderPagination.page = page;
+  orderPagination.pageSize = pageSize;
+  orderPagination.total = total;
 }
 
 function normalizeAmount(value: number | string): string {
@@ -141,11 +151,31 @@ export function filterToOrderStatus(filter: string): string | undefined {
   }
 }
 
-export async function loadOrders(force = false, orderStatus?: string): Promise<void> {
+function buildRequestKey(orderStatus?: string, page = 1, pageSize = 20): string {
+  return `${orderStatus ?? ''}::${page}::${pageSize}`;
+}
+
+export async function loadOrders(force = false, orderStatus?: string, page = orderPagination.page, pageSize = orderPagination.pageSize): Promise<void> {
+  const normalizedPage = Math.max(1, page);
+  const normalizedPageSize = Math.max(1, pageSize);
+  const requestKey = buildRequestKey(orderStatus, normalizedPage, normalizedPageSize);
+
   if (orderLoadState.loading) {
-    return loadPromise ?? Promise.resolve();
+    pendingArgs = { force, orderStatus, page: normalizedPage, pageSize: normalizedPageSize };
+    await loadPromise;
+    if (pendingArgs) {
+      const nextArgs = pendingArgs;
+      pendingArgs = null;
+      return loadOrders(
+        nextArgs.force ?? false,
+        nextArgs.orderStatus,
+        nextArgs.page ?? normalizedPage,
+        nextArgs.pageSize ?? normalizedPageSize,
+      );
+    }
+    return;
   }
-  if (orderLoadState.loaded && !force && !orderStatus) {
+  if (orderLoadState.loaded && !force && lastRequestKey === requestKey) {
     return;
   }
 
@@ -158,7 +188,7 @@ export async function loadOrders(force = false, orderStatus?: string): Promise<v
     const merchantId = authStore.merchantIdForQuery;
     const storeId = authStore.storeIdForQuery;
     if (!merchantId || !storeId) {
-      replaceOrders([]);
+      replaceOrders([], normalizedPage, normalizedPageSize, 0);
       orderLoadState.loaded = true;
       orderLoadState.message = '当前账号缺少真实商户上下文，无法加载订单数据。';
       orderLoadState.errorMessage = orderLoadState.message;
@@ -167,20 +197,36 @@ export async function loadOrders(force = false, orderStatus?: string): Promise<v
     }
 
     try {
-      const remoteOrders = await fetchOrderList({
+      const initialPage = await fetchOrderList({
         merchantId,
         storeId,
         userId: authStore.userIdForQuery,
         orderStatus,
+        page: normalizedPage,
+        pageSize: normalizedPageSize,
       });
+      const fallbackPage = initialPage.total > 0 && initialPage.list.length === 0 && initialPage.page > 1
+        ? Math.max(1, Math.ceil(initialPage.total / initialPage.page_size))
+        : null;
+      const remotePage = fallbackPage
+        ? await fetchOrderList({
+          merchantId,
+          storeId,
+          userId: authStore.userIdForQuery,
+          orderStatus,
+          page: fallbackPage,
+          pageSize: initialPage.page_size,
+        })
+        : initialPage;
 
-      replaceOrders(remoteOrders.map(mapRemoteOrder));
+      replaceOrders(remotePage.list.map(mapRemoteOrder), remotePage.page, remotePage.page_size, remotePage.total);
       orderLoadState.loaded = true;
-      orderLoadState.message = remoteOrders.length
-        ? '已加载真实订单接口数据。'
+      lastRequestKey = requestKey;
+      orderLoadState.message = remotePage.total
+        ? `已加载真实订单接口数据，共 ${remotePage.total} 条。`
         : '当前筛选条件下没有真实订单数据。';
     } catch (error) {
-      replaceOrders([]);
+      replaceOrders([], normalizedPage, normalizedPageSize, 0);
       orderLoadState.loaded = true;
       orderLoadState.errorMessage = error instanceof Error ? error.message : '订单接口调用失败。';
       orderLoadState.message = orderLoadState.errorMessage;

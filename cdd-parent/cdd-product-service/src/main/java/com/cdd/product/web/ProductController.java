@@ -13,8 +13,10 @@ import com.cdd.api.product.model.ProductStockResponse;
 import com.cdd.api.product.model.ProductSummaryResponse;
 import com.cdd.api.product.model.UpdateCategoryRequest;
 import com.cdd.api.product.model.UpdateProductRequest;
+import com.cdd.common.core.page.PageQuery;
 import com.cdd.common.web.ApiResponse;
 import com.cdd.common.web.ApiResponses;
+import com.cdd.common.web.PageResponse;
 import com.cdd.product.service.ProductCatalogApplicationService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
@@ -94,12 +96,19 @@ public class ProductController {
     }
 
     @GetMapping("/spu")
-    public ApiResponse<List<ProductSummaryResponse>> listProducts(
+    public ApiResponse<PageResponse<ProductSummaryResponse>> listProducts(
             @RequestParam(name = "merchant_id") @NotNull(message = "商家ID不能为空") Long merchantId,
             @RequestParam(name = "store_id") @NotNull(message = "门店ID不能为空") Long storeId,
             @RequestParam(name = "status", required = false) String status,
-            @RequestParam(name = "keyword", required = false) String keyword) {
-        return ApiResponses.success(productCatalogApplicationService.listProducts(merchantId, storeId, status, keyword));
+            @RequestParam(name = "keyword", required = false) String keyword,
+            @RequestParam(name = "page", required = false, defaultValue = "1") Integer page,
+            @RequestParam(name = "page_size", required = false, defaultValue = "20") Integer pageSize) {
+        return ApiResponses.success(productCatalogApplicationService.pageProducts(
+                merchantId,
+                storeId,
+                status,
+                keyword,
+                new PageQuery(page, pageSize)));
     }
 
     @PostMapping("/spu/{product_id}/publish")

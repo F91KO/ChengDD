@@ -1,5 +1,7 @@
 package com.cdd.product.infrastructure;
 
+import com.cdd.common.core.page.PageQuery;
+import com.cdd.common.core.page.PageResult;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
@@ -59,6 +61,8 @@ public interface ProductCatalogStore {
     Optional<ProductRecord> findProduct(long productId);
 
     List<ProductRecord> listProducts(long merchantId, long storeId, String status, String keyword);
+
+    PageResult<ProductRecord> pageProducts(long merchantId, long storeId, String status, String keyword, PageQuery pageQuery);
 
     Optional<ProductRecord> updateProduct(long productId,
                                           long categoryId,

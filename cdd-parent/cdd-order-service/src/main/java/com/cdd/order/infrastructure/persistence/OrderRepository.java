@@ -1,5 +1,7 @@
 package com.cdd.order.infrastructure.persistence;
 
+import com.cdd.common.core.page.PageQuery;
+import com.cdd.common.core.page.PageResult;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
@@ -34,6 +36,8 @@ public interface OrderRepository {
     List<OrderRecord> listOrders(long merchantId, long storeId, Long userId, String orderStatus);
 
     List<OrderSummaryRecord> listOrderSummaries(long merchantId, long storeId, Long userId, String orderStatus);
+
+    PageResult<OrderSummaryRecord> pageOrderSummaries(long merchantId, long storeId, Long userId, String orderStatus, PageQuery pageQuery);
 
     List<OrderItemRecord> listOrderItems(long orderId);
 
@@ -116,6 +120,8 @@ public interface OrderRepository {
     Optional<AfterSaleDetailRecord> findAfterSaleDetailByAfterSaleNo(String afterSaleNo, long merchantId, long storeId);
 
     List<AfterSaleSummaryRecord> listAfterSales(long merchantId, long storeId, String afterSaleStatus);
+
+    PageResult<AfterSaleSummaryRecord> pageAfterSales(long merchantId, long storeId, String afterSaleStatus, PageQuery pageQuery);
 
     void updateAfterSaleStatus(long afterSaleId,
                                String afterSaleStatus,

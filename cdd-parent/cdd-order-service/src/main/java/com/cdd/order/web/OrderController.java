@@ -27,8 +27,10 @@ import com.cdd.api.order.model.OrderRefundCreateRequest;
 import com.cdd.api.order.model.OrderRefundLifecycleResponse;
 import com.cdd.api.order.model.OrderStatusLogResponse;
 import com.cdd.api.order.model.OrderSummaryResponse;
+import com.cdd.common.core.page.PageQuery;
 import com.cdd.common.web.ApiResponse;
 import com.cdd.common.web.ApiResponses;
+import com.cdd.common.web.PageResponse;
 import com.cdd.order.service.OrderApplicationService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
@@ -128,11 +130,17 @@ public class OrderController {
     }
 
     @GetMapping("/after-sales")
-    public ApiResponse<List<OrderAfterSaleSummaryResponse>> listAfterSales(
+    public ApiResponse<PageResponse<OrderAfterSaleSummaryResponse>> listAfterSales(
             @RequestParam(name = "merchant_id") @NotNull(message = "商家ID不能为空") Long merchantId,
             @RequestParam(name = "store_id") @NotNull(message = "店铺ID不能为空") Long storeId,
-            @RequestParam(name = "after_sale_status", required = false) String afterSaleStatus) {
-        return ApiResponses.success(orderApplicationService.listAfterSales(merchantId, storeId, afterSaleStatus));
+            @RequestParam(name = "after_sale_status", required = false) String afterSaleStatus,
+            @RequestParam(name = "page", required = false, defaultValue = "1") Integer page,
+            @RequestParam(name = "page_size", required = false, defaultValue = "20") Integer pageSize) {
+        return ApiResponses.success(orderApplicationService.pageAfterSales(
+                merchantId,
+                storeId,
+                afterSaleStatus,
+                new PageQuery(page, pageSize)));
     }
 
     @GetMapping("/after-sales/{after_sale_no}")
@@ -173,12 +181,19 @@ public class OrderController {
     }
 
     @GetMapping("/orders")
-    public ApiResponse<List<OrderSummaryResponse>> listOrders(
+    public ApiResponse<PageResponse<OrderSummaryResponse>> listOrders(
             @RequestParam(name = "merchant_id") @NotNull(message = "商家ID不能为空") Long merchantId,
             @RequestParam(name = "store_id") @NotNull(message = "店铺ID不能为空") Long storeId,
             @RequestParam(name = "user_id", required = false) Long userId,
-            @RequestParam(name = "order_status", required = false) String orderStatus) {
-        return ApiResponses.success(orderApplicationService.listOrders(merchantId, storeId, userId, orderStatus));
+            @RequestParam(name = "order_status", required = false) String orderStatus,
+            @RequestParam(name = "page", required = false, defaultValue = "1") Integer page,
+            @RequestParam(name = "page_size", required = false, defaultValue = "20") Integer pageSize) {
+        return ApiResponses.success(orderApplicationService.pageOrders(
+                merchantId,
+                storeId,
+                userId,
+                orderStatus,
+                new PageQuery(page, pageSize)));
     }
 
     @GetMapping(value = "/orders/export", produces = "text/csv;charset=UTF-8")

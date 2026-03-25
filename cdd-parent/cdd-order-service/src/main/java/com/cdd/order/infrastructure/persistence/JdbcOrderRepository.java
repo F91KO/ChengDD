@@ -1,5 +1,7 @@
 package com.cdd.order.infrastructure.persistence;
 
+import com.cdd.common.core.page.PageQuery;
+import com.cdd.common.core.page.PageResult;
 import java.math.BigDecimal;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -297,59 +299,49 @@ public class JdbcOrderRepository implements OrderRepository {
 
     @Override
     public List<OrderRecord> listOrders(long merchantId, long storeId, Long userId, String orderStatus) {
-        StringBuilder sql = new StringBuilder("""
+        OrderListQuery query = buildOrderListQuery(merchantId, storeId, userId, orderStatus);
+        return jdbcTemplate.query("""
                 SELECT id, order_no, merchant_id, store_id, user_id, checkout_snapshot_id, order_status, pay_status, delivery_status,
                        buyer_remark, total_amount, discount_amount, payable_amount, paid_amount, delivery_fee_amount,
                        receiver_name, receiver_mobile, receiver_address, created_at, paid_at, cancelled_at, finished_at
                 FROM cdd_order_info
-                WHERE merchant_id = ?
-                  AND store_id = ?
-                  AND deleted = 0
-                """);
-        List<Object> args = new ArrayList<>();
-        args.add(merchantId);
-        args.add(storeId);
-        if (userId != null) {
-            sql.append(" AND user_id = ?");
-            args.add(userId);
-        }
-        if (StringUtils.hasText(orderStatus)) {
-            sql.append(" AND order_status = ?");
-            args.add(orderStatus.trim().toLowerCase());
-        }
-        sql.append(" ORDER BY created_at DESC, id DESC");
-        return jdbcTemplate.query(sql.toString(), ORDER_ROW_MAPPER, args.toArray());
+                """
+                + query.whereClause()
+                + " ORDER BY created_at DESC, id DESC", ORDER_ROW_MAPPER, query.args().toArray());
     }
 
     @Override
     public List<OrderSummaryRecord> listOrderSummaries(long merchantId, long storeId, Long userId, String orderStatus) {
-        List<OrderRecord> orders = listOrders(merchantId, storeId, userId, orderStatus);
-        if (orders.isEmpty()) {
-            return List.of();
+        return buildOrderSummaries(listOrders(merchantId, storeId, userId, orderStatus));
+    }
+
+    @Override
+    public PageResult<OrderSummaryRecord> pageOrderSummaries(long merchantId,
+                                                             long storeId,
+                                                             Long userId,
+                                                             String orderStatus,
+                                                             PageQuery pageQuery) {
+        OrderListQuery query = buildOrderListQuery(merchantId, storeId, userId, orderStatus);
+        long total = countOrders(query);
+        if (total == 0) {
+            return new PageResult<>(List.of(), 0);
         }
 
-        List<Long> orderIds = orders.stream()
-                .map(OrderRecord::id)
-                .toList();
-        Map<Long, String> latestChannelMap = queryLatestChannelMap(orderIds);
-        Map<Long, String> productSummaryMap = queryProductSummaryMap(orderIds);
-
-        return orders.stream()
-                .map(order -> new OrderSummaryRecord(
-                        order.orderNo(),
-                        order.merchantId(),
-                        order.storeId(),
-                        order.userId(),
-                        String.valueOf(order.userId()),
-                        resolveOrderChannel(order.payStatus(), latestChannelMap.get(order.id())),
-                        productSummaryMap.getOrDefault(order.id(), ""),
-                        order.orderStatus(),
-                        order.payStatus(),
-                        order.deliveryStatus(),
-                        order.payableAmount(),
-                        order.paidAmount(),
-                        order.createdAt()))
-                .toList();
+        List<Object> pageArgs = new ArrayList<>(query.args());
+        pageArgs.add(pageQuery.pageSize());
+        pageArgs.add((pageQuery.page() - 1) * pageQuery.pageSize());
+        List<OrderRecord> orders = jdbcTemplate.query("""
+                SELECT id, order_no, merchant_id, store_id, user_id, checkout_snapshot_id, order_status, pay_status, delivery_status,
+                       buyer_remark, total_amount, discount_amount, payable_amount, paid_amount, delivery_fee_amount,
+                       receiver_name, receiver_mobile, receiver_address, created_at, paid_at, cancelled_at, finished_at
+                FROM cdd_order_info
+                """
+                + query.whereClause()
+                + """
+                ORDER BY created_at DESC, id DESC
+                LIMIT ? OFFSET ?
+                """, ORDER_ROW_MAPPER, pageArgs.toArray());
+        return new PageResult<>(buildOrderSummaries(orders), total);
     }
 
     @Override
@@ -980,7 +972,8 @@ public class JdbcOrderRepository implements OrderRepository {
 
     @Override
     public List<AfterSaleSummaryRecord> listAfterSales(long merchantId, long storeId, String afterSaleStatus) {
-        StringBuilder sql = new StringBuilder("""
+        AfterSaleListQuery query = buildAfterSaleListQuery(merchantId, storeId, afterSaleStatus);
+        return jdbcTemplate.query("""
                 SELECT a.after_sale_no,
                        a.order_no,
                        a.order_item_id,
@@ -1009,19 +1002,58 @@ public class JdbcOrderRepository implements OrderRepository {
                 LEFT JOIN cdd_order_item i
                   ON a.order_item_id = i.id
                  AND i.deleted = 0
-                WHERE a.merchant_id = ?
-                  AND a.store_id = ?
-                  AND a.deleted = 0
-                """);
-        List<Object> args = new ArrayList<>();
-        args.add(merchantId);
-        args.add(storeId);
-        if (StringUtils.hasText(afterSaleStatus)) {
-            sql.append(" AND a.after_sale_status = ?");
-            args.add(afterSaleStatus.trim().toLowerCase());
+                """
+                + query.whereClause()
+                + " ORDER BY a.updated_at DESC, a.id DESC", AFTER_SALE_SUMMARY_ROW_MAPPER, query.args().toArray());
+    }
+
+    @Override
+    public PageResult<AfterSaleSummaryRecord> pageAfterSales(long merchantId, long storeId, String afterSaleStatus, PageQuery pageQuery) {
+        AfterSaleListQuery query = buildAfterSaleListQuery(merchantId, storeId, afterSaleStatus);
+        long total = countAfterSales(query);
+        if (total == 0) {
+            return new PageResult<>(List.of(), 0);
         }
-        sql.append(" ORDER BY a.updated_at DESC, a.id DESC");
-        return jdbcTemplate.query(sql.toString(), AFTER_SALE_SUMMARY_ROW_MAPPER, args.toArray());
+
+        List<Object> pageArgs = new ArrayList<>(query.args());
+        pageArgs.add(pageQuery.pageSize());
+        pageArgs.add((pageQuery.page() - 1) * pageQuery.pageSize());
+        List<AfterSaleSummaryRecord> list = jdbcTemplate.query("""
+                SELECT a.after_sale_no,
+                       a.order_no,
+                       a.order_item_id,
+                       a.merchant_id,
+                       a.store_id,
+                       a.user_id,
+                       a.after_sale_type,
+                       a.after_sale_status,
+                       i.product_name,
+                       i.sku_name,
+                       a.refund_quantity,
+                       a.refund_amount,
+                       a.reason_code,
+                       a.reason_desc,
+                       a.merchant_result,
+                       a.refund_no,
+                       a.return_company,
+                       a.return_logistics_no,
+                       a.handled_by,
+                       a.handled_at,
+                       a.approved_at,
+                       a.returned_at,
+                       a.completed_at,
+                       a.updated_at AS after_sale_updated_at
+                FROM cdd_order_after_sale a
+                LEFT JOIN cdd_order_item i
+                  ON a.order_item_id = i.id
+                 AND i.deleted = 0
+                """
+                + query.whereClause()
+                + """
+                ORDER BY a.updated_at DESC, a.id DESC
+                LIMIT ? OFFSET ?
+                """, AFTER_SALE_SUMMARY_ROW_MAPPER, pageArgs.toArray());
+        return new PageResult<>(list, total);
     }
 
     @Override
@@ -1472,6 +1504,89 @@ public class JdbcOrderRepository implements OrderRepository {
         return value == null ? null : value.toInstant();
     }
 
+    private OrderListQuery buildOrderListQuery(long merchantId, long storeId, Long userId, String orderStatus) {
+        StringBuilder whereClause = new StringBuilder("""
+                WHERE merchant_id = ?
+                  AND store_id = ?
+                  AND deleted = 0
+                """);
+        List<Object> args = new ArrayList<>();
+        args.add(merchantId);
+        args.add(storeId);
+        if (userId != null) {
+            whereClause.append(" AND user_id = ?\n");
+            args.add(userId);
+        }
+        if (StringUtils.hasText(orderStatus)) {
+            whereClause.append(" AND order_status = ?\n");
+            args.add(orderStatus.trim().toLowerCase());
+        }
+        return new OrderListQuery(whereClause.toString(), List.copyOf(args));
+    }
+
+    private long countOrders(OrderListQuery query) {
+        Long total = jdbcTemplate.queryForObject("""
+                SELECT COUNT(1)
+                FROM cdd_order_info
+                """
+                + query.whereClause(), Long.class, query.args().toArray());
+        return total == null ? 0 : total;
+    }
+
+    private List<OrderSummaryRecord> buildOrderSummaries(List<OrderRecord> orders) {
+        if (orders.isEmpty()) {
+            return List.of();
+        }
+
+        List<Long> orderIds = orders.stream()
+                .map(OrderRecord::id)
+                .toList();
+        Map<Long, String> latestChannelMap = queryLatestChannelMap(orderIds);
+        Map<Long, String> productSummaryMap = queryProductSummaryMap(orderIds);
+
+        return orders.stream()
+                .map(order -> new OrderSummaryRecord(
+                        order.orderNo(),
+                        order.merchantId(),
+                        order.storeId(),
+                        order.userId(),
+                        String.valueOf(order.userId()),
+                        resolveOrderChannel(order.payStatus(), latestChannelMap.get(order.id())),
+                        productSummaryMap.getOrDefault(order.id(), ""),
+                        order.orderStatus(),
+                        order.payStatus(),
+                        order.deliveryStatus(),
+                        order.payableAmount(),
+                        order.paidAmount(),
+                        order.createdAt()))
+                .toList();
+    }
+
+    private AfterSaleListQuery buildAfterSaleListQuery(long merchantId, long storeId, String afterSaleStatus) {
+        StringBuilder whereClause = new StringBuilder("""
+                WHERE a.merchant_id = ?
+                  AND a.store_id = ?
+                  AND a.deleted = 0
+                """);
+        List<Object> args = new ArrayList<>();
+        args.add(merchantId);
+        args.add(storeId);
+        if (StringUtils.hasText(afterSaleStatus)) {
+            whereClause.append(" AND a.after_sale_status = ?");
+            args.add(afterSaleStatus.trim().toLowerCase());
+        }
+        return new AfterSaleListQuery(whereClause.toString(), List.copyOf(args));
+    }
+
+    private long countAfterSales(AfterSaleListQuery query) {
+        Long total = jdbcTemplate.queryForObject("""
+                SELECT COUNT(1)
+                FROM cdd_order_after_sale a
+                """
+                + query.whereClause(), Long.class, query.args().toArray());
+        return total == null ? 0 : total;
+    }
+
     private Map<Long, String> queryLatestChannelMap(List<Long> orderIds) {
         String placeholders = String.join(",", java.util.Collections.nCopies(orderIds.size(), "?"));
         List<Map<String, Object>> rows = jdbcTemplate.queryForList("""
@@ -1532,5 +1647,15 @@ public class JdbcOrderRepository implements OrderRepository {
             return latestChannel;
         }
         return "unpaid".equals(payStatus) || "paying".equals(payStatus) ? "unpaid" : "unknown";
+    }
+
+    private record OrderListQuery(
+            String whereClause,
+            List<Object> args) {
+    }
+
+    private record AfterSaleListQuery(
+            String whereClause,
+            List<Object> args) {
     }
 }

@@ -121,6 +121,15 @@
       </UiCard>
     </section>
 
+    <UiPagination
+      :page="orderPagination.page"
+      :page-size="orderPagination.pageSize"
+      :total="orderPagination.total"
+      :disabled="orderLoadState.loading"
+      @update:page="handlePageChange"
+      @update:page-size="handlePageSizeChange"
+    />
+
     <div v-if="selectedOrderDetail" ref="detailAnchor">
       <UiCard elevated :class="$style.detailPanel">
         <div :class="$style.detailHead">
@@ -280,6 +289,7 @@
 import { nextTick, onMounted, ref, watch } from 'vue';
 import UiButton from '@/components/base/UiButton.vue';
 import UiCard from '@/components/base/UiCard.vue';
+import UiPagination from '@/components/base/UiPagination.vue';
 import UiStatePanel from '@/components/base/UiStatePanel.vue';
 import UiTag from '@/components/base/UiTag.vue';
 import WorkspaceLayout from '@/components/layout/WorkspaceLayout.vue';
@@ -289,6 +299,7 @@ import {
   loadOrders,
   orderFilters,
   orderLoadState,
+  orderPagination,
   orders,
   type OrderCard,
 } from '@/modules/orders/mock';
@@ -427,7 +438,15 @@ function formatOperateType(type: string | null | undefined): string {
 }
 
 async function refreshOrders() {
-  await loadOrders(true, filterToOrderStatus(activeFilter.value));
+  await loadOrders(true, filterToOrderStatus(activeFilter.value), orderPagination.page, orderPagination.pageSize);
+}
+
+function handlePageChange(page: number) {
+  void loadOrders(true, filterToOrderStatus(activeFilter.value), page, orderPagination.pageSize);
+}
+
+function handlePageSizeChange(pageSize: number) {
+  void loadOrders(true, filterToOrderStatus(activeFilter.value), 1, pageSize);
 }
 
 async function handleViewDetail(order: OrderCard) {
@@ -527,11 +546,11 @@ function closeDetailPanel() {
 }
 
 onMounted(() => {
-  void refreshOrders();
+  void loadOrders(false, filterToOrderStatus(activeFilter.value), orderPagination.page, orderPagination.pageSize);
 });
 
 watch(activeFilter, () => {
-  void refreshOrders();
+  void loadOrders(true, filterToOrderStatus(activeFilter.value), 1, orderPagination.pageSize);
 });
 </script>
 

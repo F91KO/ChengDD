@@ -1,4 +1,5 @@
 import { requestApi } from '@/services/http';
+import type { PageResponseRaw } from '@/types/page';
 import type {
   OrderAfterSaleDetailResponseRaw,
   OrderAfterSaleLogResponseRaw,
@@ -9,14 +10,18 @@ export async function fetchAfterSaleList(params: {
   merchantId: number;
   storeId: number;
   afterSaleStatus?: string;
-}): Promise<OrderAfterSaleSummaryResponseRaw[]> {
-  return requestApi<OrderAfterSaleSummaryResponseRaw[]>({
+  page?: number;
+  pageSize?: number;
+}): Promise<PageResponseRaw<OrderAfterSaleSummaryResponseRaw>> {
+  return requestApi<PageResponseRaw<OrderAfterSaleSummaryResponseRaw>>({
     method: 'GET',
     url: '/order/after-sales',
     params: {
       merchant_id: params.merchantId,
       store_id: params.storeId,
       after_sale_status: params.afterSaleStatus,
+      page: params.page,
+      page_size: params.pageSize,
     },
   });
 }

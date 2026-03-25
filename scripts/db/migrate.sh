@@ -6,11 +6,11 @@ cd "$repo_root"
 parent_root="$repo_root/cdd-parent"
 
 if command -v /usr/libexec/java_home >/dev/null 2>&1; then
-  export JAVA_HOME="${JAVA_HOME:-$(/usr/libexec/java_home -v 17)}"
+  export JAVA_HOME="${JAVA_HOME:-$(/usr/libexec/java_home -v 21)}"
 fi
 
 if [[ -z "${JAVA_HOME:-}" ]]; then
-  echo "JAVA_HOME is not set and JDK 17 was not discovered." >&2
+  echo "JAVA_HOME is not set and JDK 21 was not discovered." >&2
   exit 1
 fi
 
@@ -20,7 +20,7 @@ if [[ ! -f "$config_file" ]]; then
   exit 1
 fi
 
-work_repo="${CDD_MAVEN_REPO:-$repo_root/.m2/repository}"
+work_repo="${CDD_MAVEN_REPO:-$HOME/.m2/repository}"
 settings_file="${CDD_MAVEN_SETTINGS:-}"
 cleanup_files=()
 

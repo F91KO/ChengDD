@@ -1,5 +1,7 @@
 package com.cdd.product.infrastructure.jdbc;
 
+import com.cdd.common.core.page.PageQuery;
+import com.cdd.common.core.page.PageResult;
 import com.cdd.product.infrastructure.ProductCatalogStore;
 import com.cdd.product.support.BusinessCodeGenerator;
 import java.math.BigDecimal;
@@ -378,9 +380,49 @@ public class JdbcProductCatalogStore implements ProductCatalogStore {
 
     @Override
     public List<ProductRecord> listProducts(long merchantId, long storeId, String status, String keyword) {
-        StringBuilder sql = new StringBuilder("""
+        ProductListQuery query = buildProductListQuery(merchantId, storeId, status, keyword);
+        String sql = """
                 SELECT id, merchant_id, store_id, category_id, product_code, product_name, product_sub_title, status
                 FROM cdd_product_spu
+                """
+                + query.whereClause()
+                + """
+                ORDER BY id ASC
+                """;
+        return jdbcTemplate.query(sql, PRODUCT_ROW_MAPPER, query.args().toArray()).stream()
+                .map(this::toProductRecord)
+                .toList();
+    }
+
+    @Override
+    public PageResult<ProductRecord> pageProducts(long merchantId, long storeId, String status, String keyword, PageQuery pageQuery) {
+        ProductListQuery query = buildProductListQuery(merchantId, storeId, status, keyword);
+        long total = countProducts(query);
+        if (total == 0) {
+            return new PageResult<>(List.of(), 0);
+        }
+
+        List<Object> pageArgs = new ArrayList<>(query.args());
+        pageArgs.add(pageQuery.pageSize());
+        pageArgs.add((pageQuery.page() - 1) * pageQuery.pageSize());
+        String sql = """
+                SELECT id, merchant_id, store_id, category_id, product_code, product_name, product_sub_title, status
+                FROM cdd_product_spu
+                """
+                + query.whereClause()
+                + """
+                ORDER BY id ASC
+                LIMIT ? OFFSET ?
+                """;
+        return new PageResult<>(
+                jdbcTemplate.query(sql, PRODUCT_ROW_MAPPER, pageArgs.toArray()).stream()
+                .map(this::toProductRecord)
+                .toList(),
+                total);
+    }
+
+    private ProductListQuery buildProductListQuery(long merchantId, long storeId, String status, String keyword) {
+        StringBuilder whereClause = new StringBuilder("""
                 WHERE merchant_id = ?
                   AND store_id = ?
                   AND deleted = 0
@@ -390,13 +432,13 @@ public class JdbcProductCatalogStore implements ProductCatalogStore {
         args.add(storeId);
 
         if (StringUtils.hasText(status)) {
-            sql.append("""
+            whereClause.append("""
                       AND status = ?
                     """);
             args.add(status);
         }
         if (StringUtils.hasText(keyword)) {
-            sql.append("""
+            whereClause.append("""
                       AND (
                         LOWER(COALESCE(product_code, '')) LIKE ?
                         OR CAST(id AS CHAR) LIKE ?
@@ -424,13 +466,17 @@ public class JdbcProductCatalogStore implements ProductCatalogStore {
             args.add(likeKeyword);
             args.add(likeKeyword);
         }
-        sql.append("""
-                ORDER BY id ASC
-                """);
 
-        return jdbcTemplate.query(sql.toString(), PRODUCT_ROW_MAPPER, args.toArray()).stream()
-                .map(this::toProductRecord)
-                .toList();
+        return new ProductListQuery(whereClause.toString(), List.copyOf(args));
+    }
+
+    private long countProducts(ProductListQuery query) {
+        Long total = jdbcTemplate.queryForObject("""
+                SELECT COUNT(1)
+                FROM cdd_product_spu
+                """
+                + query.whereClause(), Long.class, query.args().toArray());
+        return total == null ? 0 : total;
     }
 
     @Override
@@ -958,5 +1004,10 @@ public class JdbcProductCatalogStore implements ProductCatalogStore {
             long storeId,
             int availableStock,
             int lockedStock) {
+    }
+
+    private record ProductListQuery(
+            String whereClause,
+            List<Object> args) {
     }
 }

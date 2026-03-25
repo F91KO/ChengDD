@@ -251,6 +251,15 @@
           <UiButton @click="openCreatePanel">新增商品</UiButton>
         </UiStatePanel>
       </section>
+
+      <UiPagination
+        :page="productPagination.page"
+        :page-size="productPagination.pageSize"
+        :total="productPagination.total"
+        :disabled="productLoadState.loading"
+        @update:page="handlePageChange"
+        @update:page-size="handlePageSizeChange"
+      />
     </section>
   </WorkspaceLayout>
 </template>
@@ -260,6 +269,7 @@ import { onBeforeUnmount, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import UiButton from '@/components/base/UiButton.vue';
 import UiCard from '@/components/base/UiCard.vue';
 import UiInput from '@/components/base/UiInput.vue';
+import UiPagination from '@/components/base/UiPagination.vue';
 import UiStatePanel from '@/components/base/UiStatePanel.vue';
 import UiTag from '@/components/base/UiTag.vue';
 import WorkspaceLayout from '@/components/layout/WorkspaceLayout.vue';
@@ -276,6 +286,7 @@ import {
   type ProductCard,
   loadProducts,
   productLoadState,
+  productPagination,
   productStats,
   products,
 } from '@/modules/products/mock';
@@ -352,6 +363,9 @@ function scrollPanelIntoView() {
 }
 
 function resetKeyword() {
+  if (!keyword.value.trim()) {
+    void loadProducts(true, undefined, '', 1, productPagination.pageSize);
+  }
   keyword.value = '';
 }
 
@@ -412,7 +426,15 @@ async function ensureCategories() {
 }
 
 async function refreshProducts() {
-  await loadProducts(true, undefined, keyword.value);
+  await loadProducts(true, undefined, keyword.value, productPagination.page, productPagination.pageSize);
+}
+
+function handlePageChange(page: number) {
+  void loadProducts(true, undefined, keyword.value, page, productPagination.pageSize);
+}
+
+function handlePageSizeChange(pageSize: number) {
+  void loadProducts(true, undefined, keyword.value, 1, pageSize);
 }
 
 function closePanel() {
@@ -632,7 +654,7 @@ async function handleTogglePublish(product: ProductCard) {
 }
 
 onMounted(() => {
-  void loadProducts(false, undefined, keyword.value);
+  void loadProducts(false, undefined, keyword.value, productPagination.page, productPagination.pageSize);
 });
 
 watch(keyword, () => {
@@ -640,7 +662,7 @@ watch(keyword, () => {
     clearTimeout(searchTimer);
   }
   searchTimer = setTimeout(() => {
-    void loadProducts(true, undefined, keyword.value);
+    void loadProducts(true, undefined, keyword.value, 1, productPagination.pageSize);
   }, 350);
 });
 

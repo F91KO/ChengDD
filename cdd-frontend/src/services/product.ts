@@ -1,4 +1,5 @@
 import { requestApi } from '@/services/http';
+import type { PageResponseRaw } from '@/types/page';
 import type {
   ProductCategoryResponseRaw,
   ProductCategoryTemplateResponseRaw,
@@ -13,8 +14,10 @@ export async function fetchProductList(params: {
   storeId: number;
   status?: string;
   keyword?: string;
-}): Promise<ProductSummaryResponseRaw[]> {
-  return requestApi<ProductSummaryResponseRaw[]>({
+  page?: number;
+  pageSize?: number;
+}): Promise<PageResponseRaw<ProductSummaryResponseRaw>> {
+  return requestApi<PageResponseRaw<ProductSummaryResponseRaw>>({
     method: 'GET',
     url: '/product/spu',
     params: {
@@ -22,6 +25,8 @@ export async function fetchProductList(params: {
       store_id: params.storeId,
       status: params.status,
       keyword: params.keyword,
+      page: params.page,
+      page_size: params.pageSize,
     },
   });
 }

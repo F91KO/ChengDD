@@ -20,7 +20,9 @@ import com.cdd.api.product.model.ProductStockSummaryResponse;
 import com.cdd.api.product.model.ProductSummaryResponse;
 import com.cdd.api.product.model.UpdateCategoryRequest;
 import com.cdd.api.product.model.UpdateProductRequest;
+import com.cdd.common.core.page.PageQuery;
 import com.cdd.common.core.error.BusinessException;
+import com.cdd.common.web.PageResponse;
 import com.cdd.product.error.ProductErrorCode;
 import com.cdd.product.infrastructure.ProductCatalogStore;
 import com.cdd.product.support.BusinessCodeGenerator;
@@ -249,6 +251,21 @@ public class ProductCatalogApplicationService {
         return store.listProducts(merchantId, storeId, status, trimToNull(keyword)).stream()
                 .map(this::toProductSummaryResponse)
                 .toList();
+    }
+
+    public PageResponse<ProductSummaryResponse> pageProducts(long merchantId,
+                                                             long storeId,
+                                                             String status,
+                                                             String keyword,
+                                                             PageQuery pageQuery) {
+        var pageResult = store.pageProducts(merchantId, storeId, status, trimToNull(keyword), pageQuery);
+        return PageResponse.of(
+                pageResult.list().stream()
+                        .map(this::toProductSummaryResponse)
+                        .toList(),
+                pageQuery.page(),
+                pageQuery.pageSize(),
+                pageResult.total());
     }
 
     public ProductDetailResponse publishProduct(long productId) {

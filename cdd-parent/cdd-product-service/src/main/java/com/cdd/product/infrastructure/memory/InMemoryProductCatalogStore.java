@@ -1,5 +1,7 @@
 package com.cdd.product.infrastructure.memory;
 
+import com.cdd.common.core.page.PageQuery;
+import com.cdd.common.core.page.PageResult;
 import com.cdd.product.infrastructure.ProductCatalogStore;
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -291,6 +293,14 @@ public class InMemoryProductCatalogStore implements ProductCatalogStore {
                 .filter(product -> matchesKeyword(product, keyword))
                 .sorted(Comparator.comparingLong(ProductRecord::id))
                 .toList();
+    }
+
+    @Override
+    public PageResult<ProductRecord> pageProducts(long merchantId, long storeId, String status, String keyword, PageQuery pageQuery) {
+        List<ProductRecord> matched = listProducts(merchantId, storeId, status, keyword);
+        int fromIndex = Math.min((pageQuery.page() - 1) * pageQuery.pageSize(), matched.size());
+        int toIndex = Math.min(fromIndex + pageQuery.pageSize(), matched.size());
+        return new PageResult<>(matched.subList(fromIndex, toIndex), matched.size());
     }
 
     @Override

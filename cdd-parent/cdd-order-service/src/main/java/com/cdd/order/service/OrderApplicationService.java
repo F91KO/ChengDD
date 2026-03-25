@@ -28,7 +28,9 @@ import com.cdd.api.order.model.OrderRefundCreateRequest;
 import com.cdd.api.order.model.OrderRefundLifecycleResponse;
 import com.cdd.api.order.model.OrderStatusLogResponse;
 import com.cdd.api.order.model.OrderSummaryResponse;
+import com.cdd.common.core.page.PageQuery;
 import com.cdd.common.core.error.BusinessException;
+import com.cdd.common.web.PageResponse;
 import com.cdd.order.error.OrderErrorCode;
 import com.cdd.order.infrastructure.persistence.OrderRepository.CompensationTaskRecord;
 import com.cdd.order.infrastructure.persistence.OrderRepository;
@@ -721,6 +723,21 @@ public class OrderApplicationService {
                 .toList();
     }
 
+    public PageResponse<OrderAfterSaleSummaryResponse> pageAfterSales(long merchantId,
+                                                                      long storeId,
+                                                                      String afterSaleStatus,
+                                                                      PageQuery pageQuery) {
+        String normalizedStatus = normalizeAfterSaleStatus(afterSaleStatus);
+        var pageResult = repository.pageAfterSales(merchantId, storeId, normalizedStatus, pageQuery);
+        return PageResponse.of(
+                pageResult.list().stream()
+                        .map(this::toAfterSaleSummaryResponse)
+                        .toList(),
+                pageQuery.page(),
+                pageQuery.pageSize(),
+                pageResult.total());
+    }
+
     @Transactional
     public OrderAfterSaleLifecycleResponse reviewAfterSale(String afterSaleNo, OrderAfterSaleReviewRequest request) {
         AfterSaleRecord afterSale = requireAfterSale(afterSaleNo);
@@ -1002,6 +1019,21 @@ public class OrderApplicationService {
         return repository.listOrderSummaries(merchantId, storeId, userId, orderStatus).stream()
                 .map(this::toOrderSummaryResponse)
                 .toList();
+    }
+
+    public PageResponse<OrderSummaryResponse> pageOrders(long merchantId,
+                                                         long storeId,
+                                                         Long userId,
+                                                         String orderStatus,
+                                                         PageQuery pageQuery) {
+        var pageResult = repository.pageOrderSummaries(merchantId, storeId, userId, orderStatus, pageQuery);
+        return PageResponse.of(
+                pageResult.list().stream()
+                        .map(this::toOrderSummaryResponse)
+                        .toList(),
+                pageQuery.page(),
+                pageQuery.pageSize(),
+                pageResult.total());
     }
 
     public String exportOrdersCsv(long merchantId, long storeId, Long userId, String orderStatus) {

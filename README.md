@@ -1,6 +1,6 @@
 # ChengDD Project Skeleton
 
-Java Spring 多模块后端骨架已经按 `cdd-parent` 聚合完成，技术基线固定为 `JDK 17`；前端一期后台控制台已落地到 `cdd-frontend/`。
+Java Spring 多模块后端骨架已经按 `cdd-parent` 聚合完成，技术基线固定为 `JDK 21`；前端一期后台控制台已落地到 `cdd-frontend/`。
 
 ## Layout
 
@@ -26,26 +26,40 @@ Java Spring 多模块后端骨架已经按 `cdd-parent` 聚合完成，技术基
 ## Backend Build
 
 ```bash
+export JAVA_HOME=$(/usr/libexec/java_home -v 21)
 mvn -f cdd-parent/pom.xml clean install
 ```
+
+项目默认使用用户本地 Maven 仓库 `~/.m2/repository`。如需切换仓库路径，可通过 `CDD_MAVEN_REPO` 或 `-Dmaven.repo.local=...` 覆盖。
 
 ## Backend Validation
 
 ```bash
+export JAVA_HOME=$(/usr/libexec/java_home -v 21)
 bash scripts/validation/validate_backend_skeleton.sh
 ```
+
+本地启动后端服务后，可执行下面的脚本检查“当前运行中的服务是否仍与工作区代码一致”。如果后端代码、配置或迁移脚本已变更但服务未重启，脚本会直接提示需要重启的服务：
+
+```bash
+bash scripts/local/check_backend_runtime_sync.sh
+```
+
+本地 `scripts/local/run_*` 启动脚本已改为直接基于 Maven Reactor 启动目标服务，不再先执行一次 `install` 再启动，避免重复编译和工作区代码与本地仓库产物不一致。
 
 ## Backend Test
 
 统一测试基线使用本地 MySQL 测试库 `chengdd_test`。执行前先确保本地 MySQL 基础设施可用，再执行：
 
 ```bash
+export JAVA_HOME=$(/usr/libexec/java_home -v 21)
 bash scripts/testing/run_phase1_acceptance.sh
 ```
 
 如果只想单独准备测试库：
 
 ```bash
+export JAVA_HOME=$(/usr/libexec/java_home -v 21)
 bash scripts/testing/prepare_mysql_test_db.sh
 ```
 
@@ -102,6 +116,7 @@ corepack pnpm build
 迁移脚本统一使用仓库根目录的 `db/migration`，数据库连接配置已外置到独立 `yml`：
 
 ```bash
+export JAVA_HOME=$(/usr/libexec/java_home -v 21)
 bash scripts/db/migrate.sh
 ```
 

@@ -139,7 +139,9 @@ class OrderControllerIntegrationTest {
                         .param("user_id", String.valueOf(userId)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(0))
-                .andExpect(jsonPath("$.data[0].order_no").value(orderNo));
+                .andExpect(jsonPath("$.data.page").value(1))
+                .andExpect(jsonPath("$.data.page_size").value(20))
+                .andExpect(jsonPath("$.data.list[0].order_no").value(orderNo));
 
         mockMvc.perform(post("/api/order/orders/{order_no}/cancel", orderNo)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -513,13 +515,13 @@ class OrderControllerIntegrationTest {
                         .param("store_id", String.valueOf(storeId)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(0))
-                .andExpect(jsonPath("$.data[0].after_sale_no").value(waitingReturnAfterSaleNo))
-                .andExpect(jsonPath("$.data[0].after_sale_status").value("waiting_return"))
-                .andExpect(jsonPath("$.data[0].product_name").isNotEmpty())
-                .andExpect(jsonPath("$.data[0].sku_name").isNotEmpty())
-                .andExpect(jsonPath("$.data[0].refund_amount").value(28.00))
-                .andExpect(jsonPath("$.data[1].after_sale_no").value(pendingAfterSaleNo))
-                .andExpect(jsonPath("$.data[1].after_sale_status").value("pending_merchant"));
+                .andExpect(jsonPath("$.data.list[0].after_sale_no").value(waitingReturnAfterSaleNo))
+                .andExpect(jsonPath("$.data.list[0].after_sale_status").value("waiting_return"))
+                .andExpect(jsonPath("$.data.list[0].product_name").isNotEmpty())
+                .andExpect(jsonPath("$.data.list[0].sku_name").isNotEmpty())
+                .andExpect(jsonPath("$.data.list[0].refund_amount").value(28.00))
+                .andExpect(jsonPath("$.data.list[1].after_sale_no").value(pendingAfterSaleNo))
+                .andExpect(jsonPath("$.data.list[1].after_sale_status").value("pending_merchant"));
 
         mockMvc.perform(get("/api/order/after-sales")
                         .param("merchant_id", String.valueOf(merchantId))
@@ -527,9 +529,9 @@ class OrderControllerIntegrationTest {
                         .param("after_sale_status", "waiting_return"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(0))
-                .andExpect(jsonPath("$.data.length()").value(1))
-                .andExpect(jsonPath("$.data[0].after_sale_no").value(waitingReturnAfterSaleNo))
-                .andExpect(jsonPath("$.data[0].after_sale_status").value("waiting_return"));
+                .andExpect(jsonPath("$.data.list.length()").value(1))
+                .andExpect(jsonPath("$.data.list[0].after_sale_no").value(waitingReturnAfterSaleNo))
+                .andExpect(jsonPath("$.data.list[0].after_sale_status").value("waiting_return"));
     }
 
     @Test
@@ -552,11 +554,11 @@ class OrderControllerIntegrationTest {
                         .param("user_id", String.valueOf(userId)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(0))
-                .andExpect(jsonPath("$.data[0].order_no").value(orderNo))
-                .andExpect(jsonPath("$.data[0].customer_identifier").value(String.valueOf(userId)))
-                .andExpect(jsonPath("$.data[0].channel").value("wechat_pay"))
-                .andExpect(jsonPath("$.data[0].product_summary").value(containsString("商品#93401 / SKU#94401 x2")))
-                .andExpect(jsonPath("$.data[0].product_summary").value(containsString("商品#93402 / SKU#94402 x1")));
+                .andExpect(jsonPath("$.data.list[0].order_no").value(orderNo))
+                .andExpect(jsonPath("$.data.list[0].customer_identifier").value(String.valueOf(userId)))
+                .andExpect(jsonPath("$.data.list[0].channel").value("wechat_pay"))
+                .andExpect(jsonPath("$.data.list[0].product_summary").value(containsString("商品#93401 / SKU#94401 x2")))
+                .andExpect(jsonPath("$.data.list[0].product_summary").value(containsString("商品#93402 / SKU#94402 x1")));
 
         MvcResult exportResult = mockMvc.perform(get("/api/order/orders/export")
                         .param("merchant_id", String.valueOf(merchantId))
