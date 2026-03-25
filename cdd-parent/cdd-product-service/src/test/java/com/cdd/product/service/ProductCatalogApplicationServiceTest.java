@@ -71,7 +71,7 @@ class ProductCatalogApplicationServiceTest {
                 productId,
                 skuId,
                 -5,
-                "售卖扣减"));
+                "销售扣减"));
         assertEquals(15, stock.availableStock());
         assertEquals("in_stock", stock.stockStatus());
 
@@ -98,7 +98,7 @@ class ProductCatalogApplicationServiceTest {
 
     @Test
     void shouldExposeDefaultMerchantCatalogForFrontendDemo() {
-        var products = service.listProducts(1001L, 1001L, null);
+        var products = service.listProducts(1001L, 1001L, null, null);
 
         assertEquals(3, products.size());
         assertEquals("赣南脐橙礼盒", products.get(0).productName());
@@ -114,6 +114,31 @@ class ProductCatalogApplicationServiceTest {
         assertEquals("CDD-ORANGE-001", products.get(0).skuSummaries().get(0).skuCode());
         assertTrue(products.stream().anyMatch(product -> "draft".equals(product.status())));
         assertTrue(products.stream().anyMatch(product -> "off_shelf".equals(product.status())));
+    }
+
+    @Test
+    void shouldSearchProductsByKeywordAcrossProductAndSkuFields() {
+        var byProductName = service.listProducts(1001L, 1001L, null, "赣南");
+        assertEquals(1, byProductName.size());
+        assertEquals("CDD-ORANGE-001", byProductName.get(0).skuSummaries().get(0).skuCode());
+
+        var bySkuCode = service.listProducts(1001L, 1001L, null, "COFFEE-001");
+        assertEquals(1, bySkuCode.size());
+        assertEquals("CDD-COFFEE-001", bySkuCode.get(0).skuSummaries().get(0).skuCode());
+    }
+
+    @Test
+    void shouldSearchProductsByProductCodeAndLegacySpuDisplayValue() {
+        var products = service.listProducts(1001L, 1001L, null, null);
+        var target = products.get(0);
+
+        var byProductCode = service.listProducts(1001L, 1001L, null, target.productCode());
+        assertEquals(1, byProductCode.size());
+        assertEquals(target.id(), byProductCode.get(0).id());
+
+        var byLegacyDisplayValue = service.listProducts(1001L, 1001L, null, "SPU-" + target.id());
+        assertEquals(1, byLegacyDisplayValue.size());
+        assertEquals(target.id(), byLegacyDisplayValue.get(0).id());
     }
 
     @Test

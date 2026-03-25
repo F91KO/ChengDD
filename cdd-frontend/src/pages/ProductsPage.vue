@@ -2,11 +2,11 @@
   <WorkspaceLayout
     eyebrow="Catalog"
     title="商品管理"
-    description="当前页面展示真实商品摘要，并将新增、详情、上下架和库存调整统一收口到页内编辑面板。"
+    description="当前页面展示真实商品摘要，并将新增、详情、上下架和库存调整统一收口到页内编辑区。"
   >
     <section :class="$style.filters">
-      <UiInput v-model="keyword" placeholder="搜索商品名称、SPU..." prefix="搜" />
-      <UiButton variant="secondary" @click="keyword = ''">重置关键词</UiButton>
+      <UiInput v-model="keyword" placeholder="搜索商品名称、SPU、SKU..." prefix="搜" />
+      <UiButton variant="secondary" @click="resetKeyword">重置关键词</UiButton>
       <UiButton @click="openCreatePanel">新增商品</UiButton>
     </section>
 
@@ -37,236 +37,226 @@
     />
 
     <section :class="$style.workspace">
-      <div :class="$style.mainColumn">
-        <section :class="$style.stats">
-          <UiCard v-for="stat in productStats" :key="stat.label" elevated :class="$style.statCard">
-            <div :class="$style.statLabel">{{ stat.label }}</div>
-            <div :class="$style.statValue">{{ stat.value }}</div>
-            <div :class="[$style.statTone, $style[stat.tone]]"></div>
-          </UiCard>
-        </section>
+      <section :class="$style.stats">
+        <UiCard v-for="stat in productStats" :key="stat.label" elevated :class="$style.statCard">
+          <div :class="$style.statLabel">{{ stat.label }}</div>
+          <div :class="$style.statValue">{{ stat.value }}</div>
+          <div :class="[$style.statTone, $style[stat.tone]]"></div>
+        </UiCard>
+      </section>
 
-        <section :class="$style.list">
-          <UiCard
-            v-for="product in filteredProducts"
-            :key="product.sku"
-            elevated
-            :class="$style.productCard"
-          >
-            <div :class="$style.cover">{{ product.sku }}</div>
-            <div :class="$style.productMain">
-              <div :class="$style.productHead">
-                <div>
-                  <h3 :class="$style.productName">{{ product.name }}</h3>
-                  <div :class="$style.productSku">
-                    {{ product.categoryName }} · SKU {{ product.skuCount }} 个
-                  </div>
-                </div>
-                <UiTag :tone="product.statusTone as 'default' | 'primary' | 'info'">
-                  {{ product.status }}
-                </UiTag>
+      <div v-if="panelMode" ref="panelAnchor" :class="$style.editorAnchor">
+        <UiCard elevated :class="$style.editorPanel">
+          <div :class="$style.panelHead">
+            <div>
+              <div :class="$style.panelEyebrow">
+                {{ panelMode === 'create' ? '创建商品' : '编辑商品' }}
               </div>
-              <div :class="$style.productMeta">
-                <div>
-                  <div :class="$style.price">{{ product.price }}</div>
-                  <div :class="$style.metaText">近日报销量 {{ product.sales }}</div>
-                </div>
-                <div :class="$style.inventoryBlock">
-                  <div :class="$style.metaText">库存摘要</div>
-                  <div :class="$style.inventory">{{ product.inventory }}</div>
-                </div>
-              </div>
-              <div :class="$style.actions">
-                <UiButton variant="secondary" @click="openDetailPanel(product)">编辑商品</UiButton>
-                <UiButton variant="secondary" @click="openStockPanel(product)">库存调整</UiButton>
-                <UiButton
-                  :variant="product.status === '已下架' ? 'primary' : 'ghost'"
-                  @click="handleTogglePublish(product)"
-                >
-                  {{ product.status === '已下架' ? '上架销售' : '下架商品' }}
-                </UiButton>
-              </div>
+              <h3 :class="$style.panelTitle">
+                {{ panelMode === 'create' ? '新增真实商品' : detail?.product_name || selectedProduct?.name || '编辑商品' }}
+              </h3>
             </div>
-          </UiCard>
+            <UiButton variant="secondary" @click="closePanel">收起面板</UiButton>
+          </div>
+
           <UiStatePanel
-            v-if="!productLoadState.loading && filteredProducts.length === 0"
-            tone="empty"
-            title="没有找到匹配商品"
-            description="当前真实商品列表没有匹配结果，可以重置关键词或直接创建新商品。"
-          >
-            <UiButton variant="secondary" @click="keyword = ''">清空筛选</UiButton>
-            <UiButton @click="openCreatePanel">新增商品</UiButton>
-          </UiStatePanel>
-        </section>
-      </div>
+            v-if="panelMode === 'edit'"
+            tone="info"
+            title="当前已接入真实商品编辑接口"
+            description="商品基础字段、SKU、上下架和库存调整都会直接调用后端接口。SKU 编码由系统自动生成，用户无需手填。"
+          />
 
-      <UiCard v-if="panelMode" elevated :class="$style.editorPanel">
-        <div :class="$style.panelHead">
-          <div>
-            <div :class="$style.panelEyebrow">
-              {{ panelMode === 'create' ? '创建商品' : '编辑商品' }}
-            </div>
-            <h3 :class="$style.panelTitle">
-              {{ panelMode === 'create' ? '新增真实商品' : detail?.product_name || selectedProduct?.name || '编辑商品' }}
-            </h3>
-          </div>
-          <UiButton variant="secondary" @click="closePanel">收起面板</UiButton>
-        </div>
+          <UiStatePanel
+            v-if="panelLoading"
+            tone="loading"
+            title="正在准备面板数据"
+            description="正在加载分类、商品详情和 SKU 信息。"
+          />
 
-        <UiStatePanel
-          v-if="panelMode === 'edit'"
-          tone="info"
-          title="当前已接入真实商品编辑接口"
-          description="商品基础字段、SKU、上下架和库存调整都走真实接口。"
-        />
-
-        <UiStatePanel
-          v-if="panelLoading"
-          tone="loading"
-          title="正在准备面板数据"
-          description="正在加载分类、商品详情和 SKU 信息。"
-        />
-
-        <template v-else-if="panelMode === 'create'">
-          <div :class="$style.formGrid">
-            <label :class="$style.field">
-              <span :class="$style.fieldLabel">商品分类</span>
-              <select v-model="createForm.categoryId" :class="$style.select">
-                <option value="">请选择分类</option>
-                <option v-for="category in categories" :key="category.id" :value="String(category.id)">
-                  {{ category.category_name }}（ID {{ category.id }}）
-                </option>
-              </select>
-            </label>
-            <UiInput v-model="createForm.productName" label="商品名称" placeholder="请输入商品名称" />
-            <UiInput v-model="createForm.productSubTitle" label="商品副标题" placeholder="请输入商品副标题" />
-            <UiInput v-model="createForm.skuName" label="SKU 名称" placeholder="例如：标准装" />
-            <UiInput v-model="createForm.skuCode" label="SKU 编码" placeholder="例如：CDD-DEMO-001" />
-            <UiInput v-model="createForm.salePrice" label="销售价" placeholder="例如：99.00" />
-            <UiInput v-model="createForm.availableStock" label="初始库存" placeholder="例如：100" />
-          </div>
-          <div :class="$style.panelActions">
-            <UiButton variant="secondary" @click="resetCreateForm">清空表单</UiButton>
-            <UiButton :disabled="submitting" @click="handleCreateProduct">
-              {{ submitting ? '正在创建...' : '提交创建' }}
-            </UiButton>
-          </div>
-        </template>
-
-        <template v-else-if="detail">
-          <section :class="$style.detailSummary">
-            <div>
-              <div :class="$style.summaryLabel">商品 ID</div>
-              <div :class="$style.summaryValue">{{ detail.id }}</div>
-            </div>
-            <div>
-              <div :class="$style.summaryLabel">商品分类</div>
-              <div :class="$style.summaryValue">{{ resolveCategoryName(detail.category_id) }}</div>
-            </div>
-            <div>
-              <div :class="$style.summaryLabel">当前状态</div>
-              <div :class="$style.summaryValue">{{ selectedProduct?.status || detail.status }}</div>
-            </div>
-          </section>
-
-          <div :class="$style.formGrid">
-            <label :class="$style.field">
-              <span :class="$style.fieldLabel">商品分类</span>
-              <select v-model="editForm.categoryId" :class="$style.select">
-                <option value="">请选择分类</option>
-                <option v-for="category in categories" :key="category.id" :value="String(category.id)">
-                  {{ category.category_name }}（ID {{ category.id }}）
-                </option>
-              </select>
-            </label>
-            <UiInput v-model="editForm.productName" label="商品名称" placeholder="请输入商品名称" />
-            <UiInput v-model="editForm.productSubTitle" label="商品副标题" placeholder="请输入商品副标题" />
-          </div>
-
-          <div :class="$style.skuSection">
-            <div :class="$style.skuSectionHead">
-              <div :class="$style.sectionTitle">SKU 编辑</div>
-              <UiButton variant="secondary" @click="addEditSku">新增 SKU</UiButton>
-            </div>
-            <article v-for="sku in editForm.skus" :key="sku.clientId" :class="$style.skuEditorCard">
-              <div :class="$style.skuEditorGrid">
-                <UiInput v-model="sku.skuName" label="SKU 名称" placeholder="例如：标准装" />
-                <UiInput v-model="sku.skuCode" label="SKU 编码" placeholder="例如：CDD-DEMO-001" />
-                <UiInput v-model="sku.salePrice" label="销售价" placeholder="例如：99.00" />
-                <UiInput v-model="sku.availableStock" label="可售库存" placeholder="例如：100" />
-              </div>
-              <div :class="$style.panelActions">
-                <UiButton
-                  variant="secondary"
-                  :disabled="editForm.skus.length <= 1"
-                  @click="removeEditSku(sku.clientId)"
-                >
-                  删除 SKU
-                </UiButton>
-              </div>
-            </article>
-          </div>
-
-          <div :class="$style.panelActions">
-            <UiButton variant="secondary" :disabled="submitting" @click="handleUpdateProduct">
-              {{ submitting ? '正在保存...' : '保存商品信息' }}
-            </UiButton>
-          </div>
-
-          <div :class="$style.skuSection">
-            <div :class="$style.sectionTitle">库存调整</div>
+          <template v-else-if="panelMode === 'create'">
             <div :class="$style.formGrid">
               <label :class="$style.field">
-                <span :class="$style.fieldLabel">目标 SKU</span>
-                <select v-model="stockForm.skuId" :class="$style.select">
-                  <option value="">请选择 SKU</option>
-                  <option v-for="sku in detail.skus" :key="sku.id" :value="String(sku.id)">
-                    {{ sku.sku_name }}（可售 {{ sku.available_stock }} / 锁定 {{ sku.locked_stock }}）
+                <span :class="$style.fieldLabel">商品分类</span>
+                <select v-model="createForm.categoryId" :class="$style.select">
+                  <option value="">请选择分类</option>
+                  <option v-for="category in categories" :key="category.id" :value="String(category.id)">
+                    {{ category.category_name }}（ID {{ category.id }}）
                   </option>
                 </select>
               </label>
-              <UiInput v-model="stockForm.deltaStock" label="调整数量" placeholder="正数补货，负数扣减" />
-              <label :class="$style.fieldWide">
-                <span :class="$style.fieldLabel">调整原因</span>
-                <textarea
-                  v-model="stockForm.reason"
-                  :class="$style.textarea"
-                  placeholder="请输入库存调整原因"
-                />
+              <UiInput v-model="createForm.productName" label="商品名称" placeholder="请输入商品名称" />
+              <UiInput v-model="createForm.productSubTitle" label="商品副标题" placeholder="请输入商品副标题" />
+              <UiInput v-model="createForm.skuName" label="SKU 名称" placeholder="例如 标准装" />
+              <UiInput v-model="createForm.salePrice" label="销售价" placeholder="例如 99.00" />
+              <UiInput v-model="createForm.availableStock" label="初始库存" placeholder="例如 100" />
+            </div>
+            <div :class="$style.panelActions">
+              <UiButton variant="secondary" @click="resetCreateForm">清空表单</UiButton>
+              <UiButton :disabled="submitting" @click="handleCreateProduct">
+                {{ submitting ? '正在创建...' : '提交创建' }}
+              </UiButton>
+            </div>
+          </template>
+
+          <template v-else-if="detail">
+            <section :class="$style.detailSummary">
+              <div>
+                <div :class="$style.summaryLabel">商品 ID</div>
+                <div :class="$style.summaryValue">{{ detail.id }}</div>
+              </div>
+              <div>
+                <div :class="$style.summaryLabel">商品分类</div>
+                <div :class="$style.summaryValue">{{ resolveCategoryName(detail.category_id) }}</div>
+              </div>
+              <div>
+                <div :class="$style.summaryLabel">当前状态</div>
+                <div :class="$style.summaryValue">{{ selectedProduct?.status || detail.status }}</div>
+              </div>
+            </section>
+
+            <div :class="$style.formGrid">
+              <label :class="$style.field">
+                <span :class="$style.fieldLabel">商品分类</span>
+                <select v-model="editForm.categoryId" :class="$style.select">
+                  <option value="">请选择分类</option>
+                  <option v-for="category in categories" :key="category.id" :value="String(category.id)">
+                    {{ category.category_name }}（ID {{ category.id }}）
+                  </option>
+                </select>
               </label>
+              <UiInput v-model="editForm.productName" label="商品名称" placeholder="请输入商品名称" />
+              <UiInput v-model="editForm.productSubTitle" label="商品副标题" placeholder="请输入商品副标题" />
+            </div>
+
+            <div :class="$style.skuSection">
+              <div :class="$style.skuSectionHead">
+                <div :class="$style.sectionTitle">SKU 编辑</div>
+                <UiButton variant="secondary" @click="addEditSku">新增 SKU</UiButton>
+              </div>
+              <article v-for="sku in editForm.skus" :key="sku.clientId" :class="$style.skuEditorCard">
+                <div :class="$style.skuEditorGrid">
+                  <UiInput v-model="sku.skuName" label="SKU 名称" placeholder="例如 标准装" />
+                  <UiInput v-model="sku.salePrice" label="销售价" placeholder="例如 99.00" />
+                  <UiInput v-model="sku.availableStock" label="可售库存" placeholder="例如 100" />
+                </div>
+                <div :class="$style.panelActions">
+                  <UiButton
+                    variant="secondary"
+                    :disabled="editForm.skus.length <= 1"
+                    @click="removeEditSku(sku.clientId)"
+                  >
+                    删除 SKU
+                  </UiButton>
+                </div>
+              </article>
+            </div>
+
+            <div :class="$style.panelActions">
+              <UiButton variant="secondary" :disabled="submitting" @click="handleUpdateProduct">
+                {{ submitting ? '正在保存...' : '保存商品信息' }}
+              </UiButton>
+            </div>
+
+            <div :class="$style.skuSection">
+              <div :class="$style.sectionTitle">库存调整</div>
+              <div :class="$style.formGrid">
+                <label :class="$style.field">
+                  <span :class="$style.fieldLabel">目标 SKU</span>
+                  <select v-model="stockForm.skuId" :class="$style.select">
+                    <option value="">请选择 SKU</option>
+                    <option v-for="sku in detail.skus" :key="sku.id" :value="String(sku.id)">
+                      {{ sku.sku_name }}（可售 {{ sku.available_stock }} / 锁定 {{ sku.locked_stock }}）
+                    </option>
+                  </select>
+                </label>
+                <UiInput v-model="stockForm.deltaStock" label="调整数量" placeholder="正数补货，负数扣减" />
+                <label :class="$style.fieldWide">
+                  <span :class="$style.fieldLabel">调整原因</span>
+                  <textarea
+                    v-model="stockForm.reason"
+                    :class="$style.textarea"
+                    placeholder="请输入库存调整原因"
+                  />
+                </label>
+              </div>
+            </div>
+
+            <div :class="$style.panelActions">
+              <UiButton variant="secondary" :disabled="submitting" @click="handleAdjustStock">
+                {{ submitting ? '正在提交...' : '提交库存调整' }}
+              </UiButton>
+              <UiButton
+                :variant="selectedProduct?.status === '已下架' ? 'primary' : 'ghost'"
+                :disabled="submitting || !selectedProduct"
+                @click="selectedProduct && handleTogglePublish(selectedProduct)"
+              >
+                {{
+                  submitting
+                    ? '正在处理...'
+                    : selectedProduct?.status === '已下架'
+                      ? '上架当前商品'
+                      : '下架当前商品'
+                }}
+              </UiButton>
+            </div>
+          </template>
+        </UiCard>
+      </div>
+
+      <section :class="$style.list">
+        <UiCard v-for="product in products" :key="product.sku" elevated :class="$style.productCard">
+          <div :class="$style.cover">{{ product.sku }}</div>
+          <div :class="$style.productMain">
+            <div :class="$style.productHead">
+              <div>
+                <h3 :class="$style.productName">{{ product.name }}</h3>
+                <div :class="$style.productSku">
+                  {{ product.categoryName }} · SKU {{ product.skuCount }} 个
+                </div>
+              </div>
+              <UiTag :tone="product.statusTone as 'default' | 'primary' | 'info'">
+                {{ product.status }}
+              </UiTag>
+            </div>
+            <div :class="$style.productMeta">
+              <div>
+                <div :class="$style.price">{{ product.price }}</div>
+                <div :class="$style.metaText">近日销量 {{ product.sales }}</div>
+              </div>
+              <div :class="$style.inventoryBlock">
+                <div :class="$style.metaText">库存摘要</div>
+                <div :class="$style.inventory">{{ product.inventory }}</div>
+              </div>
+            </div>
+            <div :class="$style.actions">
+              <UiButton variant="secondary" @click="openDetailPanel(product)">编辑商品</UiButton>
+              <UiButton variant="secondary" @click="openStockPanel(product)">库存调整</UiButton>
+              <UiButton
+                :variant="product.status === '已下架' ? 'primary' : 'ghost'"
+                @click="handleTogglePublish(product)"
+              >
+                {{ product.status === '已下架' ? '上架销售' : '下架商品' }}
+              </UiButton>
             </div>
           </div>
+        </UiCard>
 
-          <div :class="$style.panelActions">
-            <UiButton
-              variant="secondary"
-              :disabled="submitting"
-              @click="handleAdjustStock"
-            >
-              {{ submitting ? '正在提交...' : '提交库存调整' }}
-            </UiButton>
-            <UiButton
-              :variant="selectedProduct?.status === '已下架' ? 'primary' : 'ghost'"
-              :disabled="submitting || !selectedProduct"
-              @click="selectedProduct && handleTogglePublish(selectedProduct)"
-            >
-              {{
-                submitting
-                  ? '正在处理...'
-                  : selectedProduct?.status === '已下架'
-                    ? '上架当前商品'
-                    : '下架当前商品'
-              }}
-            </UiButton>
-          </div>
-        </template>
-      </UiCard>
+        <UiStatePanel
+          v-if="!productLoadState.loading && products.length === 0"
+          tone="empty"
+          title="没有找到匹配商品"
+          description="当前接口没有返回匹配商品，可以重置关键词后重试，或直接创建新商品。"
+        >
+          <UiButton variant="secondary" @click="resetKeyword">清空筛选</UiButton>
+          <UiButton @click="openCreatePanel">新增商品</UiButton>
+        </UiStatePanel>
+      </section>
     </section>
   </WorkspaceLayout>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue';
+import { onBeforeUnmount, nextTick, onMounted, reactive, ref, watch } from 'vue';
 import UiButton from '@/components/base/UiButton.vue';
 import UiCard from '@/components/base/UiCard.vue';
 import UiInput from '@/components/base/UiInput.vue';
@@ -311,6 +301,8 @@ const submitting = ref(false);
 const categories = ref<ProductCategoryResponseRaw[]>([]);
 const selectedProduct = ref<ProductCard | null>(null);
 const detail = ref<ProductDetailResponseRaw | null>(null);
+const panelAnchor = ref<HTMLElement | null>(null);
+let searchTimer: ReturnType<typeof setTimeout> | null = null;
 
 const createForm = reactive({
   categoryId: '',
@@ -335,29 +327,9 @@ const stockForm = reactive({
   reason: '',
 });
 
-const filteredProducts = computed(() => {
-  const query = keyword.value.trim().toLowerCase();
-  if (!query) {
-    return products;
-  }
-
-  return products.filter(
-    (product) =>
-      product.name.toLowerCase().includes(query) || product.sku.toLowerCase().includes(query),
-  );
-});
-
 function setActionMessage(message: string, tone: 'info' | 'error' = 'info') {
   actionMessage.value = message;
   actionTone.value = tone;
-}
-
-function formatCurrency(value: number | string): string {
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed)) {
-    return '¥0.00';
-  }
-  return `¥${parsed.toFixed(2)}`;
 }
 
 function resolveCategoryName(categoryId: number): string {
@@ -368,9 +340,19 @@ function getRequiredScope() {
   const merchantId = authStore.merchantIdForQuery;
   const storeId = authStore.storeIdForQuery;
   if (!merchantId || !storeId) {
-    throw new Error('当前登录上下文缺少商家或店铺 ID。');
+    throw new Error('当前登录上下文缺少商家或门店 ID。');
   }
   return { merchantId, storeId };
+}
+
+function scrollPanelIntoView() {
+  void nextTick(() => {
+    panelAnchor.value?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+}
+
+function resetKeyword() {
+  keyword.value = '';
 }
 
 function resetCreateForm() {
@@ -430,7 +412,7 @@ async function ensureCategories() {
 }
 
 async function refreshProducts() {
-  await loadProducts(true);
+  await loadProducts(true, undefined, keyword.value);
 }
 
 function closePanel() {
@@ -446,6 +428,7 @@ async function openCreatePanel() {
   selectedProduct.value = null;
   detail.value = null;
   panelLoading.value = true;
+  scrollPanelIntoView();
   try {
     await ensureCategories();
     resetCreateForm();
@@ -461,6 +444,7 @@ async function openDetailPanel(product: ProductCard) {
   panelMode.value = 'edit';
   panelLoading.value = true;
   selectedProduct.value = product;
+  scrollPanelIntoView();
   try {
     await ensureCategories();
     detail.value = await fetchProductDetail(product.id);
@@ -499,8 +483,8 @@ async function handleCreateProduct() {
     if (!createForm.productName.trim()) {
       throw new Error('商品名称不能为空。');
     }
-    if (!createForm.skuName.trim() || !createForm.skuCode.trim()) {
-      throw new Error('请完整填写 SKU 名称和编码。');
+    if (!createForm.skuName.trim()) {
+      throw new Error('请填写 SKU 名称。');
     }
     if (!Number.isFinite(salePrice) || salePrice < 0) {
       throw new Error('销售价必须是大于等于 0 的数字。');
@@ -515,7 +499,7 @@ async function handleCreateProduct() {
       categoryId,
       productName: createForm.productName.trim(),
       productSubTitle: createForm.productSubTitle.trim(),
-      skuCode: createForm.skuCode.trim(),
+      skuCode: createForm.skuCode.trim() || undefined,
       skuName: createForm.skuName.trim(),
       salePrice,
       availableStock,
@@ -551,8 +535,8 @@ async function handleUpdateProduct() {
     const normalizedSkus = editForm.skus.map((sku) => {
       const salePrice = Number(sku.salePrice);
       const availableStock = Number(sku.availableStock);
-      if (!sku.skuCode.trim() || !sku.skuName.trim()) {
-        throw new Error('请完整填写 SKU 编码和名称。');
+      if (!sku.skuName.trim()) {
+        throw new Error('请填写 SKU 名称。');
       }
       if (!Number.isFinite(salePrice) || salePrice < 0) {
         throw new Error('SKU 销售价必须是大于等于 0 的数字。');
@@ -562,7 +546,7 @@ async function handleUpdateProduct() {
       }
 
       return {
-        skuCode: sku.skuCode.trim(),
+        skuCode: sku.skuCode.trim() || undefined,
         skuName: sku.skuName.trim(),
         salePrice,
         availableStock,
@@ -648,7 +632,22 @@ async function handleTogglePublish(product: ProductCard) {
 }
 
 onMounted(() => {
-  void loadProducts();
+  void loadProducts(false, undefined, keyword.value);
+});
+
+watch(keyword, () => {
+  if (searchTimer) {
+    clearTimeout(searchTimer);
+  }
+  searchTimer = setTimeout(() => {
+    void loadProducts(true, undefined, keyword.value);
+  }, 350);
+});
+
+onBeforeUnmount(() => {
+  if (searchTimer) {
+    clearTimeout(searchTimer);
+  }
 });
 </script>
 
@@ -661,18 +660,12 @@ onMounted(() => {
 
 .workspace {
   display: grid;
-  grid-template-columns: minmax(0, 1.5fr) minmax(320px, 0.95fr);
-  gap: 18px;
-}
-
-.mainColumn {
-  display: grid;
   gap: 18px;
 }
 
 .stats {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 16px;
 }
 
@@ -715,6 +708,10 @@ onMounted(() => {
 
 .statTone.danger {
   background: var(--cdd-danger);
+}
+
+.editorAnchor {
+  scroll-margin-top: 24px;
 }
 
 .list {
@@ -848,7 +845,6 @@ onMounted(() => {
 }
 
 .select,
-.readonlyInput,
 .textarea {
   min-height: 54px;
   padding: 14px 16px;
@@ -865,10 +861,6 @@ onMounted(() => {
   outline: 0;
   box-shadow: inset 0 0 0 1px rgba(160, 65, 0, 0.24);
   background: rgba(255, 255, 255, 0.98);
-}
-
-.readonlyInput {
-  color: var(--cdd-text-soft);
 }
 
 .textarea {
@@ -911,19 +903,13 @@ onMounted(() => {
   font-weight: 800;
 }
 
-.skuEditorCard,
-.skuCard {
+.skuEditorCard {
   display: flex;
   justify-content: space-between;
   gap: 16px;
   padding: 14px 16px;
   border-radius: 18px;
   background: rgba(237, 244, 255, 0.72);
-}
-
-.skuName {
-  font-size: 14px;
-  font-weight: 800;
 }
 
 .skuEditorGrid {
@@ -933,28 +919,14 @@ onMounted(() => {
   gap: 12px;
 }
 
-.skuMeta,
-.skuStock {
-  margin-top: 8px;
-  color: var(--cdd-text-soft);
-  font-size: 13px;
-}
-
 .panelActions {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
 }
 
-@media (max-width: 1180px) {
-  .workspace {
-    grid-template-columns: 1fr;
-  }
-}
-
 @media (max-width: 960px) {
   .filters,
-  .stats,
   .detailSummary,
   .skuEditorGrid {
     grid-template-columns: 1fr;
@@ -972,8 +944,7 @@ onMounted(() => {
   .panelHead,
   .panelActions,
   .skuSectionHead,
-  .skuEditorCard,
-  .skuCard {
+  .skuEditorCard {
     flex-direction: column;
     align-items: flex-start;
   }

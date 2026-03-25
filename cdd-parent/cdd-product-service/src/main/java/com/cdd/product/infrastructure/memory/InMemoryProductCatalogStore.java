@@ -247,6 +247,7 @@ public class InMemoryProductCatalogStore implements ProductCatalogStore {
                                                     String productSubTitle,
                                                     List<SkuDraft> skuDrafts) {
         long productId = productIdGenerator.incrementAndGet();
+        String productCode = buildProductCode(productId);
         List<Long> productSkuIds = new ArrayList<>(skuDrafts.size());
         for (SkuDraft draft : skuDrafts) {
             long skuId = skuIdGenerator.incrementAndGet();
@@ -268,6 +269,7 @@ public class InMemoryProductCatalogStore implements ProductCatalogStore {
                 merchantId,
                 storeId,
                 categoryId,
+                productCode,
                 productName,
                 productSubTitle,
                 "draft",
@@ -282,10 +284,11 @@ public class InMemoryProductCatalogStore implements ProductCatalogStore {
     }
 
     @Override
-    public List<ProductRecord> listProducts(long merchantId, long storeId, String status) {
+    public List<ProductRecord> listProducts(long merchantId, long storeId, String status, String keyword) {
         return products.values().stream()
                 .filter(product -> product.merchantId() == merchantId && product.storeId() == storeId)
                 .filter(product -> status == null || status.isBlank() || product.status().equals(status))
+                .filter(product -> matchesKeyword(product, keyword))
                 .sorted(Comparator.comparingLong(ProductRecord::id))
                 .toList();
     }
@@ -337,6 +340,7 @@ public class InMemoryProductCatalogStore implements ProductCatalogStore {
                 current.merchantId(),
                 current.storeId(),
                 categoryId,
+                current.productCode(),
                 productName,
                 productSubTitle,
                 current.status(),
@@ -361,6 +365,7 @@ public class InMemoryProductCatalogStore implements ProductCatalogStore {
                 current.merchantId(),
                 current.storeId(),
                 current.categoryId(),
+                current.productCode(),
                 current.productName(),
                 current.productSubTitle(),
                 status,
@@ -436,6 +441,32 @@ public class InMemoryProductCatalogStore implements ProductCatalogStore {
                 .findFirst();
     }
 
+    private boolean matchesKeyword(ProductRecord product, String keyword) {
+        if (!StringUtils.hasText(keyword)) {
+            return true;
+        }
+        String normalizedKeyword = keyword.trim().toLowerCase();
+        if (product.productCode().toLowerCase().contains(normalizedKeyword)) {
+            return true;
+        }
+        if (String.valueOf(product.id()).contains(normalizedKeyword)) {
+            return true;
+        }
+        if (("spu-" + product.id()).contains(normalizedKeyword)) {
+            return true;
+        }
+        if (product.productName().toLowerCase().contains(normalizedKeyword)) {
+            return true;
+        }
+        if (StringUtils.hasText(product.productSubTitle())
+                && product.productSubTitle().toLowerCase().contains(normalizedKeyword)) {
+            return true;
+        }
+        return listSkusByProductId(product.id()).stream().anyMatch(sku ->
+                sku.skuCode().toLowerCase().contains(normalizedKeyword)
+                        || sku.skuName().toLowerCase().contains(normalizedKeyword));
+    }
+
     private void seedDefaultTemplate() {
         List<TemplateNodeDraft> drafts = List.of(
                 new TemplateNodeDraft("fresh", null, "生鲜", 1, 10, true, true),
@@ -493,6 +524,10 @@ public class InMemoryProductCatalogStore implements ProductCatalogStore {
 
     private static String merchantSkuCodeKey(long merchantId, String skuCode) {
         return merchantId + "#" + skuCode;
+    }
+
+    private static String buildProductCode(long productId) {
+        return "SPU" + productId;
     }
 
     private static String toStockStatus(int availableStock) {

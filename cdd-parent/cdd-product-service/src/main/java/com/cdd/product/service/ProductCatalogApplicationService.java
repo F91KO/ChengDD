@@ -8,6 +8,7 @@ import com.cdd.api.product.model.CategoryTemplateResponse;
 import com.cdd.api.product.model.CreateCategoryRequest;
 import com.cdd.api.product.model.CreateCategoryTemplateRequest;
 import com.cdd.api.product.model.CreateProductRequest;
+import com.cdd.api.product.model.CreateSkuRequest;
 import com.cdd.api.product.model.InitializeCategoryTreeRequest;
 import com.cdd.api.product.model.InitializeCategoryTreeResponse;
 import com.cdd.api.product.model.ProductDetailResponse;
@@ -22,6 +23,7 @@ import com.cdd.api.product.model.UpdateProductRequest;
 import com.cdd.common.core.error.BusinessException;
 import com.cdd.product.error.ProductErrorCode;
 import com.cdd.product.infrastructure.ProductCatalogStore;
+import com.cdd.product.support.BusinessCodeGenerator;
 import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -30,6 +32,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -42,9 +45,12 @@ public class ProductCatalogApplicationService {
     private static final String PRODUCT_STATUS_OFF_SHELF = "off_shelf";
 
     private final ProductCatalogStore store;
+    private final BusinessCodeGenerator businessCodeGenerator;
 
-    public ProductCatalogApplicationService(ProductCatalogStore store) {
+    public ProductCatalogApplicationService(ProductCatalogStore store,
+                                            BusinessCodeGenerator businessCodeGenerator) {
         this.store = store;
+        this.businessCodeGenerator = businessCodeGenerator;
     }
 
     public CategoryTemplateResponse createCategoryTemplate(CreateCategoryTemplateRequest request) {
@@ -226,7 +232,7 @@ public class ProductCatalogApplicationService {
         Set<String> ownedSkuCodes = store.listSkusByProductId(productId).stream()
                 .map(ProductCatalogStore.SkuRecord::skuCode)
                 .map(ProductCatalogApplicationService::normalize)
-                .collect(java.util.stream.Collectors.toSet());
+                .collect(Collectors.toSet());
         List<ProductCatalogStore.SkuDraft> skuDrafts = buildSkuDrafts(request.merchantId(), request.skus(), ownedSkuCodes);
 
         ProductCatalogStore.ProductRecord updated = store.updateProduct(
@@ -239,8 +245,8 @@ public class ProductCatalogApplicationService {
         return toProductDetailResponse(updated);
     }
 
-    public List<ProductSummaryResponse> listProducts(long merchantId, long storeId, String status) {
-        return store.listProducts(merchantId, storeId, status).stream()
+    public List<ProductSummaryResponse> listProducts(long merchantId, long storeId, String status, String keyword) {
+        return store.listProducts(merchantId, storeId, status, trimToNull(keyword)).stream()
                 .map(this::toProductSummaryResponse)
                 .toList();
     }
@@ -317,12 +323,15 @@ public class ProductCatalogApplicationService {
     }
 
     private List<ProductCatalogStore.SkuDraft> buildSkuDrafts(long merchantId,
-                                                              List<com.cdd.api.product.model.CreateSkuRequest> skus,
+                                                              List<CreateSkuRequest> skus,
                                                               Set<String> ownedSkuCodes) {
         Set<String> requestSkuCodes = new HashSet<>();
         return skus.stream()
                 .map(sku -> {
-                    String skuCode = sku.skuCode().trim();
+                    String skuCode = trimToNull(sku.skuCode());
+                    if (!StringUtils.hasText(skuCode)) {
+                        skuCode = generateSkuCode(merchantId, requestSkuCodes, ownedSkuCodes);
+                    }
                     String normalizedSkuCode = normalize(skuCode);
                     if (!requestSkuCodes.add(normalizedSkuCode)) {
                         throw new BusinessException(ProductErrorCode.SKU_CODE_DUPLICATE, "SKU编码重复");
@@ -340,6 +349,24 @@ public class ProductCatalogApplicationService {
                             sku.availableStock());
                 })
                 .toList();
+    }
+
+    private String generateSkuCode(long merchantId, Set<String> requestSkuCodes, Set<String> ownedSkuCodes) {
+        for (int attempt = 0; attempt < 20; attempt++) {
+            String skuCode = businessCodeGenerator.nextSkuCode();
+            String normalizedSkuCode = normalize(skuCode);
+            if (requestSkuCodes.contains(normalizedSkuCode)) {
+                continue;
+            }
+            if (ownedSkuCodes.contains(normalizedSkuCode)) {
+                continue;
+            }
+            if (store.skuCodeExists(merchantId, skuCode)) {
+                continue;
+            }
+            return skuCode;
+        }
+        throw new BusinessException(ProductErrorCode.SKU_CODE_DUPLICATE, "SKU编码生成失败，请重试");
     }
 
     private CategoryResponse toCategoryResponse(ProductCatalogStore.CategoryRecord category) {
@@ -386,6 +413,7 @@ public class ProductCatalogApplicationService {
                 product.merchantId(),
                 product.storeId(),
                 product.categoryId(),
+                product.productCode(),
                 product.productName(),
                 product.productSubTitle(),
                 product.status(),
@@ -405,6 +433,7 @@ public class ProductCatalogApplicationService {
                 product.merchantId(),
                 product.storeId(),
                 product.categoryId(),
+                product.productCode(),
                 product.productName(),
                 product.productSubTitle(),
                 product.status(),

@@ -8,7 +8,6 @@ import java.math.BigDecimal;
 
 public record CreateSkuRequest(
         @JsonProperty("sku_code")
-        @NotBlank(message = "SKU编码不能为空")
         String skuCode,
         @JsonProperty("sku_name")
         @NotBlank(message = "SKU名称不能为空")
@@ -21,4 +20,3 @@ public record CreateSkuRequest(
         @NotNull(message = "可售库存不能为空")
         Integer availableStock) {
 }
-

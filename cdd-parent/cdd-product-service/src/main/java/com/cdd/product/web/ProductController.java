@@ -72,7 +72,7 @@ public class ProductController {
     @GetMapping("/categories")
     public ApiResponse<List<CategoryResponse>> listCategories(
             @RequestParam(name = "merchant_id") @NotNull(message = "商家ID不能为空") Long merchantId,
-            @RequestParam(name = "store_id") @NotNull(message = "店铺ID不能为空") Long storeId) {
+            @RequestParam(name = "store_id") @NotNull(message = "门店ID不能为空") Long storeId) {
         return ApiResponses.success(productCatalogApplicationService.listCategories(merchantId, storeId));
     }
 
@@ -96,9 +96,10 @@ public class ProductController {
     @GetMapping("/spu")
     public ApiResponse<List<ProductSummaryResponse>> listProducts(
             @RequestParam(name = "merchant_id") @NotNull(message = "商家ID不能为空") Long merchantId,
-            @RequestParam(name = "store_id") @NotNull(message = "店铺ID不能为空") Long storeId,
-            @RequestParam(name = "status", required = false) String status) {
-        return ApiResponses.success(productCatalogApplicationService.listProducts(merchantId, storeId, status));
+            @RequestParam(name = "store_id") @NotNull(message = "门店ID不能为空") Long storeId,
+            @RequestParam(name = "status", required = false) String status,
+            @RequestParam(name = "keyword", required = false) String keyword) {
+        return ApiResponses.success(productCatalogApplicationService.listProducts(merchantId, storeId, status, keyword));
     }
 
     @PostMapping("/spu/{product_id}/publish")

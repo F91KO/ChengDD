@@ -1,6 +1,7 @@
 package com.cdd.product.infrastructure.jdbc;
 
 import com.cdd.product.infrastructure.ProductCatalogStore;
+import com.cdd.product.support.BusinessCodeGenerator;
 import java.math.BigDecimal;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -29,6 +30,7 @@ public class JdbcProductCatalogStore implements ProductCatalogStore {
     private static final RowMapper<StockRow> STOCK_ROW_MAPPER = JdbcProductCatalogStore::mapStockRow;
 
     private final JdbcTemplate jdbcTemplate;
+    private final BusinessCodeGenerator businessCodeGenerator;
     private final AtomicLong templateIdGenerator = new AtomicLong(2_000_000L);
     private final AtomicLong templateNodeIdGenerator = new AtomicLong(2_050_000L);
     private final AtomicLong categoryIdGenerator = new AtomicLong(2_100_000L);
@@ -37,8 +39,9 @@ public class JdbcProductCatalogStore implements ProductCatalogStore {
     private final AtomicLong stockIdGenerator = new AtomicLong(3_300_000L);
     private final AtomicLong stockChangeLogIdGenerator = new AtomicLong(3_400_000L);
 
-    public JdbcProductCatalogStore(JdbcTemplate jdbcTemplate) {
+    public JdbcProductCatalogStore(JdbcTemplate jdbcTemplate, BusinessCodeGenerator businessCodeGenerator) {
         this.jdbcTemplate = jdbcTemplate;
+        this.businessCodeGenerator = businessCodeGenerator;
         initializeIdGenerators();
     }
 
@@ -326,7 +329,7 @@ public class JdbcProductCatalogStore implements ProductCatalogStore {
                                        String productSubTitle,
                                        List<SkuDraft> skuDrafts) {
         long productId = productIdGenerator.incrementAndGet();
-        String productCode = "P" + productId;
+        String productCode = businessCodeGenerator.nextProductCode();
         jdbcTemplate.update("""
                 INSERT INTO cdd_product_spu (
                   id, merchant_id, store_id, category_id, product_name, product_code, product_sub_title, status,
@@ -358,13 +361,13 @@ public class JdbcProductCatalogStore implements ProductCatalogStore {
                     stockId, merchantId, storeId, productId, skuId, draft.availableStock(), 0, toStockStatus(draft.availableStock()),
                     "商品创建初始化库存", merchantId, merchantId, 0, 0L);
         }
-        return new ProductRecord(productId, merchantId, storeId, categoryId, productName, productSubTitle, "draft", List.copyOf(skuIds));
+        return new ProductRecord(productId, merchantId, storeId, categoryId, productCode, productName, productSubTitle, "draft", List.copyOf(skuIds));
     }
 
     @Override
     public Optional<ProductRecord> findProduct(long productId) {
         List<ProductRow> rows = jdbcTemplate.query("""
-                SELECT id, merchant_id, store_id, category_id, product_name, product_sub_title, status
+                SELECT id, merchant_id, store_id, category_id, product_code, product_name, product_sub_title, status
                 FROM cdd_product_spu
                 WHERE id = ?
                   AND deleted = 0
@@ -374,28 +377,58 @@ public class JdbcProductCatalogStore implements ProductCatalogStore {
     }
 
     @Override
-    public List<ProductRecord> listProducts(long merchantId, long storeId, String status) {
-        if (status == null || status.isBlank()) {
-            return jdbcTemplate.query("""
-                    SELECT id, merchant_id, store_id, category_id, product_name, product_sub_title, status
-                    FROM cdd_product_spu
-                    WHERE merchant_id = ?
-                      AND store_id = ?
-                      AND deleted = 0
-                    ORDER BY id ASC
-                    """, PRODUCT_ROW_MAPPER, merchantId, storeId).stream()
-                    .map(this::toProductRecord)
-                    .toList();
-        }
-        return jdbcTemplate.query("""
-                SELECT id, merchant_id, store_id, category_id, product_name, product_sub_title, status
+    public List<ProductRecord> listProducts(long merchantId, long storeId, String status, String keyword) {
+        StringBuilder sql = new StringBuilder("""
+                SELECT id, merchant_id, store_id, category_id, product_code, product_name, product_sub_title, status
                 FROM cdd_product_spu
                 WHERE merchant_id = ?
                   AND store_id = ?
-                  AND status = ?
                   AND deleted = 0
+                """);
+        List<Object> args = new ArrayList<>();
+        args.add(merchantId);
+        args.add(storeId);
+
+        if (StringUtils.hasText(status)) {
+            sql.append("""
+                      AND status = ?
+                    """);
+            args.add(status);
+        }
+        if (StringUtils.hasText(keyword)) {
+            sql.append("""
+                      AND (
+                        LOWER(COALESCE(product_code, '')) LIKE ?
+                        OR CAST(id AS CHAR) LIKE ?
+                        OR LOWER(CONCAT('spu-', id)) LIKE ?
+                        OR LOWER(product_name) LIKE ?
+                        OR LOWER(COALESCE(product_sub_title, '')) LIKE ?
+                        OR EXISTS (
+                          SELECT 1
+                          FROM cdd_product_sku sku
+                          WHERE sku.product_id = cdd_product_spu.id
+                            AND sku.deleted = 0
+                            AND (
+                              LOWER(sku.sku_code) LIKE ?
+                              OR LOWER(sku.sku_name) LIKE ?
+                            )
+                        )
+                      )
+                    """);
+            String likeKeyword = "%" + keyword.trim().toLowerCase() + "%";
+            args.add(likeKeyword);
+            args.add(likeKeyword);
+            args.add(likeKeyword);
+            args.add(likeKeyword);
+            args.add(likeKeyword);
+            args.add(likeKeyword);
+            args.add(likeKeyword);
+        }
+        sql.append("""
                 ORDER BY id ASC
-                """, PRODUCT_ROW_MAPPER, merchantId, storeId, status).stream()
+                """);
+
+        return jdbcTemplate.query(sql.toString(), PRODUCT_ROW_MAPPER, args.toArray()).stream()
                 .map(this::toProductRecord)
                 .toList();
     }
@@ -496,6 +529,7 @@ public class JdbcProductCatalogStore implements ProductCatalogStore {
                 existing.merchantId(),
                 existing.storeId(),
                 categoryId,
+                existing.productCode(),
                 productName,
                 productSubTitle,
                 existing.status(),
@@ -532,6 +566,7 @@ public class JdbcProductCatalogStore implements ProductCatalogStore {
                 record.merchantId(),
                 record.storeId(),
                 record.categoryId(),
+                record.productCode(),
                 record.productName(),
                 record.productSubTitle(),
                 status,
@@ -743,6 +778,7 @@ public class JdbcProductCatalogStore implements ProductCatalogStore {
                 row.merchantId(),
                 row.storeId(),
                 row.categoryId(),
+                row.productCode(),
                 row.productName(),
                 row.productSubTitle(),
                 row.status(),
@@ -802,6 +838,7 @@ public class JdbcProductCatalogStore implements ProductCatalogStore {
                 rs.getLong("merchant_id"),
                 rs.getLong("store_id"),
                 rs.getLong("category_id"),
+                rs.getString("product_code"),
                 rs.getString("product_name"),
                 rs.getString("product_sub_title"),
                 rs.getString("status"));
@@ -886,6 +923,7 @@ public class JdbcProductCatalogStore implements ProductCatalogStore {
             long merchantId,
             long storeId,
             long categoryId,
+            String productCode,
             String productName,
             String productSubTitle,
             String status) {

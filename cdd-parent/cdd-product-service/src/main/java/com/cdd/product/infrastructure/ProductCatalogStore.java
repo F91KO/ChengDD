@@ -58,7 +58,7 @@ public interface ProductCatalogStore {
 
     Optional<ProductRecord> findProduct(long productId);
 
-    List<ProductRecord> listProducts(long merchantId, long storeId, String status);
+    List<ProductRecord> listProducts(long merchantId, long storeId, String status, String keyword);
 
     Optional<ProductRecord> updateProduct(long productId,
                                           long categoryId,
@@ -137,6 +137,7 @@ public interface ProductCatalogStore {
             long merchantId,
             long storeId,
             long categoryId,
+            String productCode,
             String productName,
             String productSubTitle,
             String status,

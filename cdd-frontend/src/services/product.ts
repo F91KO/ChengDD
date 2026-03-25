@@ -12,6 +12,7 @@ export async function fetchProductList(params: {
   merchantId: number;
   storeId: number;
   status?: string;
+  keyword?: string;
 }): Promise<ProductSummaryResponseRaw[]> {
   return requestApi<ProductSummaryResponseRaw[]>({
     method: 'GET',
@@ -20,6 +21,7 @@ export async function fetchProductList(params: {
       merchant_id: params.merchantId,
       store_id: params.storeId,
       status: params.status,
+      keyword: params.keyword,
     },
   });
 }
@@ -37,7 +39,7 @@ export async function createProduct(payload: {
   categoryId: number;
   productName: string;
   productSubTitle?: string;
-  skuCode: string;
+  skuCode?: string;
   skuName: string;
   salePrice: number;
   availableStock: number;
@@ -71,7 +73,7 @@ export async function updateProduct(payload: {
   productName: string;
   productSubTitle?: string;
   skus: Array<{
-    skuCode: string;
+    skuCode?: string;
     skuName: string;
     salePrice: number;
     availableStock: number;

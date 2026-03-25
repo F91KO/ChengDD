@@ -3,6 +3,7 @@ export interface ProductSummaryResponseRaw {
   merchant_id: number;
   store_id: number;
   category_id: number;
+  product_code: string;
   product_name: string;
   product_sub_title: string | null;
   status: string;
@@ -90,6 +91,7 @@ export interface ProductDetailResponseRaw {
   merchant_id: number;
   store_id: number;
   category_id: number;
+  product_code: string;
   product_name: string;
   product_sub_title: string | null;
   status: string;

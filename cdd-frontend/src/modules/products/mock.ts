@@ -28,6 +28,12 @@ export type ProductStat = {
   tone: 'primary' | 'info' | 'danger';
 };
 
+type LoadProductsArgs = {
+  force?: boolean;
+  status?: string;
+  keyword?: string;
+};
+
 export const products = reactive<ProductCard[]>([]);
 export const productStats = reactive<ProductStat[]>([
   { label: '在售中', value: '0', tone: 'primary' },
@@ -43,10 +49,16 @@ export const productLoadState = reactive({
 });
 
 let loadPromise: Promise<void> | null = null;
+let lastRequestKey = '';
+let pendingArgs: LoadProductsArgs | null = null;
 
 function replaceProductData(nextProducts: ProductCard[], nextStats: ProductStat[]) {
   products.splice(0, products.length, ...nextProducts);
   productStats.splice(0, productStats.length, ...nextStats);
+}
+
+function buildRequestKey(status?: string, keyword?: string): string {
+  return `${status ?? ''}::${keyword?.trim().toLowerCase() ?? ''}`;
 }
 
 function statusToCard(status: string): { text: string; tone: ProductCard['statusTone'] } {
@@ -116,7 +128,7 @@ function mapRemoteProduct(
     categoryId: item.category_id,
     categoryName: categories.get(item.category_id)?.category_name ?? `分类 ${item.category_id}`,
     name: item.product_name,
-    sku: `SPU-${item.id}`,
+    sku: item.product_code || `SPU-${item.id}`,
     price: buildPriceLabel(item),
     sales: buildSalesLabel(item, reportRows),
     inventory: buildInventoryLabel(item),
@@ -148,11 +160,22 @@ function buildReportMap(rows: ReportProductDailyResponseRaw[]): Map<number, Repo
   return reportMap;
 }
 
-export async function loadProducts(force = false, status?: string): Promise<void> {
+export async function loadProducts(force = false, status?: string, keyword?: string): Promise<void> {
+  const normalizedKeyword = keyword?.trim() || '';
+  const requestKey = buildRequestKey(status, normalizedKeyword);
+
   if (productLoadState.loading) {
-    return loadPromise ?? Promise.resolve();
+    pendingArgs = { force, status, keyword: normalizedKeyword };
+    await loadPromise;
+    if (pendingArgs) {
+      const nextArgs = pendingArgs;
+      pendingArgs = null;
+      return loadProducts(nextArgs.force ?? false, nextArgs.status, nextArgs.keyword);
+    }
+    return;
   }
-  if (productLoadState.loaded && !force && !status) {
+
+  if (productLoadState.loaded && !force && lastRequestKey === requestKey) {
     return;
   }
 
@@ -178,6 +201,7 @@ export async function loadProducts(force = false, status?: string): Promise<void
         merchantId,
         storeId,
         status,
+        keyword: normalizedKeyword || undefined,
       });
 
       const [categories, reportRows] = await Promise.all([
@@ -193,9 +217,14 @@ export async function loadProducts(force = false, status?: string): Promise<void
         buildStatsFromRemote(remoteProducts),
       );
       productLoadState.loaded = true;
-      productLoadState.message = remoteProducts.length
-        ? '已加载真实商品摘要、SKU 价格与库存信息。'
-        : '当前商家暂无商品数据。';
+      lastRequestKey = requestKey;
+      productLoadState.message = normalizedKeyword
+        ? remoteProducts.length
+          ? `已通过后端搜索“${normalizedKeyword}”并返回商品结果。`
+          : `后端搜索“${normalizedKeyword}”未返回商品结果。`
+        : remoteProducts.length
+          ? '已加载真实商品摘要、SKU 价格与库存信息。'
+          : '当前商家暂无商品数据。';
     } catch (error) {
       replaceProductData([], buildStatsFromRemote([]));
       productLoadState.loaded = true;

@@ -11,6 +11,8 @@ public record ProductSummaryResponse(
         long storeId,
         @JsonProperty("category_id")
         long categoryId,
+        @JsonProperty("product_code")
+        String productCode,
         @JsonProperty("product_name")
         String productName,
         @JsonProperty("product_sub_title")
