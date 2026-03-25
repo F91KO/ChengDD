@@ -38,7 +38,7 @@ function replaceOrders(nextOrders: OrderCard[]) {
 function normalizeAmount(value: number | string): string {
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) {
-    return '¥--';
+    return '¥-';
   }
   return `¥${parsed.toFixed(2)}`;
 }
@@ -54,6 +54,30 @@ function formatTime(value: string): string {
   const hh = String(date.getHours()).padStart(2, '0');
   const min = String(date.getMinutes()).padStart(2, '0');
   return `${yyyy}-${mm}-${dd} ${hh}:${min}`;
+}
+
+function normalizeChannel(channel: string): string {
+  if (!channel) {
+    return '未知渠道';
+  }
+  const normalized = channel.toLowerCase();
+  if (normalized.includes('mini')) {
+    return '小程序';
+  }
+  if (normalized.includes('app')) {
+    return 'App';
+  }
+  if (normalized.includes('web') || normalized.includes('h5')) {
+    return 'H5';
+  }
+  return channel;
+}
+
+function normalizeCustomer(value: string, userId: number): string {
+  if (!value || value.toLowerCase() === 'unknown') {
+    return `用户 ${userId}`;
+  }
+  return value;
 }
 
 function normalizeStatus(item: OrderSummaryResponseRaw): {
@@ -82,19 +106,20 @@ function normalizeStatus(item: OrderSummaryResponseRaw): {
 function mapRemoteOrder(item: OrderSummaryResponseRaw): OrderCard {
   const normalizedStatus = normalizeStatus(item);
   const amount = Number(item.paid_amount) > 0 ? item.paid_amount : item.payable_amount;
+
   return {
     orderNo: item.order_no,
     merchantId: item.merchant_id,
     storeId: item.store_id,
     userId: item.user_id,
-    customer: item.customer_identifier || `用户 ${item.user_id}`,
+    customer: normalizeCustomer(item.customer_identifier, item.user_id),
     items: item.product_summary || '暂无商品摘要',
     amount: normalizeAmount(amount),
     status: normalizedStatus.text,
     statusRaw: item.order_status,
     deliveryStatusRaw: item.delivery_status,
     statusTone: normalizedStatus.tone,
-    channel: item.channel || '未知渠道',
+    channel: normalizeChannel(item.channel),
     time: formatTime(item.created_at),
   };
 }

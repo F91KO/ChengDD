@@ -18,7 +18,7 @@ const defaultTrendValues = [5.2, 4.8, 6.5, 7.1, 6.7, 8.6, 9.4];
 
 export const dashboardMetrics: DashboardMetricItem[] = [
   { label: '今日订单', value: '128', delta: '+12%', tone: 'primary' },
-  { label: '今日营收', value: '¥8,240', delta: '+5.4%', tone: 'primary' },
+  { label: '今日营收', value: '￥8,240', delta: '+5.4%', tone: 'primary' },
   { label: '待发货', value: '42', delta: '需跟进', tone: 'default' },
   { label: '售后处理中', value: '5', delta: '-2%', tone: 'danger' },
   { label: '在售商品', value: '312', delta: '稳定', tone: 'success' },
@@ -28,7 +28,7 @@ export const dashboardMetrics: DashboardMetricItem[] = [
 export const dashboardTasks: DashboardTaskItem[] = [
   {
     title: '2 个紧急订单未发货',
-    detail: '超出 24 小时未处理，需要优先分配仓配资源。',
+    detail: '超过 24 小时未处理，需要优先分配仓配资源。',
     tone: 'danger',
   },
   {

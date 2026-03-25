@@ -43,8 +43,11 @@
         </div>
         <div :class="$style.topbarAside">
           <div :class="$style.operatorCard">
-            <div :class="$style.operatorName">{{ authStore.user.operatorName }}</div>
-            <div :class="$style.operatorRole">{{ authStore.user.roleName }}</div>
+            <div :class="$style.operatorMeta">
+              <div :class="$style.operatorName">{{ authStore.user.operatorName }}</div>
+              <div :class="$style.operatorRole">{{ authStore.user.roleName }}</div>
+            </div>
+            <div :class="$style.operatorMerchant">{{ authStore.user.merchantName }}</div>
           </div>
           <button :class="$style.logout" @click="logout">退出</button>
         </div>
@@ -90,7 +93,7 @@ function logout() {
   position: sticky;
   top: 0;
   display: grid;
-  grid-template-rows: auto 1fr auto;
+  grid-template-rows: auto auto 1fr auto;
   gap: 24px;
   height: 100vh;
   padding: 28px 22px;
@@ -137,6 +140,7 @@ function logout() {
   display: grid;
   gap: 10px;
   align-content: start;
+  min-height: 0;
 }
 
 .navItem {
@@ -150,7 +154,8 @@ function logout() {
   transition:
     transform 0.18s ease,
     background 0.18s ease,
-    color 0.18s ease;
+    color 0.18s ease,
+    box-shadow 0.18s ease;
 }
 
 .navItem:hover {
@@ -159,9 +164,11 @@ function logout() {
 }
 
 .navItemActive {
-  color: #fff;
-  background: linear-gradient(135deg, rgba(160, 65, 0, 0.94), rgba(255, 107, 0, 0.94));
-  box-shadow: 0 18px 24px rgba(255, 107, 0, 0.18);
+  color: var(--cdd-text);
+  background: linear-gradient(135deg, rgba(255, 231, 214, 0.96), rgba(255, 245, 237, 0.98));
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 107, 0, 0.16),
+    0 12px 20px rgba(255, 107, 0, 0.08);
 }
 
 .navIcon {
@@ -176,7 +183,13 @@ function logout() {
 }
 
 .navItemActive .navIcon {
-  background: rgba(255, 255, 255, 0.16);
+  background: linear-gradient(135deg, var(--cdd-primary-deep), var(--cdd-primary));
+  color: #fff;
+}
+
+.navItemActive .navLabel,
+.navItemActive .navBadge {
+  color: var(--cdd-text);
 }
 
 .navLabel {
@@ -196,6 +209,10 @@ function logout() {
   background: rgba(255, 255, 255, 0.18);
 }
 
+.navItemActive .navBadge {
+  background: rgba(255, 107, 0, 0.12);
+}
+
 .sidebarFoot {
   padding: 18px;
 }
@@ -204,13 +221,15 @@ function logout() {
   display: none;
 }
 
-.sidebarFootLabel {
+.sidebarFootLabel,
+.mobileSummaryLabel {
   color: var(--cdd-text-faint);
   font-size: 12px;
   font-weight: 700;
 }
 
-.sidebarFootValue {
+.sidebarFootValue,
+.mobileSummaryValue {
   margin-top: 10px;
   color: var(--cdd-text);
   font-size: 18px;
@@ -263,14 +282,24 @@ function logout() {
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .operatorCard {
-  min-width: 180px;
-  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  min-width: 0;
+  padding: 12px 14px;
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.78);
   box-shadow: inset 0 0 0 1px rgba(9, 29, 46, 0.06);
+}
+
+.operatorMeta {
+  min-width: 0;
 }
 
 .operatorName {
@@ -282,6 +311,17 @@ function logout() {
   margin-top: 4px;
   color: var(--cdd-text-faint);
   font-size: 12px;
+}
+
+.operatorMerchant {
+  min-width: 0;
+  padding-left: 16px;
+  border-left: 1px solid rgba(9, 29, 46, 0.08);
+  color: var(--cdd-text-soft);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .logout {
@@ -307,17 +347,11 @@ function logout() {
   .sidebar {
     position: static;
     height: auto;
-    grid-template-rows: auto auto auto;
+    grid-template-rows: auto auto auto auto;
   }
 
   .nav {
-    grid-template-columns: repeat(5, minmax(136px, 1fr));
-    overflow-x: auto;
-    padding-bottom: 4px;
-  }
-
-  .main {
-    padding-top: 0;
+    grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
   }
 
   .mobileSummary {
@@ -328,16 +362,8 @@ function logout() {
     box-shadow: inset 0 0 0 1px rgba(9, 29, 46, 0.06);
   }
 
-  .mobileSummaryLabel {
-    color: var(--cdd-text-faint);
-    font-size: 12px;
-    font-weight: 700;
-  }
-
-  .mobileSummaryValue {
-    margin-top: 6px;
-    font-size: 16px;
-    font-weight: 800;
+  .main {
+    padding-top: 0;
   }
 }
 
@@ -357,12 +383,25 @@ function logout() {
   }
 
   .topbarAside {
+    align-items: stretch;
     justify-content: space-between;
   }
 
   .operatorCard {
     min-width: 0;
     flex: 1;
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .operatorMerchant {
+    padding-left: 0;
+    border-left: 0;
+  }
+
+  .logout {
+    width: 100%;
   }
 
   .title {
@@ -370,7 +409,7 @@ function logout() {
   }
 
   .nav {
-    grid-template-columns: repeat(5, minmax(122px, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 </style>

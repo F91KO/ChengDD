@@ -628,7 +628,7 @@ onMounted(() => {
 
 .stats {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 16px;
 }
 
@@ -663,6 +663,12 @@ onMounted(() => {
   background: linear-gradient(180deg, #ffffff 0%, #f9fbff 100%);
 }
 
+.sidePanel {
+  position: sticky;
+  top: 24px;
+  align-self: start;
+}
+
 .panelHead {
   display: flex;
   justify-content: space-between;
@@ -692,6 +698,7 @@ onMounted(() => {
 
 .treeMeta {
   display: flex;
+  flex-wrap: wrap;
   gap: 10px;
   font-size: 12px;
   color: var(--cdd-text-soft);
@@ -891,6 +898,7 @@ onMounted(() => {
 
 .inlineRowActions {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
 }
 
@@ -939,18 +947,47 @@ onMounted(() => {
 }
 
 @media (max-width: 1080px) {
-  .stats {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
   .grid {
     grid-template-columns: 1fr;
+  }
+
+  .sidePanel {
+    position: static;
   }
 
   .selectionBar,
   .batchHint {
     flex-direction: column;
     align-items: flex-start;
+  }
+}
+
+@media (max-width: 720px) {
+  .panel,
+  .sidePanel {
+    padding: 18px;
+  }
+
+  .panelHead,
+  .previewRow,
+  .categoryRow,
+  .selectionBar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .inlineRowActions,
+  .panelActions {
+    width: 100%;
+  }
+
+  .inlineRowActions :global(button),
+  .panelActions :global(button) {
+    width: 100%;
+  }
+
+  .detailGrid {
+    grid-template-columns: 1fr;
   }
 }
 </style>

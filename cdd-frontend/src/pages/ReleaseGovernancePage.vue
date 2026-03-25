@@ -2,7 +2,7 @@
   <WorkspaceLayout
     eyebrow="Release"
     title="发布治理"
-    description="当前页面接入真实发布任务创建、任务查询和回滚骨架，便于联调模板发布链路。"
+    description="在一个页面内完成发布任务创建、任务查询、状态推进、结果回写和回滚联调，所有展示文案统一使用中文。"
   >
     <UiStatePanel
       v-if="pageStatePanel"
@@ -28,18 +28,43 @@
         </div>
 
         <div :class="$style.formGrid">
-          <UiInput v-model="createForm.miniProgramId" label="小程序 ID" placeholder="例如：1001" />
+          <UiInput v-model="createForm.miniProgramId" label="小程序 ID" placeholder="例如 1001" />
           <UiInput
             v-model="createForm.templateVersionId"
             label="模板版本 ID"
-            placeholder="例如：9800001"
+            placeholder="例如 9800001"
           />
-          <UiInput v-model="createForm.releaseType" label="发布类型" placeholder="例如：full_release" />
-          <UiInput
-            v-model="createForm.triggerSource"
-            label="触发来源"
-            placeholder="例如：merchant_console"
-          />
+
+          <label :class="$style.selectField">
+            <span :class="$style.fieldLabel">发布类型</span>
+            <div :class="$style.selectWrap">
+              <select v-model="createForm.releaseType" :class="$style.select">
+                <option
+                  v-for="option in releaseTypeOptions"
+                  :key="option.value"
+                  :value="option.value"
+                >
+                  {{ option.label }}
+                </option>
+              </select>
+            </div>
+          </label>
+
+          <label :class="$style.selectField">
+            <span :class="$style.fieldLabel">触发来源</span>
+            <div :class="$style.selectWrap">
+              <select v-model="createForm.triggerSource" :class="$style.select">
+                <option
+                  v-for="option in triggerSourceOptions"
+                  :key="option.value"
+                  :value="option.value"
+                >
+                  {{ option.label }}
+                </option>
+              </select>
+            </div>
+          </label>
+
           <label :class="$style.fieldWide">
             <span :class="$style.fieldLabel">发布快照</span>
             <textarea
@@ -67,11 +92,11 @@
         </div>
 
         <div :class="$style.formGrid">
-          <UiInput v-model="lookupTaskNo" label="任务号" placeholder="例如：rls_..." />
+          <UiInput v-model="lookupTaskNo" label="任务号" placeholder="例如 rls_20260325_xxx" />
           <UiInput
             v-model="rollbackTargetVersion"
             label="回滚目标版本"
-            placeholder="例如：0.9.0"
+            placeholder="例如 0.9.0"
           />
           <label :class="$style.fieldWide">
             <span :class="$style.fieldLabel">回滚原因</span>
@@ -92,21 +117,21 @@
             :disabled="!releaseTask || submitting === 'run'"
             @click="handleMarkRunning"
           >
-            {{ submitting === 'run' ? '正在推进...' : '标记运行中' }}
+            {{ submitting === 'run' ? '正在推进...' : '标记为运行中' }}
           </UiButton>
           <UiButton
             variant="secondary"
             :disabled="!releaseTask || submitting === 'success'"
             @click="handleMarkSuccess"
           >
-            {{ submitting === 'success' ? '正在推进...' : '标记执行成功' }}
+            {{ submitting === 'success' ? '正在推进...' : '标记为执行成功' }}
           </UiButton>
           <UiButton
             variant="secondary"
             :disabled="!releaseTask || submitting === 'sync'"
             @click="handleSyncResult"
           >
-            {{ submitting === 'sync' ? '正在回写...' : '回写 active' }}
+            {{ submitting === 'sync' ? '正在回写...' : '回写生效状态' }}
           </UiButton>
           <UiButton
             variant="secondary"
@@ -130,15 +155,15 @@
       <div :class="$style.detailGrid">
         <div>
           <div :class="$style.fieldLabel">发布状态</div>
-          <div :class="$style.detailValue">{{ releaseTask.release_status }}</div>
+          <div :class="$style.detailValue">{{ formatReleaseStatus(releaseTask.release_status) }}</div>
         </div>
         <div>
           <div :class="$style.fieldLabel">当前步骤</div>
-          <div :class="$style.detailValue">{{ releaseTask.current_step_code || '-' }}</div>
+          <div :class="$style.detailValue">{{ formatStepCode(releaseTask.current_step_code) }}</div>
         </div>
         <div>
           <div :class="$style.fieldLabel">结果回写</div>
-          <div :class="$style.detailValue">{{ releaseTask.result_sync_status }}</div>
+          <div :class="$style.detailValue">{{ formatResultSyncStatus(releaseTask.result_sync_status) }}</div>
         </div>
         <div>
           <div :class="$style.fieldLabel">回滚任务</div>
@@ -148,7 +173,7 @@
 
       <div :class="$style.detailGrid">
         <div>
-          <div :class="$style.fieldLabel">商家 / 店铺</div>
+          <div :class="$style.fieldLabel">商家 / 门店</div>
           <div :class="$style.detailValue">
             {{ releaseTask.merchant_id }} / {{ releaseTask.store_id }}
           </div>
@@ -161,9 +186,24 @@
         </div>
         <div>
           <div :class="$style.fieldLabel">触发来源</div>
-          <div :class="$style.detailValue">{{ releaseTask.trigger_source }}</div>
+          <div :class="$style.detailValue">{{ formatTriggerSource(releaseTask.trigger_source) }}</div>
         </div>
         <div>
+          <div :class="$style.fieldLabel">发布类型</div>
+          <div :class="$style.detailValue">{{ formatReleaseType(releaseTask.release_type) }}</div>
+        </div>
+      </div>
+
+      <div :class="$style.detailGrid">
+        <div>
+          <div :class="$style.fieldLabel">开始时间</div>
+          <div :class="$style.detailValue">{{ releaseTask.started_at || '-' }}</div>
+        </div>
+        <div>
+          <div :class="$style.fieldLabel">完成时间</div>
+          <div :class="$style.detailValue">{{ releaseTask.finished_at || '-' }}</div>
+        </div>
+        <div :class="$style.detailSpanTwo">
           <div :class="$style.fieldLabel">错误信息</div>
           <div :class="$style.detailValue">
             {{ releaseTask.last_error_message || releaseTask.last_error_code || '-' }}
@@ -179,10 +219,22 @@
           <span>结果</span>
         </div>
         <div v-for="step in releaseTask.steps" :key="step.step_code" :class="$style.stepRow">
-          <div :class="$style.strong">{{ step.step_name }}</div>
-          <div>{{ step.step_status }}</div>
-          <div>{{ step.retry_count }}</div>
-          <div>{{ step.result_message || step.error_code || '-' }}</div>
+          <div :class="$style.stepCell">
+            <div :class="$style.stepCellLabel">步骤</div>
+            <div :class="$style.strong">{{ step.step_name || formatStepCode(step.step_code) }}</div>
+          </div>
+          <div :class="$style.stepCell">
+            <div :class="$style.stepCellLabel">状态</div>
+            <div>{{ formatStepStatus(step.step_status) }}</div>
+          </div>
+          <div :class="$style.stepCell">
+            <div :class="$style.stepCellLabel">重试</div>
+            <div>{{ step.retry_count }}</div>
+          </div>
+          <div :class="$style.stepCell">
+            <div :class="$style.stepCellLabel">结果</div>
+            <div>{{ step.result_message || step.error_code || '-' }}</div>
+          </div>
         </div>
       </div>
     </UiCard>
@@ -210,6 +262,19 @@ import type { ReleaseTaskResponseRaw } from '@/types/release';
 
 const DEFAULT_TEMPLATE_VERSION_ID = '9800001';
 
+const releaseTypeOptions = [
+  { value: 'full_release', label: '全量发布' },
+  { value: 'gray_release', label: '灰度发布' },
+  { value: 'rollback_release', label: '回滚发布' },
+];
+
+const triggerSourceOptions = [
+  { value: 'merchant_console', label: '商家后台' },
+  { value: 'dashboard_manual', label: '工作台快捷操作' },
+  { value: 'system', label: '系统触发' },
+  { value: 'api', label: '接口触发' },
+];
+
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
@@ -236,16 +301,18 @@ const pageStatePanel = computed(() => {
     return {
       tone: 'loading' as const,
       title: '正在准备发布上下文',
-      description: '正在读取当前商家、小程序和模板发布基线。',
+      description: '正在读取当前商家、小程序和模板发布基础数据。',
     };
   }
+
   if (!authStore.merchantIdForQuery || !authStore.storeIdForQuery) {
     return {
       tone: 'error' as const,
       title: '缺少发布上下文',
-      description: '当前登录身份缺少商家或店铺范围，无法创建发布任务。',
+      description: '当前登录身份缺少商家或门店范围，无法创建发布任务。',
     };
   }
+
   return null;
 });
 
@@ -263,6 +330,88 @@ function parseNumericTail(raw: string | null | undefined): number | null {
     return null;
   }
   return Number(matched[1]);
+}
+
+function formatReleaseType(value: string | null | undefined): string {
+  return releaseTypeOptions.find((item) => item.value === value)?.label || value || '-';
+}
+
+function formatTriggerSource(value: string | null | undefined): string {
+  return triggerSourceOptions.find((item) => item.value === value)?.label || value || '-';
+}
+
+function formatReleaseStatus(value: string | null | undefined): string {
+  const normalized = (value || '').toLowerCase();
+  if (!normalized) {
+    return '-';
+  }
+  if (normalized.includes('pending') || normalized.includes('created')) {
+    return '待执行';
+  }
+  if (normalized.includes('running')) {
+    return '执行中';
+  }
+  if (normalized.includes('success') || normalized.includes('done') || normalized.includes('finished')) {
+    return '执行成功';
+  }
+  if (normalized.includes('fail') || normalized.includes('error')) {
+    return '执行失败';
+  }
+  if (normalized.includes('rollback')) {
+    return '已回滚';
+  }
+  return value || '-';
+}
+
+function formatResultSyncStatus(value: string | null | undefined): string {
+  const normalized = (value || '').toLowerCase();
+  if (!normalized) {
+    return '-';
+  }
+  if (normalized === 'active') {
+    return '已生效';
+  }
+  if (normalized.includes('pending') || normalized.includes('wait')) {
+    return '待回写';
+  }
+  if (normalized.includes('success') || normalized.includes('done')) {
+    return '回写成功';
+  }
+  if (normalized.includes('fail') || normalized.includes('error')) {
+    return '回写失败';
+  }
+  return value || '-';
+}
+
+function formatStepStatus(value: string | null | undefined): string {
+  const normalized = (value || '').toLowerCase();
+  if (!normalized) {
+    return '-';
+  }
+  if (normalized.includes('pending') || normalized.includes('wait')) {
+    return '待执行';
+  }
+  if (normalized.includes('running')) {
+    return '执行中';
+  }
+  if (normalized.includes('success') || normalized.includes('done')) {
+    return '成功';
+  }
+  if (normalized.includes('fail') || normalized.includes('error')) {
+    return '失败';
+  }
+  return value || '-';
+}
+
+function formatStepCode(value: string | null | undefined): string {
+  const map: Record<string, string> = {
+    validate_env: '环境校验',
+    release_done: '发布完成',
+    sync_result: '结果回写',
+    create_snapshot: '生成快照',
+    publish_template: '发布模板',
+  };
+  return (value && map[value]) || value || '-';
 }
 
 function resetCreateForm() {
@@ -312,8 +461,9 @@ async function handleCreateTask() {
     const storeId = authStore.storeIdForQuery;
     const miniProgramId = Number(createForm.miniProgramId);
     const templateVersionId = Number(createForm.templateVersionId);
+
     if (!merchantId || !storeId) {
-      throw new Error('当前缺少商家或店铺上下文，无法创建发布任务。');
+      throw new Error('当前缺少商家或门店上下文，无法创建发布任务。');
     }
     if (!Number.isFinite(miniProgramId) || miniProgramId <= 0) {
       throw new Error('请输入有效的小程序 ID。');
@@ -359,6 +509,7 @@ async function handleRollbackTask() {
     if (!rollbackReason.value.trim()) {
       throw new Error('请输入回滚原因。');
     }
+
     submitting.value = 'rollback';
     releaseTask.value = await rollbackReleaseTask({
       taskNo: releaseTask.value.task_no,
@@ -366,7 +517,7 @@ async function handleRollbackTask() {
       rollbackReason: rollbackReason.value.trim(),
     });
     lookupTaskNo.value = releaseTask.value.task_no;
-    setActionMessage(`已为任务 ${releaseTask.value.task_no} 创建回滚骨架。`);
+    setActionMessage(`已为任务 ${releaseTask.value.task_no} 创建回滚任务。`);
   } catch (error) {
     setActionMessage(error instanceof Error ? error.message : '发起回滚失败。', 'error');
   } finally {
@@ -386,6 +537,7 @@ async function handleMarkRunning() {
     if (!releaseTask.value) {
       throw new Error('请先查询或创建发布任务。');
     }
+
     submitting.value = 'run';
     await updateReleaseTaskStep({
       taskNo: releaseTask.value.task_no,
@@ -400,9 +552,9 @@ async function handleMarkRunning() {
       targetStatus: 'running',
       currentStepCode: 'validate_env',
     });
-    setActionMessage(`任务 ${releaseTask.value.task_no} 已推进到 running。`);
+    setActionMessage(`任务 ${releaseTask.value.task_no} 已推进到执行中。`);
   } catch (error) {
-    setActionMessage(error instanceof Error ? error.message : '推进任务运行失败。', 'error');
+    setActionMessage(error instanceof Error ? error.message : '推进任务执行失败。', 'error');
   } finally {
     submitting.value = '';
   }
@@ -413,6 +565,7 @@ async function handleMarkSuccess() {
     if (!releaseTask.value) {
       throw new Error('请先查询或创建发布任务。');
     }
+
     submitting.value = 'success';
     await updateReleaseTaskStep({
       taskNo: releaseTask.value.task_no,
@@ -435,7 +588,7 @@ async function handleMarkSuccess() {
       targetStatus: 'success',
       currentStepCode: 'release_done',
     });
-    setActionMessage(`任务 ${releaseTask.value.task_no} 已标记为 success。`);
+    setActionMessage(`任务 ${releaseTask.value.task_no} 已标记为执行成功。`);
   } catch (error) {
     setActionMessage(error instanceof Error ? error.message : '标记任务成功失败。', 'error');
   } finally {
@@ -448,13 +601,14 @@ async function handleSyncResult() {
     if (!releaseTask.value) {
       throw new Error('请先查询或创建发布任务。');
     }
+
     submitting.value = 'sync';
     releaseTask.value = await syncReleaseTaskResult({
       taskNo: releaseTask.value.task_no,
       mappingStatus: 'active',
     });
     await reloadCurrentTask();
-    setActionMessage(`任务 ${releaseTask.value.task_no} 已完成 active 回写。`);
+    setActionMessage(`任务 ${releaseTask.value.task_no} 已完成生效状态回写。`);
   } catch (error) {
     setActionMessage(error instanceof Error ? error.message : '回写发布结果失败。', 'error');
   } finally {
@@ -524,7 +678,8 @@ onMounted(() => {
   margin-top: 18px;
 }
 
-.fieldWide {
+.fieldWide,
+.selectField {
   display: grid;
   gap: 8px;
 }
@@ -533,6 +688,33 @@ onMounted(() => {
   color: var(--cdd-text-soft);
   font-size: 13px;
   font-weight: 700;
+}
+
+.selectWrap {
+  display: flex;
+  align-items: center;
+  min-height: 54px;
+  padding: 0 16px;
+  border-radius: 18px;
+  background: rgba(237, 244, 255, 0.95);
+  box-shadow: inset 0 0 0 1px transparent;
+  transition:
+    box-shadow 0.18s ease,
+    background 0.18s ease;
+}
+
+.selectWrap:focus-within {
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: inset 0 0 0 1px rgba(160, 65, 0, 0.24);
+}
+
+.select {
+  width: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--cdd-text);
+  font: inherit;
 }
 
 .textarea {
@@ -565,11 +747,16 @@ onMounted(() => {
   gap: 16px;
 }
 
+.detailSpanTwo {
+  grid-column: span 2;
+}
+
 .detailValue {
   margin-top: 8px;
   font-size: 14px;
   font-weight: 700;
   line-height: 1.7;
+  word-break: break-word;
 }
 
 .stepTable {
@@ -582,7 +769,7 @@ onMounted(() => {
   display: grid;
   grid-template-columns: 1fr 0.7fr 0.5fr 1.2fr;
   gap: 16px;
-  align-items: center;
+  align-items: start;
   padding: 14px 16px;
 }
 
@@ -602,6 +789,20 @@ onMounted(() => {
   box-shadow: inset 0 0 0 1px rgba(9, 29, 46, 0.04);
 }
 
+.stepCell {
+  min-width: 0;
+}
+
+.stepCellLabel {
+  display: none;
+  margin-bottom: 6px;
+  color: var(--cdd-text-faint);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
 .strong {
   font-weight: 800;
 }
@@ -612,9 +813,21 @@ onMounted(() => {
     grid-template-columns: 1fr;
   }
 
+  .detailSpanTwo {
+    grid-column: auto;
+  }
+
   .stepHead,
   .stepRow {
     grid-template-columns: 1fr;
+  }
+
+  .stepCellLabel {
+    display: block;
+  }
+
+  .stepHead {
+    display: none;
   }
 }
 
@@ -623,6 +836,11 @@ onMounted(() => {
   .actions {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .actions,
+  .actions :global(button) {
+    width: 100%;
   }
 
   .actions :global(button) {

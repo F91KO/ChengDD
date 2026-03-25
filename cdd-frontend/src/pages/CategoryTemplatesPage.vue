@@ -43,7 +43,7 @@
 
         <div :class="$style.panelSubHead">
           <h4 :class="$style.subTitle">核心模板库</h4>
-          <div :class="$style.sortText">排序方式: 最近更新</div>
+          <div :class="$style.sortText">排序方式：最近更新</div>
         </div>
 
         <div :class="$style.templateList">
@@ -467,7 +467,7 @@ onMounted(() => {
 <style module>
 .stats {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 14px;
 }
 
@@ -523,6 +523,12 @@ onMounted(() => {
   border-radius: 20px;
   border: 1px solid rgba(9, 29, 46, 0.08);
   background: linear-gradient(180deg, #ffffff 0%, #f9fbff 100%);
+}
+
+.sidePanel {
+  position: sticky;
+  top: 24px;
+  align-self: start;
 }
 
 .panelHead {
@@ -686,6 +692,7 @@ onMounted(() => {
 
 .previewTags {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   align-items: center;
 }
@@ -747,17 +754,44 @@ onMounted(() => {
 }
 
 @media (max-width: 1080px) {
-  .stats {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
   .grid {
     grid-template-columns: 1fr;
+  }
+
+  .sidePanel {
+    position: static;
   }
 
   .panelSubHead {
     flex-direction: column;
     align-items: flex-start;
+  }
+}
+
+@media (max-width: 720px) {
+  .panel,
+  .sidePanel,
+  .createPanel {
+    padding: 18px;
+  }
+
+  .panelHead,
+  .templateCardHead,
+  .previewHead,
+  .previewRow,
+  .nodeSectionHead,
+  .nodeActions {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .detailGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .panelActions :global(button),
+  .nodeActions :global(button) {
+    width: 100%;
   }
 }
 </style>

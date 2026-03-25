@@ -21,10 +21,11 @@
       <UiCard elevated :class="$style.heroCard">
         <div :class="$style.heroMeta">今日概览</div>
         <div :class="$style.heroTitleRow">
-          <div>
+          <div :class="$style.heroContent">
             <h2 :class="$style.heroTitle">{{ authStore.user.merchantName }}</h2>
             <p :class="$style.heroDescription">
-              欢迎回来，当前工作台运行模式为 {{ dashboardMode === 'remote' ? '实时报表' : '异常待排查' }}。
+              欢迎回来，当前工作台运行模式为
+              {{ dashboardMode === 'remote' ? '实时报表' : '异常待排查' }}。
             </p>
           </div>
           <UiTag :tone="dashboardMode === 'remote' ? 'primary' : 'info'">
@@ -147,7 +148,7 @@ const dashboardStatePanel = computed(() => {
     return {
       tone: 'error' as const,
       title: '工作台缺少真实业务上下文',
-      description: '鉴权上下文中的 merchant_id / store_id 不是数值型，当前无法继续查询真实报表。',
+      description: '鉴权上下文中的 merchant_id / store_id 不是数值类型，当前无法继续查询真实报表。',
     };
   }
 
@@ -445,8 +446,13 @@ onMounted(() => {
 .heroTitleRow {
   display: flex;
   justify-content: space-between;
+  align-items: flex-start;
   gap: 16px;
   margin-top: 22px;
+}
+
+.heroContent {
+  min-width: 0;
 }
 
 .heroTitle {
@@ -465,6 +471,7 @@ onMounted(() => {
 
 .heroActions {
   display: flex;
+  flex-wrap: wrap;
   gap: 12px;
   margin-top: 24px;
 }
@@ -515,7 +522,7 @@ onMounted(() => {
 
 .metricGrid {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 16px;
 }
 
@@ -617,12 +624,6 @@ onMounted(() => {
   box-shadow: var(--cdd-shadow-soft);
 }
 
-@media (max-width: 1200px) {
-  .metricGrid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-}
-
 @media (max-width: 960px) {
   .heroGrid,
   .contentGrid {
@@ -645,8 +646,9 @@ onMounted(() => {
     align-items: flex-start;
   }
 
-  .metricGrid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .heroActions :global(button),
+  .actionGrid button {
+    width: 100%;
   }
 }
 </style>

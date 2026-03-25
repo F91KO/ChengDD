@@ -7,7 +7,7 @@ export const aftersalesRecords = [
     product: 'Ultra Series 9 智能手表',
     spec: '45mm / 午夜色 / 蜂窝版',
     type: '退货退款',
-    amount: '¥3,299.00',
+    amount: '¥1,299.00',
     status: '待处理',
     statusTone: 'primary',
     updateTime: '2026-03-22 14:30',
