@@ -15,7 +15,7 @@
 | 生产构建 | `corepack pnpm build` | 成功 | 2026-03-22 复验通过，`vue-tsc -b && vite build` 完成 |
 | 开发服务器 | `corepack pnpm dev --host 127.0.0.1 --port 4173` | 成功 | `curl -I -L http://127.0.0.1:4173/` 返回 `HTTP/1.1 200 OK` |
 | 本地基础设施 | `bash scripts/local/up_local_infra.sh` | 成功 | Docker 已拉起 `cdd-local-mysql` 与 `cdd-local-nacos` |
-| 数据库迁移 | `bash scripts/db/migrate.sh` | 成功 | Liquibase 成功执行到 `V21`，补齐商品、订单、报表与工作台演示数据 |
+| 数据库迁移 | `bash scripts/db/migrate.sh` | 成功 | Liquibase 成功执行到当前基线版本，补齐本地联调用初始化数据 |
 
 ## 联调状态
 
@@ -37,7 +37,7 @@
 - 前端代理配置链路：`GET http://127.0.0.1:4173/api/config/platform/kv/effective?merchant_id=merchant_1001&config_group=system&config_key=default_time_zone` 调用成功，返回 `Asia/Shanghai`。
 - 前端页面探活：`GET http://127.0.0.1:4173/config` 返回 `200 OK`，配置中心页面可访问。
 - 售后页已接真实接口：售后列表、详情、日志与审核面板均基于 `order-service` 真数据返回。
-- 配置发布记录已接真实接口：发布记录列表、详情、发起发布与回滚不再依赖前端演示数据。
+- 配置发布记录已接真实接口：发布记录列表、详情、发起发布与回滚均来自真实接口与数据库。
 - 本地基础设施已补齐 `Redis`，`order-service` 与 `config-service` 在 `local` 环境下的 `/actuator/health` 可返回 `UP`。
 
 ## 2026-03-23 真实烟测补充

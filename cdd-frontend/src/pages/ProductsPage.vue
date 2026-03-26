@@ -289,7 +289,7 @@ import {
   productPagination,
   productStats,
   products,
-} from '@/modules/products/mock';
+} from '@/modules/products/state';
 import { useAuthStore } from '@/stores/auth';
 import type { ProductCategoryResponseRaw, ProductDetailResponseRaw } from '@/types/product';
 

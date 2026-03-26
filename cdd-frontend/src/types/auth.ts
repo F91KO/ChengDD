@@ -44,8 +44,7 @@ export interface AuthSession {
   refreshToken: string;
   accessTokenExpiresAt: string;
   refreshTokenExpiresAt: string;
-  authMode: 'remote' | 'mock';
+  authMode: 'remote';
   context: AuthContext | null;
   user: AuthDisplayUser;
 }
-

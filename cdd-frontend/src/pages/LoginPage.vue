@@ -7,16 +7,16 @@
         <h1 :class="$style.title">把商家运营动作整理成一张低噪音工作台。</h1>
         <p :class="$style.description">
           一期先覆盖登录、工作台、商品、订单、售后和配置中心。当前页面只走真实接口，
-          认证失败时会直接提示错误，不再回退演示会话。
+          认证失败时会直接提示错误，不再回退前端本地假数据。
         </p>
         <div :class="$style.statusCard">
           <div :class="$style.statusLabel">当前接入状态</div>
           <div :class="$style.statusValue">{{ authStore.authNotice }}</div>
         </div>
         <ul :class="$style.highlights">
-          <li>JDK 17 后端骨架已就位，前端按模块逐步接入真实 API。</li>
+          <li>Java 21 后端运行基线已确认，前端统一接入真实 API。</li>
           <li>统一 token 注入、401 处理、刷新令牌与路由守卫已接入。</li>
-          <li>本地默认账号：merchant_admin / merchant123456。</li>
+          <li>登录成功后才会加载商户、店铺与操作人上下文，不再使用前端假数据。</li>
         </ul>
       </div>
 
@@ -25,10 +25,10 @@
           <div :class="$style.formEyebrow">商家后台登录</div>
           <div :class="$style.formTitle">欢迎回来</div>
         </div>
-        <div :class="$style.demoAccount">
-          <div :class="$style.demoTitle">演示账号</div>
-          <div :class="$style.demoValue">merchant_admin</div>
-          <div :class="$style.demoHint">请先启动本地认证服务，再使用该账号登录。</div>
+        <div :class="$style.accountNotice">
+          <div :class="$style.accountTitle">默认本地账号</div>
+          <div :class="$style.accountValue">merchant_admin</div>
+          <div :class="$style.accountHint">请先启动本地认证服务和数据库，再使用该账号登录。</div>
         </div>
         <UiInput v-model="account" label="账号" placeholder="请输入运营账号" prefix="ID" />
         <UiInput
@@ -231,13 +231,13 @@ async function handleLogin() {
   letter-spacing: -0.04em;
 }
 
-.demoAccount {
+.accountNotice {
   padding: 16px 18px;
   border-radius: 20px;
   background: rgba(237, 244, 255, 0.78);
 }
 
-.demoTitle {
+.accountTitle {
   color: var(--cdd-text-faint);
   font-size: 12px;
   font-weight: 800;
@@ -245,14 +245,14 @@ async function handleLogin() {
   text-transform: uppercase;
 }
 
-.demoValue {
+.accountValue {
   margin-top: 8px;
   font-size: 18px;
   font-weight: 800;
   letter-spacing: -0.03em;
 }
 
-.demoHint {
+.accountHint {
   margin-top: 6px;
   color: var(--cdd-text-soft);
   font-size: 12px;

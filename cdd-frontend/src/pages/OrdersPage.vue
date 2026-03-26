@@ -302,7 +302,7 @@ import {
   orderPagination,
   orders,
   type OrderCard,
-} from '@/modules/orders/mock';
+} from '@/modules/orders/state';
 import type { OrderDetailResponseRaw } from '@/types/order';
 
 const activeFilter = ref('全部');

@@ -54,10 +54,10 @@ corepack pnpm build
 
 ## Current Scope
 
-- 当前采用“真实接口优先 + mock fallback”模式：
+- 当前统一走真实接口和数据库数据：
   - 登录、当前身份走 `/api/auth/*`
-  - 商品列表走 `/api/product/spu`
-  - 订单列表走 `/api/order/orders`
+  - 商品、分类、分类模板走 `/api/product/*`
+  - 订单、售后走 `/api/order/*`
   - 工作台报表走 `/api/report/*`
   - 配置中心走 `/api/config/*`
 - 本地开发默认通过 Vite proxy 转发：
@@ -67,5 +67,5 @@ corepack pnpm build
   - `/api/report` -> `127.0.0.1:8088`
   - `/api/config` -> `127.0.0.1:8089`
 - 已接入路由守卫、登录态持久化、Axios 请求拦截、401 刷新与登录跳转
-- 当 `merchant_id/store_id/user_id` 无法从认证上下文解析为数值时，会回退到 `.env` 默认值或演示数据
-- 工作台已接入 `report-service` 真实接口，配置中心已接入 `config-service` 真实接口，售后页当前仍以页面演示为主，后续继续补真实接口
+- 当前不再保留前端假数据回退、旧本地会话兼容或 `.env` 业务主键回退逻辑
+- 页面能否访问取决于真实认证上下文、数据库初始化数据和后端服务状态

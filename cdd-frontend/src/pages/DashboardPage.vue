@@ -127,8 +127,8 @@ import { useAuthStore } from '@/stores/auth';
 import {
   buildDashboardTrendOption,
   quickActions,
-} from '@/modules/dashboard/mock';
-import type { DashboardMetricItem, DashboardTaskItem } from '@/modules/dashboard/mock';
+} from '@/modules/dashboard/state';
+import type { DashboardMetricItem, DashboardTaskItem } from '@/modules/dashboard/state';
 import type { MerchantDashboardSnapshotResponseRaw, ReportHomeEventDailyResponseRaw, ReportOrderDailyResponseRaw } from '@/types/report';
 import type { EChartsOption } from 'echarts';
 

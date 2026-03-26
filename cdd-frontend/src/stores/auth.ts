@@ -11,17 +11,6 @@ import type {
 } from '@/types/auth';
 
 const DEFAULT_LOGIN_PASSWORD = import.meta.env.VITE_AUTH_DEFAULT_PASSWORD || 'merchant123456';
-const ENV_DEFAULT_MERCHANT_ID = parseEnvNumber(import.meta.env.VITE_BIZ_DEFAULT_MERCHANT_ID);
-const ENV_DEFAULT_STORE_ID = parseEnvNumber(import.meta.env.VITE_BIZ_DEFAULT_STORE_ID);
-const ENV_DEFAULT_USER_ID = parseEnvNumber(import.meta.env.VITE_BIZ_DEFAULT_USER_ID);
-
-function parseEnvNumber(value: string | undefined): number | null {
-  if (!value) {
-    return null;
-  }
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : null;
-}
 
 function parseNumericTail(raw: string | null | undefined): number | null {
   if (!raw) {
@@ -39,8 +28,8 @@ function parseNumericTail(raw: string | null | undefined): number | null {
 function buildUser(context: AuthContext | null): AuthDisplayUser {
   if (!context) {
     return {
-      merchantName: '上海精选美食店',
-      operatorName: '演示管理员',
+      merchantName: '当前商户',
+      operatorName: '当前操作人',
       roleName: 'merchant_owner',
     };
   }
@@ -83,13 +72,13 @@ export const useAuthStore = defineStore('auth', () => {
   const session = ref<AuthSession | null>(null);
   const initialized = ref(false);
   const authenticating = ref(false);
-  const authNotice = ref('当前使用演示数据。');
+  const authNotice = ref('请先登录。');
 
   const isAuthenticated = computed(() => Boolean(session.value?.accessToken));
   const token = computed(() => session.value?.accessToken ?? '');
   const refreshTokenValue = computed(() => session.value?.refreshToken ?? '');
   const user = computed<AuthDisplayUser>(() => session.value?.user ?? buildUser(null));
-  const authMode = computed(() => session.value?.authMode ?? 'mock');
+  const authMode = computed<'remote' | 'anonymous'>(() => (session.value?.authMode === 'remote' ? 'remote' : 'anonymous'));
   const context = computed<AuthContext | null>(() => session.value?.context ?? null);
 
   const businessScope = computed(() => {
@@ -99,9 +88,9 @@ export const useAuthStore = defineStore('auth', () => {
     const userId = parseNumericTail(contextValue?.userId);
 
     return {
-      merchantId: merchantId ?? ENV_DEFAULT_MERCHANT_ID,
-      storeId: storeId ?? ENV_DEFAULT_STORE_ID,
-      userId: userId ?? ENV_DEFAULT_USER_ID,
+      merchantId,
+      storeId,
+      userId,
       derivedFromContext: merchantId !== null && storeId !== null,
     };
   });
@@ -125,16 +114,16 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   function hydrate() {
-    const next = readAuthSession();
-    if (next?.authMode === 'mock') {
+    const next = readAuthSession() as (AuthSession & { authMode?: string }) | null;
+    if (next?.authMode && next.authMode !== 'remote') {
       clearAuthSession();
       session.value = null;
-      authNotice.value = '检测到旧的演示会话，已清理，请重新登录真实接口。';
+      authNotice.value = '检测到旧登录会话格式，已清理，请重新登录。';
       initialized.value = true;
       return;
     }
 
-    session.value = next;
+    session.value = next as AuthSession | null;
     if (session.value?.authMode === 'remote') {
       authNotice.value = '当前连接真实接口。';
     } else {
