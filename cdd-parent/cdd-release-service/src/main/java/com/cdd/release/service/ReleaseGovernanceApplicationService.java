@@ -204,6 +204,19 @@ public class ReleaseGovernanceApplicationService {
             if (currentTaskStatus == ReleaseTaskStatus.PENDING) {
                 nextTaskStatus = ReleaseTaskStatus.RUNNING;
             }
+            if (stepStatus == ReleaseStepStatus.SUCCESS) {
+                if ("release_done".equals(stepCode)) {
+                    nextTaskStatus = ReleaseTaskStatus.SUCCESS;
+                    finishedAt = now;
+                    lastErrorCode = null;
+                    lastErrorMessage = null;
+                } else if ("rollback_done".equals(stepCode)) {
+                    nextTaskStatus = ReleaseTaskStatus.ROLLED_BACK;
+                    finishedAt = now;
+                    lastErrorCode = null;
+                    lastErrorMessage = null;
+                }
+            }
             appendLog(task.id(), "INFO", "step_update", "步骤状态更新，stepCode=" + stepCode + "，status=" + stepStatus.value());
         }
         StoredReleaseTask updatedTask = new StoredReleaseTask(

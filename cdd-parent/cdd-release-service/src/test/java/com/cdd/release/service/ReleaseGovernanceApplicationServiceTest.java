@@ -80,6 +80,20 @@ class ReleaseGovernanceApplicationServiceTest {
     }
 
     @Test
+    void shouldMarkTaskSuccessfulWhenReleaseDoneStepSucceeds() {
+        ReleaseTaskResponse created = service.createReleaseTask(createRequest());
+        service.updateReleaseTaskStatus(created.taskNo(), new ReleaseTaskStatusUpdateRequest("running", "validate_env", null, null));
+
+        ReleaseTaskResponse completed = service.updateReleaseTaskStep(created.taskNo(), new ReleaseTaskStepUpdateRequest(
+                "release_done", "发布完成", 3, "success", "发布任务执行完成", null));
+
+        assertEquals("success", completed.releaseStatus());
+
+        ReleaseTaskResponse synced = service.syncReleaseResult(created.taskNo(), new ReleaseTaskResultSyncRequest("active"));
+        assertEquals("synced", synced.resultSyncStatus());
+    }
+
+    @Test
     void shouldMarkTaskFailedAndIncreaseRetryCountWhenStepFailsRepeatedly() {
         ReleaseTaskResponse created = service.createReleaseTask(createRequest());
 
