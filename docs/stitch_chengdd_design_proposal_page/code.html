@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>ChengDD Admin - Generic Pagination Showcase</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@200;300;400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "on-error-container": "#93000a",
+                        "surface-container-highest": "#d1e4fb",
+                        "on-surface-variant": "#5a4136",
+                        "surface-container-high": "#d9eaff",
+                        "surface-container": "#e3efff",
+                        "on-surface": "#091d2e",
+                        "secondary": "#96481e",
+                        "on-tertiary-container": "#003357",
+                        "on-background": "#091d2e",
+                        "secondary-fixed": "#ffdbcc",
+                        "primary-fixed-dim": "#ffb693",
+                        "inverse-primary": "#ffb693",
+                        "surface-container-lowest": "#ffffff",
+                        "on-secondary-fixed-variant": "#783207",
+                        "error-container": "#ffdad6",
+                        "tertiary-container": "#059eff",
+                        "inverse-surface": "#203243",
+                        "outline-variant": "#e2bfb0",
+                        "on-tertiary-fixed": "#001d35",
+                        "tertiary": "#0062a1",
+                        "on-primary": "#ffffff",
+                        "surface-container-low": "#edf4ff",
+                        "secondary-container": "#fe9a69",
+                        "on-primary-container": "#572000",
+                        "outline": "#8e7164",
+                        "on-primary-fixed-variant": "#7a3000",
+                        "inverse-on-surface": "#e8f2ff",
+                        "on-tertiary-fixed-variant": "#00497b",
+                        "surface": "#f7f9ff",
+                        "on-secondary-container": "#763006",
+                        "on-secondary": "#ffffff",
+                        "surface-variant": "#d1e4fb",
+                        "background": "#f7f9ff",
+                        "surface-dim": "#c9dcf3",
+                        "surface-bright": "#f7f9ff",
+                        "primary": "#a04100",
+                        "error": "#ba1a1a",
+                        "tertiary-fixed": "#d0e4ff",
+                        "on-error": "#ffffff",
+                        "tertiary-fixed-dim": "#9ccaff",
+                        "primary-container": "#ff6b00",
+                        "primary-fixed": "#ffdbcc",
+                        "on-tertiary": "#ffffff",
+                        "on-secondary-fixed": "#351000",
+                        "secondary-fixed-dim": "#ffb693",
+                        "surface-tint": "#a04100",
+                        "on-primary-fixed": "#351000"
+                    },
+                    fontFamily: {
+                        "headline": ["Manrope", "sans-serif"],
+                        "body": ["Manrope", "sans-serif"],
+                        "label": ["Manrope", "sans-serif"]
+                    },
+                    borderRadius: { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" },
+                },
+            },
+        }
+    </script>
+<style>
+        body { font-family: 'Manrope', sans-serif; }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            display: inline-block;
+            line-height: 1;
+        }
+    </style>
+</head>
+<body class="bg-surface text-on-surface antialiased font-body">
+<!-- TopAppBar from Shared Components JSON -->
+<header class="fixed top-0 w-full z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl no-border shadow-[0_1px_0_0_rgba(0,0,0,0.05)] h-16">
+<div class="flex items-center justify-between px-8 h-full w-full max-w-screen-2xl mx-auto">
+<div class="flex items-center gap-8">
+<span class="text-xl font-bold tracking-tighter text-slate-900 dark:text-slate-50">ChengDD Admin</span>
+<nav class="hidden md:flex items-center gap-6">
+<a class="text-orange-600 dark:text-orange-500 border-b-2 border-orange-600 font-semibold py-5" href="#">Dashboard</a>
+<a class="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 py-5 transition-colors duration-200" href="#">Analytics</a>
+<a class="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 py-5 transition-colors duration-200" href="#">Inventory</a>
+<a class="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 py-5 transition-colors duration-200" href="#">Orders</a>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<button class="p-2 text-slate-500 hover:bg-slate-50 rounded-full transition-all active:scale-95">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+</button>
+<button class="p-2 text-slate-500 hover:bg-slate-50 rounded-full transition-all active:scale-95">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+</button>
+<div class="w-8 h-8 rounded-full overflow-hidden bg-surface-container ml-2">
+<img alt="User Profile Avatar" data-alt="professional portrait of a confident male executive in a clean modern office with soft natural lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBg-zdXOYSgglplItBzvo1o7Atuyc9GrTCvlI2fJXE4zpM_vRvBOZWhOWpwOy3CjbmKkzBC6hf5tX12EJq511lbou1v9IcMJtub2UnV74hiUGomOzTG65Cg5WjrS2rR0GdBhnuKZLkytOzmXggs2h6KxzyFGMUBZygjr5ypqEQwjnNoqaVcM4VppYZfJ5-iXVCZY4FaXiLNqAhh3EBpZhNsGRwIl2WfAFhVIV5vgndv2V9f9BCe0dRdyNut4cbSqGKhUe5m-vyreqDe"/>
+</div>
+</div>
+</div>
+</header>
+<!-- SideNavBar from Shared Components JSON -->
+<aside class="h-screen w-64 fixed left-0 top-0 z-40 bg-slate-50 dark:bg-slate-950 flex flex-col p-4 space-y-2 hidden lg:flex">
+<div class="px-4 py-6 mb-4">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 bg-gradient-to-br from-primary to-primary-container rounded-xl flex items-center justify-center text-white shadow-lg">
+<span class="material-symbols-outlined" data-icon="dashboard" style="font-variation-settings: 'FILL' 1;">dashboard</span>
+</div>
+<div>
+<h2 class="text-lg font-black text-slate-900 dark:text-slate-50 leading-none">ChengDD</h2>
+<p class="text-[10px] uppercase tracking-widest text-slate-500 mt-1">Enterprise Admin</p>
+</div>
+</div>
+</div>
+<div class="flex-1 space-y-1">
+<button class="w-full flex items-center gap-3 px-4 py-3 bg-white dark:bg-slate-900 text-orange-600 dark:text-orange-500 shadow-sm rounded-lg font-medium transition-all duration-200">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span>Overview</span>
+</button>
+<button class="w-full flex items-center gap-3 px-4 py-3 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900/50 rounded-lg font-medium hover:translate-x-1 transition-all duration-200">
+<span class="material-symbols-outlined" data-icon="inventory_2">inventory_2</span>
+<span>Product Management</span>
+</button>
+<button class="w-full flex items-center gap-3 px-4 py-3 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900/50 rounded-lg font-medium hover:translate-x-1 transition-all duration-200">
+<span class="material-symbols-outlined" data-icon="group">group</span>
+<span>User Records</span>
+</button>
+<button class="w-full flex items-center gap-3 px-4 py-3 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900/50 rounded-lg font-medium hover:translate-x-1 transition-all duration-200">
+<span class="material-symbols-outlined" data-icon="payments">payments</span>
+<span>Financials</span>
+</button>
+<button class="w-full flex items-center gap-3 px-4 py-3 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900/50 rounded-lg font-medium hover:translate-x-1 transition-all duration-200">
+<span class="material-symbols-outlined" data-icon="terminal">terminal</span>
+<span>System Logs</span>
+</button>
+</div>
+<div class="mt-auto pt-4 border-t border-slate-200 dark:border-slate-800 space-y-1">
+<button class="w-full flex items-center justify-center gap-2 py-3 bg-primary text-white rounded-xl font-bold active:opacity-80 transition-all mb-4">
+<span>Generate Report</span>
+</button>
+<button class="w-full flex items-center gap-3 px-4 py-2 text-slate-500 hover:text-slate-900 transition-colors">
+<span class="material-symbols-outlined text-xl" data-icon="help_outline">help_outline</span>
+<span class="text-sm font-medium">Support</span>
+</button>
+<button class="w-full flex items-center gap-3 px-4 py-2 text-slate-500 hover:text-red-500 transition-colors">
+<span class="material-symbols-outlined text-xl" data-icon="logout">logout</span>
+<span class="text-sm font-medium">Logout</span>
+</button>
+</div>
+</aside>
+<!-- Main Canvas -->
+<main class="lg:ml-64 pt-16 min-h-screen">
+<div class="max-w-5xl mx-auto p-8 md:p-12 space-y-12">
+<!-- Hero Header Section -->
+<section class="space-y-2">
+<div class="inline-flex items-center px-3 py-1 bg-primary-fixed text-on-primary-fixed-variant rounded-full text-xs font-bold tracking-wider mb-2">
+                    COMPONENT SHOWCASE
+                </div>
+<h1 class="text-4xl font-extrabold tracking-tight text-on-surface">通用分页组件 (Pagination)</h1>
+<p class="text-on-surface-variant text-lg max-w-2xl font-medium">设计系统组件规范 v1.0 — 精确策划的高效数据导览方案。</p>
+</section>
+<!-- Bento Grid Showcase -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+<!-- Section 1: Basic Pagination -->
+<div class="bg-surface-container-lowest rounded-xl p-8 shadow-[0_24px_48px_-12px_rgba(9,29,46,0.04)] space-y-6">
+<div class="flex items-center justify-between border-b border-surface-container-low pb-4">
+<h3 class="text-xl font-bold text-on-surface">Basic Pagination</h3>
+<span class="px-2 py-0.5 bg-surface-container text-[10px] font-bold text-on-surface-variant rounded">STANDARD</span>
+</div>
+<div class="flex items-center gap-2 flex-wrap">
+<button class="w-10 h-10 flex items-center justify-center rounded-lg border border-transparent bg-surface-container-low text-on-surface hover:bg-surface-container transition-all active:scale-90">
+<span class="material-symbols-outlined" data-icon="chevron_left">chevron_left</span>
+</button>
+<button class="w-10 h-10 flex items-center justify-center rounded-lg bg-primary-container text-white font-bold shadow-md shadow-primary/20 transition-all active:scale-95">1</button>
+<button class="w-10 h-10 flex items-center justify-center rounded-lg bg-white text-on-surface font-semibold hover:bg-surface-container-low transition-all">2</button>
+<button class="w-10 h-10 flex items-center justify-center rounded-lg bg-white text-on-surface font-semibold hover:bg-surface-container-low transition-all">3</button>
+<button class="w-10 h-10 flex items-center justify-center rounded-lg bg-white text-on-surface font-semibold hover:bg-surface-container-low transition-all">4</button>
+<button class="w-10 h-10 flex items-center justify-center rounded-lg bg-white text-on-surface font-semibold hover:bg-surface-container-low transition-all">5</button>
+<span class="w-10 h-10 flex items-center justify-center text-on-surface-variant font-medium">...</span>
+<button class="w-10 h-10 flex items-center justify-center rounded-lg bg-white text-on-surface font-semibold hover:bg-surface-container-low transition-all">10</button>
+<button class="w-10 h-10 flex items-center justify-center rounded-lg border border-transparent bg-surface-container-low text-on-surface hover:bg-surface-container transition-all active:scale-90">
+<span class="material-symbols-outlined" data-icon="chevron_right">chevron_right</span>
+</button>
+</div>
+<p class="text-sm text-on-surface-variant leading-relaxed">适用于常规列表与数据表格，提供明确的数字跳转引导。</p>
+</div>
+<!-- Section 3: Simple Pagination (Compact) -->
+<div class="bg-surface-container-lowest rounded-xl p-8 shadow-[0_24px_48px_-12px_rgba(9,29,46,0.04)] space-y-6 flex flex-col justify-between">
+<div class="flex items-center justify-between border-b border-surface-container-low pb-4">
+<h3 class="text-xl font-bold text-on-surface">Simple Pagination</h3>
+<span class="px-2 py-0.5 bg-surface-container text-[10px] font-bold text-on-surface-variant rounded uppercase">Compact</span>
+</div>
+<div class="flex items-center gap-4 bg-surface-container-low p-4 rounded-xl self-start">
+<button class="p-2 flex items-center justify-center rounded-lg bg-white text-on-surface shadow-sm active:scale-90 transition-all">
+<span class="material-symbols-outlined text-lg" data-icon="arrow_back">arrow_back</span>
+</button>
+<span class="text-sm font-bold text-on-surface tracking-widest px-4">1 / 12</span>
+<button class="p-2 flex items-center justify-center rounded-lg bg-white text-on-surface shadow-sm active:scale-90 transition-all">
+<span class="material-symbols-outlined text-lg" data-icon="arrow_forward">arrow_forward</span>
+</button>
+</div>
+<p class="text-sm text-on-surface-variant leading-relaxed">常用于侧边栏预览、卡片容器或移动端瀑布流控制。</p>
+</div>
+<!-- Section 2: Functional Pagination (Wide Bento) -->
+<div class="md:col-span-2 bg-surface-container-lowest rounded-xl p-8 shadow-[0_24px_48px_-12px_rgba(9,29,46,0.04)] space-y-8">
+<div class="flex items-center justify-between border-b border-surface-container-low pb-4">
+<div class="space-y-1">
+<h3 class="text-xl font-bold text-on-surface">Functional Pagination</h3>
+<p class="text-sm text-on-surface-variant">Enhanced navigation with utility controls</p>
+</div>
+</div>
+<div class="flex flex-col lg:flex-row items-center justify-between gap-8 py-4">
+<!-- Left: Page Numbers -->
+<div class="flex items-center gap-1.5">
+<button class="w-10 h-10 flex items-center justify-center rounded-lg bg-surface-container-low text-on-surface/40 cursor-not-allowed">
+<span class="material-symbols-outlined" data-icon="keyboard_double_arrow_left">keyboard_double_arrow_left</span>
+</button>
+<button class="w-10 h-10 flex items-center justify-center rounded-lg bg-surface-container-low text-on-surface hover:bg-surface-container transition-all">
+<span class="material-symbols-outlined" data-icon="chevron_left">chevron_left</span>
+</button>
+<div class="flex items-center gap-1 mx-2">
+<button class="w-10 h-10 flex items-center justify-center rounded-lg bg-primary-container text-white font-bold shadow-lg shadow-primary/30">1</button>
+<button class="w-10 h-10 flex items-center justify-center rounded-lg text-on-surface font-semibold hover:bg-surface-container-low transition-all">2</button>
+<button class="w-10 h-10 flex items-center justify-center rounded-lg text-on-surface font-semibold hover:bg-surface-container-low transition-all">3</button>
+<button class="w-10 h-10 flex items-center justify-center rounded-lg text-on-surface font-semibold hover:bg-surface-container-low transition-all">4</button>
+<button class="w-10 h-10 flex items-center justify-center rounded-lg text-on-surface font-semibold hover:bg-surface-container-low transition-all">5</button>
+<span class="w-8 h-10 flex items-center justify-center text-on-surface-variant font-medium">...</span>
+<button class="w-10 h-10 flex items-center justify-center rounded-lg text-on-surface font-semibold hover:bg-surface-container-low transition-all">10</button>
+</div>
+<button class="w-10 h-10 flex items-center justify-center rounded-lg bg-surface-container-low text-on-surface hover:bg-surface-container transition-all">
+<span class="material-symbols-outlined" data-icon="chevron_right">chevron_right</span>
+</button>
+<button class="w-10 h-10 flex items-center justify-center rounded-lg bg-surface-container-low text-on-surface hover:bg-surface-container transition-all">
+<span class="material-symbols-outlined" data-icon="keyboard_double_arrow_right">keyboard_double_arrow_right</span>
+</button>
+</div>
+<!-- Right: Utilities -->
+<div class="flex items-center gap-6">
+<div class="h-8 w-px bg-surface-container hidden lg:block"></div>
+<div class="flex items-center gap-3">
+<span class="text-sm font-semibold text-on-surface-variant">Show</span>
+<div class="relative">
+<button class="flex items-center gap-2 px-4 py-2 bg-surface-container-low border border-transparent rounded-lg text-sm font-bold text-on-surface hover:border-outline-variant transition-all">
+                                        10 / page
+                                        <span class="material-symbols-outlined text-sm" data-icon="expand_more">expand_more</span>
+</button>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<span class="text-sm font-semibold text-on-surface-variant">Go to</span>
+<div class="flex items-center gap-2">
+<input class="w-12 h-10 bg-surface-container-low border-0 rounded-lg text-center font-bold text-on-surface focus:ring-2 focus:ring-primary-container focus:bg-white transition-all" type="text" value="1"/>
+<span class="text-sm font-semibold text-on-surface-variant">Page</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Interactive Usage Guidelines -->
+<div class="md:col-span-2 grid grid-cols-1 lg:grid-cols-3 gap-6">
+<div class="p-6 bg-orange-50/50 rounded-xl border border-orange-100 flex gap-4">
+<div class="w-12 h-12 rounded-xl bg-orange-100 flex items-center justify-center text-orange-600 shrink-0">
+<span class="material-symbols-outlined" data-icon="touch_app">touch_app</span>
+</div>
+<div>
+<h4 class="font-bold text-on-surface mb-1">Feedback</h4>
+<p class="text-xs text-on-surface-variant leading-relaxed">Interactive elements must scale to 95% on active touch to provide tactile feedback.</p>
+</div>
+</div>
+<div class="p-6 bg-blue-50/50 rounded-xl border border-blue-100 flex gap-4">
+<div class="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center text-blue-600 shrink-0">
+<span class="material-symbols-outlined" data-icon="visibility">visibility</span>
+</div>
+<div>
+<h4 class="font-bold text-on-surface mb-1">Consistency</h4>
+<p class="text-xs text-on-surface-variant leading-relaxed">Keep navigation icons uniform. Use standard material weights (400) for UI controls.</p>
+</div>
+</div>
+<div class="p-6 bg-green-50/50 rounded-xl border border-green-100 flex gap-4">
+<div class="w-12 h-12 rounded-xl bg-green-100 flex items-center justify-center text-green-600 shrink-0">
+<span class="material-symbols-outlined" data-icon="lightbulb">lightbulb</span>
+</div>
+<div>
+<h4 class="font-bold text-on-surface mb-1">Context</h4>
+<p class="text-xs text-on-surface-variant leading-relaxed">Always indicate active state with the primary brand orange (#FF6B00).</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Footer -->
+<footer class="mt-20 py-12 px-8 bg-surface-container-low/50">
+<div class="max-w-screen-2xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+<div class="flex items-center gap-3">
+<div class="w-6 h-6 bg-primary rounded-md"></div>
+<span class="text-sm font-bold text-on-surface">ChengDD Design System</span>
+</div>
+<p class="text-sm text-on-surface-variant font-medium">ChengDD Design System © 2024. All rights reserved.</p>
+<div class="flex items-center gap-6">
+<a class="text-xs font-bold text-on-surface-variant hover:text-primary transition-colors" href="#">Documentation</a>
+<a class="text-xs font-bold text-on-surface-variant hover:text-primary transition-colors" href="#">Github</a>
+<a class="text-xs font-bold text-on-surface-variant hover:text-primary transition-colors" href="#">Storybook</a>
+</div>
+</div>
+</footer>
+</main>
+<!-- Mobile Navigation Shell (Suppressed as per rules for sub-page, but template provided for reference) -->
+<nav class="fixed bottom-0 left-0 w-full bg-white dark:bg-slate-900 md:hidden z-50 flex justify-around items-center h-16 shadow-[0_-1px_0_0_rgba(0,0,0,0.05)] px-4">
+<button class="flex flex-col items-center gap-1 text-orange-600">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span class="text-[10px] font-bold">Overview</span>
+</button>
+<button class="flex flex-col items-center gap-1 text-slate-400">
+<span class="material-symbols-outlined" data-icon="inventory_2">inventory_2</span>
+<span class="text-[10px] font-medium">Inventory</span>
+</button>
+<button class="flex flex-col items-center gap-1 text-slate-400">
+<span class="material-symbols-outlined" data-icon="group">group</span>
+<span class="text-[10px] font-medium">Users</span>
+</button>
+<button class="flex flex-col items-center gap-1 text-slate-400">
+<span class="material-symbols-outlined" data-icon="payments">payments</span>
+<span class="text-[10px] font-medium">Finance</span>
+</button>
+</nav>
+</body></html>
