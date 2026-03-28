@@ -71,12 +71,13 @@ public interface OrderRepository {
 
     void closePayRecordsByOrderId(long orderId);
 
-    boolean updateOrderDeliveryStatus(long orderId,
-                                      String expectedOrderStatus,
-                                      String expectedDeliveryStatus,
-                                      String targetOrderStatus,
-                                      String targetDeliveryStatus,
-                                      Instant finishedAt);
+    boolean shipOrder(long orderId,
+                      List<String> expectedOrderStatuses,
+                      List<String> expectedDeliveryStatuses,
+                      String logisticsCompanyCode,
+                      String logisticsCompanyName,
+                      String trackingNo,
+                      Instant shippedAt);
 
     void createRefundRecord(RefundRecord refundRecord);
 
@@ -186,8 +187,12 @@ public interface OrderRepository {
             String receiverName,
             String receiverMobile,
             String receiverAddress,
+            String logisticsCompanyCode,
+            String logisticsCompanyName,
+            String trackingNo,
             Instant createdAt,
             Instant paidAt,
+            Instant shippedAt,
             Instant cancelledAt,
             Instant finishedAt) {
     }

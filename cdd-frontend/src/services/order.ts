@@ -47,23 +47,27 @@ export async function fetchOrderDetail(params: {
   });
 }
 
-export async function updateOrderDelivery(payload: {
+export async function shipOrder(payload: {
   orderNo: string;
   merchantId: number;
   storeId: number;
   userId: number;
-  deliveryStatus: string;
-  remark?: string;
+  logisticsCompanyCode: string;
+  logisticsCompanyName: string;
+  trackingNo: string;
+  shipRemark?: string;
 }) {
   return requestApi({
     method: 'POST',
-    url: `/order/orders/${payload.orderNo}/delivery`,
+    url: `/order/orders/${payload.orderNo}/ship`,
     data: {
       merchant_id: payload.merchantId,
       store_id: payload.storeId,
       user_id: payload.userId,
-      delivery_status: payload.deliveryStatus,
-      remark: payload.remark ?? '',
+      logistics_company_code: payload.logisticsCompanyCode,
+      logistics_company_name: payload.logisticsCompanyName,
+      tracking_no: payload.trackingNo,
+      ship_remark: payload.shipRemark ?? '',
     },
   });
 }

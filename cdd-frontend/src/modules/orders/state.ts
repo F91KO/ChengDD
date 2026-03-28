@@ -19,7 +19,7 @@ export type OrderCard = {
   time: string;
 };
 
-export const orderFilters = ['全部', '待支付', '待发货', '运输中', '已完成', '异常单'];
+export const orderFilters = ['全部', '待支付', '待发货', '待收货', '已完成', '已取消'];
 
 export const orders = reactive<OrderCard[]>([]);
 export const orderPagination = reactive({
@@ -95,19 +95,19 @@ function normalizeStatus(item: OrderSummaryResponseRaw): {
   tone: OrderCard['statusTone'];
 } {
   const status = item.order_status.toLowerCase();
-  const payStatus = item.pay_status.toLowerCase();
-  const deliveryStatus = item.delivery_status.toLowerCase();
-
-  if (status.includes('cancel') || status.includes('refund') || status.includes('after')) {
-    return { text: '异常单', tone: 'danger' };
+  if (status.includes('cancel')) {
+    return { text: '已取消', tone: 'danger' };
   }
-  if (status.includes('complete') || status.includes('finish')) {
+  if (status.includes('after') || status.includes('refund')) {
+    return { text: '售后中', tone: 'danger' };
+  }
+  if (status.includes('complete') || status.includes('finished')) {
     return { text: '已完成', tone: 'success' };
   }
-  if (deliveryStatus.includes('deliver') || deliveryStatus.includes('ship')) {
-    return { text: '运输中', tone: 'info' };
+  if (status.includes('pending_receive')) {
+    return { text: '待收货', tone: 'info' };
   }
-  if (deliveryStatus.includes('preparing') || payStatus.includes('paid') || status.includes('paid') || status.includes('preparing')) {
+  if (status.includes('pending_ship')) {
     return { text: '待发货', tone: 'primary' };
   }
   return { text: '待支付', tone: 'info' };
@@ -139,12 +139,12 @@ export function filterToOrderStatus(filter: string): string | undefined {
     case '待支付':
       return 'pending_pay';
     case '待发货':
-      return 'paid,preparing';
-    case '运输中':
-      return 'shipped';
+      return 'pending_ship';
+    case '待收货':
+      return 'pending_receive';
     case '已完成':
-      return 'completed,finished';
-    case '异常单':
+      return 'completed';
+    case '已取消':
       return 'cancelled';
     default:
       return undefined;

@@ -5,18 +5,18 @@
         <div :class="$style.brandMark">CD</div>
         <div>
           <div :class="$style.brandTitle">ChengDD</div>
-          <div :class="$style.brandMeta">商家中台一期</div>
+          <div :class="$style.brandMeta">{{ brandMeta }}</div>
         </div>
       </div>
 
       <div :class="$style.mobileSummary">
-        <div :class="$style.mobileSummaryLabel">当前商户</div>
-        <div :class="$style.mobileSummaryValue">{{ authStore.user.merchantName }}</div>
+        <div :class="$style.mobileSummaryLabel">{{ subjectLabel }}</div>
+        <div :class="$style.mobileSummaryValue">{{ subjectValue }}</div>
       </div>
 
       <nav :class="$style.nav">
         <RouterLink
-          v-for="item in appMenuItems"
+          v-for="item in navItems"
           :key="item.path"
           :to="item.path"
           :class="[$style.navItem, route.path === item.path ? $style.navItemActive : '']"
@@ -28,8 +28,8 @@
       </nav>
 
       <UiCard :class="$style.sidebarFoot">
-        <div :class="$style.sidebarFootLabel">当前商户</div>
-        <div :class="$style.sidebarFootValue">{{ authStore.user.merchantName }}</div>
+        <div :class="$style.sidebarFootLabel">{{ subjectLabel }}</div>
+        <div :class="$style.sidebarFootValue">{{ subjectValue }}</div>
         <div :class="$style.sidebarFootMeta">{{ authStore.user.roleName }}</div>
       </UiCard>
     </aside>
@@ -61,20 +61,35 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
 import UiCard from '@/components/base/UiCard.vue';
-import { appMenuItems } from '@/app/menu';
+import { appMenuItems, type AppMenuItem } from '@/app/menu';
 import { useAuthStore } from '@/stores/auth';
 
-defineProps<{
+const props = withDefaults(defineProps<{
   title: string;
   eyebrow: string;
   description?: string;
-}>();
+  brandMeta?: string;
+  subjectLabel?: string;
+  subjectValue?: string;
+  navItems?: AppMenuItem[];
+}>(), {
+  description: undefined,
+  brandMeta: '商家中台一期',
+  subjectLabel: '当前商户',
+  subjectValue: undefined,
+  navItems: () => appMenuItems,
+});
 
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
+const subjectValue = computed(() => props.subjectValue || authStore.user.merchantName);
+const navItems = computed(() => props.navItems);
+const brandMeta = computed(() => props.brandMeta);
+const subjectLabel = computed(() => props.subjectLabel);
 
 function logout() {
   authStore.logout();

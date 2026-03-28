@@ -119,7 +119,7 @@ class OrderControllerIntegrationTest {
                                 "paid_amount", new BigDecimal("25.00")))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(0))
-                .andExpect(jsonPath("$.data.order_status").value("paid"))
+                .andExpect(jsonPath("$.data.order_status").value("pending_ship"))
                 .andExpect(jsonPath("$.data.pay_status").value("paid"))
                 .andExpect(jsonPath("$.data.delivery_status").value("pending"));
 
@@ -202,40 +202,52 @@ class OrderControllerIntegrationTest {
         long storeId = 4015L;
         long userId = 5015L;
 
-        String preparingOrderNo = createPaidOrderByCallback(merchantId, storeId, userId, new BigDecimal("42.00"), "callback-multi-filter-1");
+        String shippedOrderNo = createPaidOrderByCallback(merchantId, storeId, userId, new BigDecimal("42.00"), "callback-multi-filter-1");
 
-        mockMvc.perform(post("/api/order/orders/{order_no}/delivery", preparingOrderNo)
+        mockMvc.perform(post("/api/order/orders/{order_no}/ship", shippedOrderNo)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(writeJson(Map.of(
                                 "merchant_id", merchantId,
                                 "store_id", storeId,
                                 "user_id", userId,
-                                "delivery_status", "preparing",
-                                "remark", "开始备货"))))
+                                "logistics_company_code", "SF",
+                                "logistics_company_name", "顺丰速运",
+                                "tracking_no", "SF1234567890",
+                                "ship_remark", "订单已交接物流"))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(0))
-                .andExpect(jsonPath("$.data.order_status").value("preparing"))
-                .andExpect(jsonPath("$.data.delivery_status").value("preparing"));
+                .andExpect(jsonPath("$.data.order_status").value("pending_receive"))
+                .andExpect(jsonPath("$.data.delivery_status").value("shipped"));
+
+        mockMvc.perform(get("/api/order/orders/{order_no}", shippedOrderNo)
+                        .param("merchant_id", String.valueOf(merchantId))
+                        .param("store_id", String.valueOf(storeId))
+                        .param("user_id", String.valueOf(userId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.logistics_company_code").value("SF"))
+                .andExpect(jsonPath("$.data.logistics_company_name").value("顺丰速运"))
+                .andExpect(jsonPath("$.data.tracking_no").value("SF1234567890"))
+                .andExpect(jsonPath("$.data.shipped_at").isNotEmpty());
 
         String paidOrderNo = createPaidOrderByCallback(merchantId, storeId, userId + 1, new BigDecimal("58.00"), "callback-multi-filter-2");
 
         mockMvc.perform(get("/api/order/orders")
                         .param("merchant_id", String.valueOf(merchantId))
                         .param("store_id", String.valueOf(storeId))
-                        .param("order_status", "paid,preparing"))
+                        .param("order_status", "pending_ship,pending_receive"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(0))
                 .andExpect(jsonPath("$.data.total").value(2))
                 .andExpect(jsonPath("$.data.list[0].order_no").value(paidOrderNo))
-                .andExpect(jsonPath("$.data.list[1].order_no").value(preparingOrderNo));
+                .andExpect(jsonPath("$.data.list[1].order_no").value(shippedOrderNo));
 
         mockMvc.perform(get("/api/order/orders/export")
                         .param("merchant_id", String.valueOf(merchantId))
                         .param("store_id", String.valueOf(storeId))
-                        .param("order_status", "paid,preparing"))
+                        .param("order_status", "pending_ship,pending_receive"))
                 .andExpect(status().isOk())
                 .andExpect(header().string("Content-Disposition", containsString("orders-export.csv")))
-                .andExpect(content().string(containsString(preparingOrderNo)))
+                .andExpect(content().string(containsString(shippedOrderNo)))
                 .andExpect(content().string(containsString(paidOrderNo)));
     }
 
@@ -806,7 +818,7 @@ class OrderControllerIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(0))
                 .andExpect(jsonPath("$.data.order_no").value(orderNo))
-                .andExpect(jsonPath("$.data.order_status").value("paid"))
+                .andExpect(jsonPath("$.data.order_status").value("pending_ship"))
                 .andExpect(jsonPath("$.data.pay_status").value("paid"))
                 .andExpect(jsonPath("$.data.callback_status").value("processed"))
                 .andExpect(jsonPath("$.data.duplicated").value(false));

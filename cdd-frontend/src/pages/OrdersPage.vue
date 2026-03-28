@@ -2,7 +2,7 @@
   <WorkspaceLayout
     eyebrow="Orders"
     title="订单管理"
-    description="查看真实订单列表、详情、履约推进和状态日志，减少在列表页与详情页之间来回切换。"
+    description="查看真实订单列表、详情、物流发货和状态日志，减少在列表页与详情页之间来回切换。"
   >
     <section :class="$style.toolbar">
       <div :class="$style.filters">
@@ -17,7 +17,7 @@
       </div>
       <div :class="$style.toolbarActions">
         <UiButton variant="secondary" @click="handleExportOrders">批量导出</UiButton>
-        <UiButton @click="openDeliveryPanelFromList">推进履约</UiButton>
+        <UiButton @click="openDeliveryPanelFromList">快速发货</UiButton>
       </div>
     </section>
 
@@ -100,11 +100,11 @@
             <div :class="$style.rowActions">
               <UiButton variant="secondary" @click="handleViewDetail(order)">查看详情</UiButton>
               <UiButton
-                v-if="canProgressDelivery(order)"
+                v-if="canShipOrder(order)"
                 variant="secondary"
                 @click="openDeliveryPanel(order)"
               >
-                {{ getDeliveryActionLabel(order) }}
+                {{ getShipActionLabel(order) }}
               </UiButton>
             </div>
           </div>
@@ -150,7 +150,7 @@
             <div :class="$style.summaryValue">{{ formatPayStatus(selectedOrderDetail.pay_status) }}</div>
           </article>
           <article :class="$style.summaryCard">
-            <div :class="$style.summaryLabel">履约状态</div>
+            <div :class="$style.summaryLabel">物流状态</div>
             <div :class="$style.summaryValue">{{ formatDeliveryStatus(selectedOrderDetail.delivery_status) }}</div>
           </article>
           <article :class="$style.summaryCard">
@@ -200,6 +200,28 @@
               <div :class="$style.infoItem">
                 <div :class="$style.infoLabel">实付金额</div>
                 <div :class="$style.infoValue">{{ formatCurrency(selectedOrderDetail.paid_amount) }}</div>
+              </div>
+            </div>
+          </article>
+
+          <article :class="$style.infoCard">
+            <div :class="$style.sectionTitle">物流信息</div>
+            <div :class="$style.infoList">
+              <div :class="$style.infoItem">
+                <div :class="$style.infoLabel">物流公司编码</div>
+                <div :class="$style.infoValue">{{ selectedOrderDetail.logistics_company_code || '-' }}</div>
+              </div>
+              <div :class="$style.infoItem">
+                <div :class="$style.infoLabel">物流公司名称</div>
+                <div :class="$style.infoValue">{{ selectedOrderDetail.logistics_company_name || '-' }}</div>
+              </div>
+              <div :class="$style.infoItem">
+                <div :class="$style.infoLabel">物流单号</div>
+                <div :class="$style.infoValue">{{ selectedOrderDetail.tracking_no || '-' }}</div>
+              </div>
+              <div :class="$style.infoItem">
+                <div :class="$style.infoLabel">发货时间</div>
+                <div :class="$style.infoValue">{{ formatDateTime(selectedOrderDetail.shipped_at) }}</div>
               </div>
             </div>
           </article>
@@ -257,9 +279,9 @@
         <section v-if="deliveryTarget && deliveryAction" :class="$style.deliveryBlock">
           <div :class="$style.deliveryHead">
             <div>
-              <div :class="$style.sectionTitle">履约操作</div>
+              <div :class="$style.sectionTitle">发货操作</div>
               <div :class="$style.deliveryHint">
-                当前将订单推进到 {{ deliveryAction.targetLabel }}
+                当前将订单发货到 {{ deliveryAction.targetLabel }}
               </div>
             </div>
             <UiTag :tone="deliveryAction.tone">
@@ -267,15 +289,33 @@
             </UiTag>
           </div>
 
+          <div :class="$style.formGrid">
+            <UiInput
+              v-model="shipForm.logisticsCompanyCode"
+              label="物流公司编码"
+              placeholder="例如：SF"
+            />
+            <UiInput
+              v-model="shipForm.logisticsCompanyName"
+              label="物流公司名称"
+              placeholder="例如：顺丰速运"
+            />
+            <UiInput
+              v-model="shipForm.trackingNo"
+              label="物流单号"
+              placeholder="请输入真实运单号"
+            />
+          </div>
+
           <textarea
-            v-model="deliveryRemark"
+            v-model="shipForm.shipRemark"
             :class="$style.textarea"
-            placeholder="请输入履约备注，例如发货批次、异常说明或签收确认信息"
+            placeholder="请输入发货备注，例如打包批次、交接说明或特殊配送要求"
           />
 
           <div :class="$style.toolbarActions">
-            <UiButton variant="secondary" @click="deliveryRemark = ''">清空备注</UiButton>
-            <UiButton :disabled="submitting" @click="submitDelivery">
+            <UiButton variant="secondary" @click="resetShipForm">清空信息</UiButton>
+            <UiButton :disabled="submitting || !canSubmitShip" @click="submitDelivery">
               {{ submitting ? '正在提交...' : deliveryAction.buttonLabel }}
             </UiButton>
           </div>
@@ -286,14 +326,15 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue';
 import UiButton from '@/components/base/UiButton.vue';
 import UiCard from '@/components/base/UiCard.vue';
+import UiInput from '@/components/base/UiInput.vue';
 import UiPagination from '@/components/base/UiPagination.vue';
 import UiStatePanel from '@/components/base/UiStatePanel.vue';
 import UiTag from '@/components/base/UiTag.vue';
 import WorkspaceLayout from '@/components/layout/WorkspaceLayout.vue';
-import { exportOrdersCsv, fetchOrderDetail, updateOrderDelivery } from '@/services/order';
+import { exportOrdersCsv, fetchOrderDetail, shipOrder } from '@/services/order';
 import {
   filterToOrderStatus,
   loadOrders,
@@ -310,16 +351,20 @@ const actionMessage = ref('');
 const actionTone = ref<'info' | 'error'>('info');
 const selectedOrderDetail = ref<OrderDetailResponseRaw | null>(null);
 const deliveryTarget = ref<OrderCard | null>(null);
-const deliveryRemark = ref('');
 const submitting = ref(false);
 const detailAnchor = ref<HTMLElement | null>(null);
+const shipForm = reactive({
+  logisticsCompanyCode: '',
+  logisticsCompanyName: '',
+  trackingNo: '',
+  shipRemark: '',
+});
 
 type DeliveryAction = {
-  nextStatus: 'preparing' | 'shipped' | 'received';
   buttonLabel: string;
   panelLabel: string;
   targetLabel: string;
-  tone: 'primary' | 'info' | 'success';
+  tone: 'info';
 };
 
 function setActionMessage(message: string, tone: 'info' | 'error' = 'info') {
@@ -370,17 +415,11 @@ function formatOrderStatus(status: string | null | undefined): string {
   if (normalized.includes('pending_pay')) {
     return '待支付';
   }
-  if (normalized.includes('preparing')) {
-    return '备货中';
+  if (normalized.includes('pending_ship')) {
+    return '待发货';
   }
-  if (normalized === 'paid') {
-    return '已支付';
-  }
-  if (normalized.includes('shipped')) {
-    return '已发货';
-  }
-  if (normalized.includes('received')) {
-    return '已签收';
+  if (normalized.includes('pending_receive')) {
+    return '待收货';
   }
   if (normalized.includes('finished') || normalized.includes('complete')) {
     return '已完成';
@@ -414,16 +453,13 @@ function formatPayStatus(status: string | null | undefined): string {
 function formatDeliveryStatus(status: string | null | undefined): string {
   const normalized = (status || '').toLowerCase();
   if (normalized.includes('pending')) {
-    return '待履约';
-  }
-  if (normalized.includes('preparing')) {
-    return '备货中';
+    return '待发货';
   }
   if (normalized.includes('delivered') || normalized.includes('received') || normalized.includes('signed')) {
-    return '已签收';
+    return '已妥投';
   }
   if (normalized.includes('ship') || normalized.includes('deliver')) {
-    return '配送中';
+    return '运输中';
   }
   if (normalized.includes('finish') || normalized.includes('complete')) {
     return '已完成';
@@ -436,8 +472,11 @@ function formatOperateType(type: string | null | undefined): string {
   if (normalized.includes('pay')) {
     return '支付状态变更';
   }
-  if (normalized.includes('delivery') || normalized.includes('ship')) {
-    return '履约状态变更';
+  if (normalized.includes('ship')) {
+    return '订单发货';
+  }
+  if (normalized.includes('delivery')) {
+    return '物流状态变更';
   }
   if (normalized.includes('cancel')) {
     return '订单取消';
@@ -453,43 +492,22 @@ function formatOperateType(type: string | null | undefined): string {
 
 function getDeliveryAction(order: Pick<OrderCard, 'statusRaw' | 'deliveryStatusRaw'>): DeliveryAction | null {
   const orderStatus = (order.statusRaw || '').toLowerCase();
-  const deliveryStatus = (order.deliveryStatusRaw || '').toLowerCase();
-
-  if (orderStatus === 'paid' && deliveryStatus === 'pending') {
+  if (orderStatus.includes('pending_ship')) {
     return {
-      nextStatus: 'preparing',
-      buttonLabel: '开始备货',
-      panelLabel: '备货推进',
-      targetLabel: '备货中',
-      tone: 'primary',
-    };
-  }
-  if (orderStatus.includes('preparing') || deliveryStatus.includes('preparing')) {
-    return {
-      nextStatus: 'shipped',
-      buttonLabel: '推进发货',
-      panelLabel: '发货推进',
-      targetLabel: '已发货',
+      buttonLabel: '确认发货',
+      panelLabel: '物流发货',
+      targetLabel: '待收货',
       tone: 'info',
-    };
-  }
-  if (orderStatus.includes('shipped') || deliveryStatus.includes('shipped')) {
-    return {
-      nextStatus: 'received',
-      buttonLabel: '确认签收',
-      panelLabel: '签收推进',
-      targetLabel: '已签收',
-      tone: 'success',
     };
   }
   return null;
 }
 
-function canProgressDelivery(order: Pick<OrderCard, 'statusRaw' | 'deliveryStatusRaw'>): boolean {
+function canShipOrder(order: Pick<OrderCard, 'statusRaw' | 'deliveryStatusRaw'>): boolean {
   return getDeliveryAction(order) !== null;
 }
 
-function getDeliveryActionLabel(order: Pick<OrderCard, 'statusRaw' | 'deliveryStatusRaw'>): string {
+function getShipActionLabel(order: Pick<OrderCard, 'statusRaw' | 'deliveryStatusRaw'>): string {
   return getDeliveryAction(order)?.buttonLabel ?? '';
 }
 
@@ -499,6 +517,19 @@ const deliveryAction = computed(() => {
   }
   return getDeliveryAction(deliveryTarget.value);
 });
+
+const canSubmitShip = computed(() => (
+  shipForm.logisticsCompanyCode.trim().length > 0
+  && shipForm.logisticsCompanyName.trim().length > 0
+  && shipForm.trackingNo.trim().length > 0
+));
+
+function resetShipForm() {
+  shipForm.logisticsCompanyCode = '';
+  shipForm.logisticsCompanyName = '';
+  shipForm.trackingNo = '';
+  shipForm.shipRemark = '';
+}
 
 async function refreshOrders() {
   await loadOrders(true, filterToOrderStatus(activeFilter.value), orderPagination.page, orderPagination.pageSize);
@@ -531,10 +562,13 @@ async function openDeliveryPanel(order: OrderCard) {
   try {
     await handleViewDetail(order);
     deliveryTarget.value = order;
-    deliveryRemark.value = '前端联调推进履约';
+    shipForm.logisticsCompanyCode = selectedOrderDetail.value?.logistics_company_code ?? '';
+    shipForm.logisticsCompanyName = selectedOrderDetail.value?.logistics_company_name ?? '';
+    shipForm.trackingNo = selectedOrderDetail.value?.tracking_no ?? '';
+    shipForm.shipRemark = '';
     scrollDetailIntoView();
   } catch (error) {
-    setActionMessage(error instanceof Error ? error.message : '履约推进失败。', 'error');
+    setActionMessage(error instanceof Error ? error.message : '发货面板打开失败。', 'error');
   }
 }
 
@@ -546,33 +580,34 @@ async function submitDelivery() {
   try {
     submitting.value = true;
     const action = deliveryAction.value;
-    const nextStatus = action.nextStatus;
     const orderNo = deliveryTarget.value.orderNo;
-    await updateOrderDelivery({
+    await shipOrder({
       orderNo,
       merchantId: deliveryTarget.value.merchantId,
       storeId: deliveryTarget.value.storeId,
       userId: deliveryTarget.value.userId,
-      deliveryStatus: nextStatus,
-      remark: deliveryRemark.value.trim(),
+      logisticsCompanyCode: shipForm.logisticsCompanyCode.trim(),
+      logisticsCompanyName: shipForm.logisticsCompanyName.trim(),
+      trackingNo: shipForm.trackingNo.trim(),
+      shipRemark: shipForm.shipRemark.trim(),
     });
     await refreshOrders();
 
     const refreshedTarget = orders.find((item) => item.orderNo === orderNo) ?? deliveryTarget.value;
     await handleViewDetail(refreshedTarget);
     deliveryTarget.value = refreshedTarget;
-    setActionMessage(`订单 ${orderNo} 已推进到 ${action.targetLabel}。`);
+    setActionMessage(`订单 ${orderNo} 已完成发货，当前状态为 ${action.targetLabel}。`);
   } catch (error) {
-    setActionMessage(error instanceof Error ? error.message : '履约推进失败。', 'error');
+    setActionMessage(error instanceof Error ? error.message : '订单发货失败。', 'error');
   } finally {
     submitting.value = false;
   }
 }
 
 function openDeliveryPanelFromList() {
-  const target = orders.find((item) => canProgressDelivery(item));
+  const target = orders.find((item) => canShipOrder(item));
   if (!target) {
-    setActionMessage('当前列表没有可推进履约的订单。', 'error');
+    setActionMessage('当前列表没有可发货的订单。', 'error');
     return;
   }
   void openDeliveryPanel(target);
@@ -606,7 +641,7 @@ async function handleExportOrders() {
 function closeDetailPanel() {
   selectedOrderDetail.value = null;
   deliveryTarget.value = null;
-  deliveryRemark.value = '';
+  resetShipForm();
 }
 
 onMounted(() => {
@@ -652,6 +687,12 @@ watch(activeFilter, () => {
 .toolbarActions {
   display: flex;
   gap: 12px;
+}
+
+.formGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
 }
 
 .tableWrap {
@@ -922,6 +963,10 @@ watch(activeFilter, () => {
   }
 
   .infoGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .formGrid {
     grid-template-columns: 1fr;
   }
 }

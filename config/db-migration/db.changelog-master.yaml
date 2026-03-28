@@ -226,3 +226,12 @@ databaseChangeLog:
             relativeToChangelogFile: true
             splitStatements: true
             stripComments: false
+  - changeSet:
+      id: V26__order_shipping_fields
+      author: codex
+      changes:
+        - sqlFile:
+            path: ../../db/migration/V26__order_shipping_fields.sql
+            relativeToChangelogFile: true
+            splitStatements: true
+            stripComments: false

@@ -14,3 +14,7 @@ export const appMenuItems: AppMenuItem[] = [
   { label: '发布治理', path: '/releases', shortLabel: '发' },
   { label: '配置中心', path: '/config', shortLabel: '配' },
 ];
+
+export const platformMenuItems: AppMenuItem[] = [
+  { label: '分类模板', path: '/platform/category-templates', shortLabel: '模' },
+];

@@ -170,9 +170,9 @@ public class JdbcOrderRepository implements OrderRepository {
                 INSERT INTO cdd_order_info (
                   id, order_no, merchant_id, store_id, user_id, checkout_snapshot_id, order_status, pay_status, delivery_status,
                   buyer_remark, total_amount, discount_amount, payable_amount, paid_amount, delivery_fee_amount,
-                  receiver_name, receiver_mobile, receiver_address, paid_at, cancelled_at, finished_at, created_by, updated_by,
-                  deleted, version
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                  receiver_name, receiver_mobile, receiver_address, logistics_company_code, logistics_company_name, tracking_no,
+                  paid_at, shipped_at, cancelled_at, finished_at, created_by, updated_by, deleted, version
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 order.id(),
                 order.orderNo(),
@@ -192,7 +192,11 @@ public class JdbcOrderRepository implements OrderRepository {
                 order.receiverName(),
                 order.receiverMobile(),
                 order.receiverAddress(),
+                order.logisticsCompanyCode(),
+                order.logisticsCompanyName(),
+                order.trackingNo(),
                 toTimestamp(order.paidAt()),
+                toTimestamp(order.shippedAt()),
                 toTimestamp(order.cancelledAt()),
                 toTimestamp(order.finishedAt()),
                 order.userId(),
@@ -240,8 +244,7 @@ public class JdbcOrderRepository implements OrderRepository {
         String placeholders = String.join(",", java.util.Collections.nCopies(cartItemIds.size(), "?"));
         List<Object> args = new ArrayList<>(cartItemIds);
         jdbcTemplate.update("""
-                UPDATE cdd_order_cart_item
-                SET deleted = 1, updated_at = CURRENT_TIMESTAMP
+                DELETE FROM cdd_order_cart_item
                 WHERE id IN (""" + placeholders + ") AND deleted = 0", args.toArray());
     }
 
@@ -273,7 +276,8 @@ public class JdbcOrderRepository implements OrderRepository {
         List<OrderRecord> rows = jdbcTemplate.query("""
                 SELECT id, order_no, merchant_id, store_id, user_id, checkout_snapshot_id, order_status, pay_status, delivery_status,
                        buyer_remark, total_amount, discount_amount, payable_amount, paid_amount, delivery_fee_amount,
-                       receiver_name, receiver_mobile, receiver_address, created_at, paid_at, cancelled_at, finished_at
+                       receiver_name, receiver_mobile, receiver_address, logistics_company_code, logistics_company_name, tracking_no,
+                       created_at, paid_at, shipped_at, cancelled_at, finished_at
                 FROM cdd_order_info
                 WHERE order_no = ?
                   AND merchant_id = ?
@@ -290,7 +294,8 @@ public class JdbcOrderRepository implements OrderRepository {
         List<OrderRecord> rows = jdbcTemplate.query("""
                 SELECT id, order_no, merchant_id, store_id, user_id, checkout_snapshot_id, order_status, pay_status, delivery_status,
                        buyer_remark, total_amount, discount_amount, payable_amount, paid_amount, delivery_fee_amount,
-                       receiver_name, receiver_mobile, receiver_address, created_at, paid_at, cancelled_at, finished_at
+                       receiver_name, receiver_mobile, receiver_address, logistics_company_code, logistics_company_name, tracking_no,
+                       created_at, paid_at, shipped_at, cancelled_at, finished_at
                 FROM cdd_order_info
                 WHERE id = ?
                   AND deleted = 0
@@ -305,7 +310,8 @@ public class JdbcOrderRepository implements OrderRepository {
         return jdbcTemplate.query("""
                 SELECT id, order_no, merchant_id, store_id, user_id, checkout_snapshot_id, order_status, pay_status, delivery_status,
                        buyer_remark, total_amount, discount_amount, payable_amount, paid_amount, delivery_fee_amount,
-                       receiver_name, receiver_mobile, receiver_address, created_at, paid_at, cancelled_at, finished_at
+                       receiver_name, receiver_mobile, receiver_address, logistics_company_code, logistics_company_name, tracking_no,
+                       created_at, paid_at, shipped_at, cancelled_at, finished_at
                 FROM cdd_order_info
                 """
                 + query.whereClause()
@@ -335,7 +341,8 @@ public class JdbcOrderRepository implements OrderRepository {
         List<OrderRecord> orders = jdbcTemplate.query("""
                 SELECT id, order_no, merchant_id, store_id, user_id, checkout_snapshot_id, order_status, pay_status, delivery_status,
                        buyer_remark, total_amount, discount_amount, payable_amount, paid_amount, delivery_fee_amount,
-                       receiver_name, receiver_mobile, receiver_address, created_at, paid_at, cancelled_at, finished_at
+                       receiver_name, receiver_mobile, receiver_address, logistics_company_code, logistics_company_name, tracking_no,
+                       created_at, paid_at, shipped_at, cancelled_at, finished_at
                 FROM cdd_order_info
                 """
                 + query.whereClause()
@@ -1174,37 +1181,42 @@ public class JdbcOrderRepository implements OrderRepository {
     }
 
     @Override
-    public boolean updateOrderDeliveryStatus(long orderId,
-                                             String expectedOrderStatus,
-                                             String expectedDeliveryStatus,
-                                             String targetOrderStatus,
-                                             String targetDeliveryStatus,
-                                             Instant finishedAt) {
+    public boolean shipOrder(long orderId,
+                             List<String> expectedOrderStatuses,
+                             List<String> expectedDeliveryStatuses,
+                             String logisticsCompanyCode,
+                             String logisticsCompanyName,
+                             String trackingNo,
+                             Instant shippedAt) {
         StringBuilder sql = new StringBuilder("""
                 UPDATE cdd_order_info
-                SET order_status = ?,
-                    delivery_status = ?,
+                SET order_status = 'shipped',
+                    delivery_status = 'shipped',
+                    logistics_company_code = ?,
+                    logistics_company_name = ?,
+                    tracking_no = ?,
+                    shipped_at = ?,
                     updated_at = CURRENT_TIMESTAMP
-                """);
-        List<Object> args = new ArrayList<>();
-        args.add(targetOrderStatus);
-        args.add(targetDeliveryStatus);
-        if (finishedAt != null) {
-            sql.append(", finished_at = ?");
-            args.add(toTimestamp(finishedAt));
-        }
-        sql.append("""
                 WHERE id = ?
                   AND deleted = 0
-                  AND order_status = ?
                 """);
+        List<Object> args = new ArrayList<>();
+        args.add(logisticsCompanyCode);
+        args.add(logisticsCompanyName);
+        args.add(trackingNo);
+        args.add(toTimestamp(shippedAt));
         args.add(orderId);
-        args.add(expectedOrderStatus);
-        if (expectedDeliveryStatus == null) {
-            sql.append(" AND delivery_status IS NULL");
-        } else {
-            sql.append(" AND delivery_status = ?");
-            args.add(expectedDeliveryStatus);
+        if (expectedOrderStatuses != null && !expectedOrderStatuses.isEmpty()) {
+            sql.append(" AND order_status IN (")
+                    .append(String.join(", ", Collections.nCopies(expectedOrderStatuses.size(), "?")))
+                    .append(")");
+            args.addAll(expectedOrderStatuses);
+        }
+        if (expectedDeliveryStatuses != null && !expectedDeliveryStatuses.isEmpty()) {
+            sql.append(" AND delivery_status IN (")
+                    .append(String.join(", ", Collections.nCopies(expectedDeliveryStatuses.size(), "?")))
+                    .append(")");
+            args.addAll(expectedDeliveryStatuses);
         }
         int updated = jdbcTemplate.update(sql.toString(), args.toArray());
         return updated > 0;
@@ -1257,8 +1269,12 @@ public class JdbcOrderRepository implements OrderRepository {
                 rs.getString("receiver_name"),
                 rs.getString("receiver_mobile"),
                 rs.getString("receiver_address"),
+                rs.getString("logistics_company_code"),
+                rs.getString("logistics_company_name"),
+                rs.getString("tracking_no"),
                 toInstant(rs.getTimestamp("created_at")),
                 toInstant(rs.getTimestamp("paid_at")),
+                toInstant(rs.getTimestamp("shipped_at")),
                 toInstant(rs.getTimestamp("cancelled_at")),
                 toInstant(rs.getTimestamp("finished_at")));
     }

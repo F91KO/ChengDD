@@ -2,7 +2,11 @@
   <WorkspaceLayout
     eyebrow="Template"
     title="分类模板"
-    description="查看平台可用分类模板，预览模板结构，并支持新增模板骨架。"
+    description="平台后台维护统一分类模板，供商家侧初始化分类树时使用。"
+    brand-meta="平台后台"
+    subject-label="当前后台"
+    subject-value="平台模板治理"
+    :nav-items="platformMenuItems"
   >
     <UiStatePanel
       v-if="pageState"
@@ -213,6 +217,7 @@ import UiInput from '@/components/base/UiInput.vue';
 import UiPagination from '@/components/base/UiPagination.vue';
 import UiStatePanel from '@/components/base/UiStatePanel.vue';
 import UiTag from '@/components/base/UiTag.vue';
+import { platformMenuItems } from '@/app/menu';
 import WorkspaceLayout from '@/components/layout/WorkspaceLayout.vue';
 import { createCategoryTemplate, fetchCategoryTemplateList } from '@/services/product';
 import type { ProductCategoryTemplateNodeResponseRaw, ProductCategoryTemplateResponseRaw } from '@/types/product';

@@ -40,6 +40,15 @@ const routes = [
     },
   },
   {
+    path: '/platform/category-templates',
+    name: 'platform-category-templates',
+    component: () => import('@/pages/CategoryTemplatesPage.vue'),
+    meta: {
+      title: '分类模板',
+      consoleTitle: 'ChengDD 平台后台',
+    },
+  },
+  {
     path: '/orders',
     name: 'orders',
     component: () => import('@/pages/OrdersPage.vue'),
@@ -103,5 +112,6 @@ router.beforeEach((to) => {
 
 router.afterEach((to) => {
   const title = typeof to.meta.title === 'string' ? to.meta.title : '商家后台';
-  document.title = `${title} | ChengDD 商家后台`;
+  const consoleTitle = typeof to.meta.consoleTitle === 'string' ? to.meta.consoleTitle : 'ChengDD 商家后台';
+  document.title = `${title} | ${consoleTitle}`;
 });

@@ -57,8 +57,12 @@ export interface OrderDetailResponseRaw {
   receiver_name: string | null;
   receiver_mobile: string | null;
   receiver_address: string | null;
+  logistics_company_code: string | null;
+  logistics_company_name: string | null;
+  tracking_no: string | null;
   created_at: string;
   paid_at: string | null;
+  shipped_at: string | null;
   cancelled_at: string | null;
   finished_at: string | null;
   items: OrderItemResponseRaw[];

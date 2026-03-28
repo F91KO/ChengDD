@@ -39,10 +39,18 @@ public record OrderDetailResponse(
         String receiverMobile,
         @JsonProperty("receiver_address")
         String receiverAddress,
+        @JsonProperty("logistics_company_code")
+        String logisticsCompanyCode,
+        @JsonProperty("logistics_company_name")
+        String logisticsCompanyName,
+        @JsonProperty("tracking_no")
+        String trackingNo,
         @JsonProperty("created_at")
         Instant createdAt,
         @JsonProperty("paid_at")
         Instant paidAt,
+        @JsonProperty("shipped_at")
+        Instant shippedAt,
         @JsonProperty("cancelled_at")
         Instant cancelledAt,
         @JsonProperty("finished_at")

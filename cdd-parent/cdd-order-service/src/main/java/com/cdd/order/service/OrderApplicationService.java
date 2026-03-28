@@ -14,7 +14,6 @@ import com.cdd.api.order.model.OrderAfterSaleLogResponse;
 import com.cdd.api.order.model.OrderAfterSaleReturnRequest;
 import com.cdd.api.order.model.OrderAfterSaleReviewRequest;
 import com.cdd.api.order.model.OrderAfterSaleSummaryResponse;
-import com.cdd.api.order.model.OrderDeliveryUpdateRequest;
 import com.cdd.api.order.model.OrderDetailResponse;
 import com.cdd.api.order.model.OrderItemResponse;
 import com.cdd.api.order.model.OrderLifecycleResponse;
@@ -26,6 +25,7 @@ import com.cdd.api.order.model.OrderPayingResponse;
 import com.cdd.api.order.model.OrderRefundCallbackRequest;
 import com.cdd.api.order.model.OrderRefundCreateRequest;
 import com.cdd.api.order.model.OrderRefundLifecycleResponse;
+import com.cdd.api.order.model.OrderShipRequest;
 import com.cdd.api.order.model.OrderStatusLogResponse;
 import com.cdd.api.order.model.OrderSummaryResponse;
 import com.cdd.common.core.page.PageQuery;
@@ -54,6 +54,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -231,7 +232,11 @@ public class OrderApplicationService {
                 trimToNull(request.receiverName()),
                 trimToNull(request.receiverMobile()),
                 trimToNull(request.receiverAddress()),
+                null,
+                null,
+                null,
                 Instant.now(),
+                null,
                 null,
                 null,
                 null);
@@ -399,7 +404,7 @@ public class OrderApplicationService {
             return new OrderPayCallbackResponse(
                     latestOrder.orderNo(),
                     request.payNo(),
-                    latestOrder.orderStatus(),
+                    toExternalOrderStatus(latestOrder.orderStatus(), latestOrder.deliveryStatus()),
                     latestOrder.payStatus(),
                     defaultText(existing.callbackStatus(), PAY_CALLBACK_STATUS_PROCESSED),
                     true);
@@ -447,7 +452,7 @@ public class OrderApplicationService {
         return new OrderPayCallbackResponse(
                 latestOrder.orderNo(),
                 request.payNo(),
-                latestOrder.orderStatus(),
+                toExternalOrderStatus(latestOrder.orderStatus(), latestOrder.deliveryStatus()),
                 latestOrder.payStatus(),
                 PAY_CALLBACK_STATUS_PROCESSED,
                 false);
@@ -903,80 +908,45 @@ public class OrderApplicationService {
     }
 
     @Transactional
-    public OrderLifecycleResponse updateDelivery(String orderNo, OrderDeliveryUpdateRequest request) {
+    public OrderLifecycleResponse shipOrder(String orderNo, OrderShipRequest request) {
         OrderRecord order = requireOrder(orderNo, request.merchantId(), request.storeId(), request.userId());
-        String targetDeliveryStatus = normalize(request.deliveryStatus());
-        String expectedOrderStatus;
-        String expectedDeliveryStatus;
-        String targetOrderStatus;
-        Instant finishedAt = null;
-        String defaultRemark;
-
-        switch (targetDeliveryStatus) {
-            case DELIVERY_STATUS_PREPARING -> {
-                if (ORDER_STATUS_PREPARING.equals(order.orderStatus()) && DELIVERY_STATUS_PREPARING.equals(order.deliveryStatus())) {
-                    return toLifecycleResponse(order);
-                }
-                if (!ORDER_STATUS_PAID.equals(order.orderStatus()) || !DELIVERY_STATUS_PENDING.equals(order.deliveryStatus())) {
-                    throw new BusinessException(OrderErrorCode.ORDER_STATUS_INVALID, "仅已支付且待履约订单可进入备货");
-                }
-                expectedOrderStatus = ORDER_STATUS_PAID;
-                expectedDeliveryStatus = DELIVERY_STATUS_PENDING;
-                targetOrderStatus = ORDER_STATUS_PREPARING;
-                defaultRemark = "订单开始备货";
-            }
-            case DELIVERY_STATUS_SHIPPED -> {
-                if (ORDER_STATUS_SHIPPED.equals(order.orderStatus()) && DELIVERY_STATUS_SHIPPED.equals(order.deliveryStatus())) {
-                    return toLifecycleResponse(order);
-                }
-                if (!ORDER_STATUS_PREPARING.equals(order.orderStatus()) || !DELIVERY_STATUS_PREPARING.equals(order.deliveryStatus())) {
-                    throw new BusinessException(OrderErrorCode.ORDER_STATUS_INVALID, "仅备货中订单可更新为已发货");
-                }
-                expectedOrderStatus = ORDER_STATUS_PREPARING;
-                expectedDeliveryStatus = DELIVERY_STATUS_PREPARING;
-                targetOrderStatus = ORDER_STATUS_SHIPPED;
-                defaultRemark = "订单已发货";
-            }
-            case DELIVERY_STATUS_RECEIVED -> {
-                if (ORDER_STATUS_FINISHED.equals(order.orderStatus()) && DELIVERY_STATUS_RECEIVED.equals(order.deliveryStatus())) {
-                    return toLifecycleResponse(order);
-                }
-                if (!ORDER_STATUS_SHIPPED.equals(order.orderStatus()) || !DELIVERY_STATUS_SHIPPED.equals(order.deliveryStatus())) {
-                    throw new BusinessException(OrderErrorCode.ORDER_STATUS_INVALID, "仅已发货订单可确认收货");
-                }
-                expectedOrderStatus = ORDER_STATUS_SHIPPED;
-                expectedDeliveryStatus = DELIVERY_STATUS_SHIPPED;
-                targetOrderStatus = ORDER_STATUS_FINISHED;
-                finishedAt = Instant.now();
-                defaultRemark = "确认收货，订单完成";
-            }
-            default -> throw new BusinessException(OrderErrorCode.DELIVERY_STATUS_INVALID);
+        if (ORDER_STATUS_SHIPPED.equals(order.orderStatus()) && DELIVERY_STATUS_SHIPPED.equals(order.deliveryStatus())) {
+            return toLifecycleResponse(order);
         }
-
-        boolean updated = repository.updateOrderDeliveryStatus(
+        if ((!ORDER_STATUS_PAID.equals(order.orderStatus()) && !ORDER_STATUS_PREPARING.equals(order.orderStatus()))
+                || (!DELIVERY_STATUS_PENDING.equals(order.deliveryStatus()) && !DELIVERY_STATUS_PREPARING.equals(order.deliveryStatus()))) {
+            throw new BusinessException(OrderErrorCode.ORDER_STATUS_INVALID, "仅待发货订单允许执行物流发货");
+        }
+        Instant shippedAt = Instant.now();
+        boolean updated = repository.shipOrder(
                 order.id(),
-                expectedOrderStatus,
-                expectedDeliveryStatus,
-                targetOrderStatus,
-                targetDeliveryStatus,
-                finishedAt);
+                List.of(ORDER_STATUS_PAID, ORDER_STATUS_PREPARING),
+                List.of(DELIVERY_STATUS_PENDING, DELIVERY_STATUS_PREPARING),
+                trimToNull(request.logisticsCompanyCode()),
+                trimToNull(request.logisticsCompanyName()),
+                trimToNull(request.trackingNo()),
+                shippedAt);
         if (!updated) {
             OrderRecord latest = requireOrder(orderNo, request.merchantId(), request.storeId(), request.userId());
-            if (targetOrderStatus.equals(latest.orderStatus()) && targetDeliveryStatus.equals(latest.deliveryStatus())) {
+            if (ORDER_STATUS_SHIPPED.equals(latest.orderStatus()) && DELIVERY_STATUS_SHIPPED.equals(latest.deliveryStatus())) {
                 return toLifecycleResponse(latest);
             }
-            throw new BusinessException(OrderErrorCode.ORDER_STATUS_INVALID, "订单履约状态更新失败，请刷新后重试");
+            throw new BusinessException(OrderErrorCode.ORDER_STATUS_INVALID, "订单发货失败，请刷新后重试");
         }
+        String logisticsName = defaultText(trimToNull(request.logisticsCompanyName()), "未知物流");
+        String trackingNo = defaultText(trimToNull(request.trackingNo()), "-");
         repository.createStatusLog(new OrderStatusLogRecord(
                 idGenerator.nextId(),
                 order.id(),
                 order.orderNo(),
                 order.orderStatus(),
-                targetOrderStatus,
-                "delivery_transition",
+                ORDER_STATUS_SHIPPED,
+                "ship_order",
                 request.userId(),
                 "用户" + request.userId(),
-                StringUtils.hasText(request.remark()) ? request.remark().trim() : defaultRemark,
+                StringUtils.hasText(request.shipRemark())
+                        ? request.shipRemark().trim()
+                        : "订单已发货，物流公司：" + logisticsName + "，运单号：" + trackingNo,
                 Instant.now()));
         return toLifecycleResponse(requireOrder(orderNo, request.merchantId(), request.storeId(), request.userId()));
     }
@@ -995,9 +965,9 @@ public class OrderApplicationService {
                 order.merchantId(),
                 order.storeId(),
                 order.userId(),
-                order.orderStatus(),
+                toExternalOrderStatus(order.orderStatus(), order.deliveryStatus()),
                 order.payStatus(),
-                order.deliveryStatus(),
+                toExternalDeliveryStatus(order.deliveryStatus()),
                 order.buyerRemark(),
                 order.totalAmount(),
                 order.discountAmount(),
@@ -1007,8 +977,12 @@ public class OrderApplicationService {
                 order.receiverName(),
                 order.receiverMobile(),
                 order.receiverAddress(),
+                order.logisticsCompanyCode(),
+                order.logisticsCompanyName(),
+                order.trackingNo(),
                 order.createdAt(),
                 order.paidAt(),
+                order.shippedAt(),
                 order.cancelledAt(),
                 order.finishedAt(),
                 itemResponses,
@@ -1016,7 +990,7 @@ public class OrderApplicationService {
     }
 
     public List<OrderSummaryResponse> listOrders(long merchantId, long storeId, Long userId, String orderStatus) {
-        return repository.listOrderSummaries(merchantId, storeId, userId, orderStatus).stream()
+        return repository.listOrderSummaries(merchantId, storeId, userId, translateOrderStatusFilterForQuery(orderStatus)).stream()
                 .map(this::toOrderSummaryResponse)
                 .toList();
     }
@@ -1026,7 +1000,12 @@ public class OrderApplicationService {
                                                          Long userId,
                                                          String orderStatus,
                                                          PageQuery pageQuery) {
-        var pageResult = repository.pageOrderSummaries(merchantId, storeId, userId, orderStatus, pageQuery);
+        var pageResult = repository.pageOrderSummaries(
+                merchantId,
+                storeId,
+                userId,
+                translateOrderStatusFilterForQuery(orderStatus),
+                pageQuery);
         return PageResponse.of(
                 pageResult.list().stream()
                         .map(this::toOrderSummaryResponse)
@@ -1037,7 +1016,11 @@ public class OrderApplicationService {
     }
 
     public String exportOrdersCsv(long merchantId, long storeId, Long userId, String orderStatus) {
-        List<OrderSummaryRecord> orders = repository.listOrderSummaries(merchantId, storeId, userId, orderStatus);
+        List<OrderSummaryRecord> orders = repository.listOrderSummaries(
+                merchantId,
+                storeId,
+                userId,
+                translateOrderStatusFilterForQuery(orderStatus));
         StringBuilder csvBuilder = new StringBuilder();
         csvBuilder.append("订单号,客户标识,渠道,商品摘要,订单状态,支付状态,履约状态,应付金额,实付金额,创建时间\n");
         for (OrderSummaryRecord order : orders) {
@@ -1045,9 +1028,9 @@ public class OrderApplicationService {
                     .append(escapeCsv(order.customerIdentifier())).append(',')
                     .append(escapeCsv(order.channel())).append(',')
                     .append(escapeCsv(order.productSummary())).append(',')
-                    .append(escapeCsv(order.orderStatus())).append(',')
+                    .append(escapeCsv(toExternalOrderStatus(order.orderStatus(), order.deliveryStatus()))).append(',')
                     .append(escapeCsv(order.payStatus())).append(',')
-                    .append(escapeCsv(order.deliveryStatus())).append(',')
+                    .append(escapeCsv(toExternalDeliveryStatus(order.deliveryStatus()))).append(',')
                     .append(escapeCsv(order.payableAmount())).append(',')
                     .append(escapeCsv(order.paidAmount())).append(',')
                     .append(escapeCsv(order.createdAt()))
@@ -1206,9 +1189,9 @@ public class OrderApplicationService {
                 order.customerIdentifier(),
                 order.channel(),
                 order.productSummary(),
-                order.orderStatus(),
+                toExternalOrderStatus(order.orderStatus(), order.deliveryStatus()),
                 order.payStatus(),
-                order.deliveryStatus(),
+                toExternalDeliveryStatus(order.deliveryStatus()),
                 order.payableAmount(),
                 order.paidAmount(),
                 order.createdAt());
@@ -1232,8 +1215,8 @@ public class OrderApplicationService {
 
     private OrderStatusLogResponse toOrderStatusLogResponse(OrderStatusLogRecord log) {
         return new OrderStatusLogResponse(
-                log.fromStatus(),
-                log.toStatus(),
+                toExternalStatusLogValue(log.fromStatus()),
+                toExternalStatusLogValue(log.toStatus()),
                 log.operateType(),
                 log.operatorId(),
                 log.operatorName(),
@@ -1242,7 +1225,11 @@ public class OrderApplicationService {
     }
 
     private OrderLifecycleResponse toLifecycleResponse(OrderRecord order) {
-        return new OrderLifecycleResponse(order.orderNo(), order.orderStatus(), order.payStatus(), order.deliveryStatus());
+        return new OrderLifecycleResponse(
+                order.orderNo(),
+                toExternalOrderStatus(order.orderStatus(), order.deliveryStatus()),
+                order.payStatus(),
+                toExternalDeliveryStatus(order.deliveryStatus()));
     }
 
     private OrderAfterSaleLifecycleResponse toAfterSaleLifecycleResponse(AfterSaleRecord afterSale,
@@ -1703,6 +1690,57 @@ public class OrderApplicationService {
 
     private static String normalize(String raw) {
         return raw == null ? "" : raw.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private static String toExternalOrderStatus(String orderStatus, String deliveryStatus) {
+        String normalizedOrderStatus = normalize(orderStatus);
+        return switch (normalizedOrderStatus) {
+            case ORDER_STATUS_PENDING_PAY -> ORDER_STATUS_PENDING_PAY;
+            case ORDER_STATUS_PAID, ORDER_STATUS_PREPARING -> "pending_ship";
+            case ORDER_STATUS_SHIPPED -> "pending_receive";
+            case ORDER_STATUS_FINISHED -> "completed";
+            case ORDER_STATUS_CANCELLED -> ORDER_STATUS_CANCELLED;
+            default -> {
+                if (DELIVERY_STATUS_SHIPPED.equals(normalize(deliveryStatus))) {
+                    yield "pending_receive";
+                }
+                yield normalizedOrderStatus;
+            }
+        };
+    }
+
+    private static String toExternalDeliveryStatus(String deliveryStatus) {
+        String normalizedDeliveryStatus = normalize(deliveryStatus);
+        return switch (normalizedDeliveryStatus) {
+            case DELIVERY_STATUS_PREPARING -> DELIVERY_STATUS_PENDING;
+            case DELIVERY_STATUS_RECEIVED -> DELIVERY_STATUS_RECEIVED;
+            case DELIVERY_STATUS_PENDING, DELIVERY_STATUS_SHIPPED -> normalizedDeliveryStatus;
+            default -> normalizedDeliveryStatus;
+        };
+    }
+
+    private static String toExternalStatusLogValue(String status) {
+        if (!StringUtils.hasText(status)) {
+            return status;
+        }
+        return toExternalOrderStatus(status, null);
+    }
+
+    private static String translateOrderStatusFilterForQuery(String orderStatus) {
+        if (!StringUtils.hasText(orderStatus)) {
+            return orderStatus;
+        }
+        List<String> translated = Arrays.stream(orderStatus.split(","))
+                .map(String::trim)
+                .filter(StringUtils::hasText)
+                .map(value -> switch (normalize(value)) {
+                    case "pending_ship" -> "paid,preparing";
+                    case "pending_receive" -> ORDER_STATUS_SHIPPED;
+                    case "completed" -> ORDER_STATUS_FINISHED;
+                    default -> normalize(value);
+                })
+                .toList();
+        return String.join(",", translated);
     }
 
     private static String trimToNull(String raw) {

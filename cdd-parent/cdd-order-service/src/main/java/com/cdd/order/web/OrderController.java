@@ -14,7 +14,6 @@ import com.cdd.api.order.model.OrderAfterSaleLogResponse;
 import com.cdd.api.order.model.OrderAfterSaleReturnRequest;
 import com.cdd.api.order.model.OrderAfterSaleReviewRequest;
 import com.cdd.api.order.model.OrderAfterSaleSummaryResponse;
-import com.cdd.api.order.model.OrderDeliveryUpdateRequest;
 import com.cdd.api.order.model.OrderDetailResponse;
 import com.cdd.api.order.model.OrderLifecycleResponse;
 import com.cdd.api.order.model.OrderPayCallbackRequest;
@@ -25,6 +24,7 @@ import com.cdd.api.order.model.OrderPayingResponse;
 import com.cdd.api.order.model.OrderRefundCallbackRequest;
 import com.cdd.api.order.model.OrderRefundCreateRequest;
 import com.cdd.api.order.model.OrderRefundLifecycleResponse;
+import com.cdd.api.order.model.OrderShipRequest;
 import com.cdd.api.order.model.OrderStatusLogResponse;
 import com.cdd.api.order.model.OrderSummaryResponse;
 import com.cdd.common.core.page.PageQuery;
@@ -165,10 +165,10 @@ public class OrderController {
         return ApiResponses.success(orderApplicationService.cancelOrder(orderNo, request));
     }
 
-    @PostMapping("/orders/{order_no}/delivery")
-    public ApiResponse<OrderLifecycleResponse> updateDelivery(@PathVariable(name = "order_no") String orderNo,
-                                                              @Valid @RequestBody OrderDeliveryUpdateRequest request) {
-        return ApiResponses.success(orderApplicationService.updateDelivery(orderNo, request));
+    @PostMapping("/orders/{order_no}/ship")
+    public ApiResponse<OrderLifecycleResponse> shipOrder(@PathVariable(name = "order_no") String orderNo,
+                                                         @Valid @RequestBody OrderShipRequest request) {
+        return ApiResponses.success(orderApplicationService.shipOrder(orderNo, request));
     }
 
     @GetMapping("/orders/{order_no}")

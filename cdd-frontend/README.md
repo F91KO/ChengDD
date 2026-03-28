@@ -53,6 +53,10 @@ corepack pnpm build
 - `/aftersales` 售后处理
 - `/config` 配置中心
 
+## Platform Routes
+
+- `/platform/category-templates` 平台后台分类模板管理页
+
 ## Current Scope
 
 - 当前统一走真实接口和数据库数据：
