@@ -39,7 +39,7 @@ const emit = defineEmits<{
 <style module>
 .field {
   display: grid;
-  gap: 10px;
+  gap: 8px;
 }
 
 .label {
@@ -51,10 +51,10 @@ const emit = defineEmits<{
 .control {
   display: flex;
   align-items: center;
-  gap: 10px;
-  min-height: 54px;
-  padding: 0 16px;
-  border-radius: 18px;
+  gap: 8px;
+  min-height: 50px;
+  padding: 0 14px;
+  border-radius: 16px;
   background: rgba(237, 244, 255, 0.95);
   box-shadow: inset 0 0 0 1px transparent;
   transition:
@@ -80,6 +80,7 @@ const emit = defineEmits<{
   outline: 0;
   background: transparent;
   color: var(--cdd-text);
+  font: inherit;
 }
 
 .input::placeholder {

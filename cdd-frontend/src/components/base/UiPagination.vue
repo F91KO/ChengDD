@@ -1,7 +1,7 @@
 <template>
   <div v-if="total > 0" :class="$style.wrap">
     <div :class="$style.summary">
-      共 {{ total }} 条，第 {{ safePage }} / {{ pageCount }} 页
+      共 {{ total }} {{ unitLabel }}，第 {{ safePage }} / {{ pageCount }} 页
     </div>
 
     <div :class="$style.controls">
@@ -12,7 +12,7 @@
             {{ option }}
           </option>
         </select>
-        <span>条</span>
+        <span>{{ unitLabel }}</span>
       </label>
 
       <button type="button" :class="$style.navButton" :disabled="disabled || safePage <= 1" @click="emitPage(safePage - 1)">
@@ -55,10 +55,12 @@ const props = withDefaults(
     pageSize: number;
     total: number;
     pageSizeOptions?: number[];
+    unitLabel?: string;
     disabled?: boolean;
   }>(),
   {
     pageSizeOptions: () => [20, 50, 100],
+    unitLabel: '条',
     disabled: false,
   },
 );

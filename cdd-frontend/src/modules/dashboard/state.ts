@@ -13,7 +13,7 @@ export interface DashboardTaskItem {
   tone: 'default' | 'danger' | 'info';
 }
 
-export const quickActions = ['新增商品', '发布模板', '导出订单', '同步配置'];
+export const quickActions = ['新增商品', '进入发布治理', '导出订单', '同步配置'];
 
 export function buildDashboardTrendOption(
   labels: string[] = [],

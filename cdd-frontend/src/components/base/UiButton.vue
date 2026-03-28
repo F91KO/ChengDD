@@ -11,7 +11,7 @@ import { computed, useCssModule } from 'vue';
 const props = withDefaults(
   defineProps<{
     variant?: 'primary' | 'secondary' | 'ghost';
-    size?: 'md' | 'lg';
+    size?: 'sm' | 'md' | 'lg';
     type?: 'button' | 'submit' | 'reset';
     block?: boolean;
     leading?: string;
@@ -41,14 +41,17 @@ const classes = computed(() => [
   align-items: center;
   justify-content: center;
   gap: 10px;
-  border: 0;
-  border-radius: 18px;
+  border: 1px solid transparent;
+  border-radius: 14px;
   font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
   transition:
     transform 0.18s ease,
     box-shadow 0.18s ease,
     background 0.18s ease,
-    color 0.18s ease;
+    color 0.18s ease,
+    border-color 0.18s ease;
 }
 
 .button:hover {
@@ -85,30 +88,38 @@ const classes = computed(() => [
 .primary {
   color: #fff;
   background: linear-gradient(135deg, var(--cdd-primary-deep), var(--cdd-primary));
-  box-shadow: 0 16px 28px rgba(255, 107, 0, 0.22);
+  box-shadow: 0 10px 18px rgba(255, 107, 0, 0.18);
 }
 
 .secondary {
   color: var(--cdd-text);
-  background: var(--cdd-surface-low);
-  box-shadow: inset 0 0 0 1px rgba(9, 29, 46, 0.05);
+  background: rgba(255, 255, 255, 0.96);
+  border-color: rgba(9, 29, 46, 0.1);
+  box-shadow: 0 4px 10px rgba(9, 29, 46, 0.04);
 }
 
 .ghost {
   color: var(--cdd-text-soft);
-  background: rgba(255, 255, 255, 0.72);
-  box-shadow: inset 0 0 0 1px rgba(9, 29, 46, 0.08);
+  background: rgba(244, 247, 252, 0.88);
+  border-color: rgba(9, 29, 46, 0.06);
+  box-shadow: none;
+}
+
+.sm {
+  min-height: 36px;
+  padding: 0 12px;
+  font-size: 13px;
 }
 
 .md {
-  min-height: 44px;
-  padding: 0 18px;
+  min-height: 40px;
+  padding: 0 16px;
   font-size: 14px;
 }
 
 .lg {
-  min-height: 52px;
-  padding: 0 24px;
+  min-height: 48px;
+  padding: 0 22px;
   font-size: 15px;
 }
 

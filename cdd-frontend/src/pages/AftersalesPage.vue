@@ -4,18 +4,28 @@
     title="售后处理"
     description="按状态查看售后单，联动详情、审核和退货物流代录，让日常处理动作尽量在一个页面内完成。"
   >
-    <section :class="$style.tabs">
-      <button
-        v-for="tab in aftersalesTabs"
-        :key="tab"
-        :class="[$style.tab, tab === activeTab ? $style.tabActive : '']"
-        @click="activeTab = tab"
-      >
-        {{ tab }}
-      </button>
+    <section :class="$style.toolbar">
+      <div :class="$style.toolbarMain">
+        <div :class="$style.tabs">
+          <button
+            v-for="tab in aftersalesTabs"
+            :key="tab"
+            :class="[$style.tab, tab === activeTab ? $style.tabActive : '']"
+            @click="activeTab = tab"
+          >
+            {{ tab }}
+          </button>
+        </div>
+        <div :class="$style.toolbarMeta">
+          <span>当前筛选：{{ activeTab }}</span>
+          <span>当前页 {{ filteredRecords.length }} 单</span>
+          <span>总计 {{ pagination.total }} 单</span>
+        </div>
+      </div>
     </section>
 
     <UiStatePanel
+      v-if="afterSaleStatePanel"
       :tone="afterSaleStatePanel.tone"
       :title="afterSaleStatePanel.title"
       :description="afterSaleStatePanel.description"
@@ -29,6 +39,20 @@
     />
 
     <section :class="$style.cards">
+      <UiCard elevated :class="$style.listSummaryCard">
+        <div>
+          <div :class="$style.caption">售后列表</div>
+          <div :class="$style.listSummaryTitle">当前状态下的售后单</div>
+          <div :class="$style.listSummaryText">
+            {{ activeTab }} · 第 {{ pagination.page }} 页 · 每页 {{ pagination.pageSize }} 单
+          </div>
+        </div>
+        <div :class="$style.listSummaryMeta">
+          <span>总计 {{ pagination.total }} 单</span>
+          <span>当前展示 {{ filteredRecords.length }} 单</span>
+        </div>
+      </UiCard>
+
       <UiCard v-for="record in filteredRecords" :key="record.serviceNo" elevated :class="$style.card">
         <div :class="$style.cardAccent"></div>
         <div :class="$style.cardBody">
@@ -68,9 +92,10 @@
           <div :class="$style.footer">
             <div :class="$style.updated">商家 {{ record.merchantId }} / 门店 {{ record.storeId }}</div>
             <div :class="$style.actions">
-              <UiButton variant="secondary" @click="handleViewDetail(record)">查看详情</UiButton>
+              <UiButton variant="secondary" size="sm" @click="handleViewDetail(record)">查看详情</UiButton>
               <UiButton
                 v-if="record.tabStatus === '待处理'"
+                size="sm"
                 :disabled="submitting"
                 @click="submitQuickReview(record, 'agree')"
               >
@@ -79,6 +104,7 @@
               <UiButton
                 v-if="record.tabStatus === '待处理'"
                 variant="secondary"
+                size="sm"
                 :disabled="submitting"
                 @click="submitQuickReview(record, 'reject')"
               >
@@ -95,7 +121,7 @@
         title="当前状态下没有售后单"
         description="可以切换到其他状态查看，或者等待新的用户售后申请。"
         >
-          <UiButton variant="secondary" @click="activeTab = '全部'">查看全部售后</UiButton>
+          <UiButton variant="secondary" size="sm" @click="activeTab = '全部'">查看全部售后</UiButton>
         </UiStatePanel>
     </section>
 
@@ -114,129 +140,168 @@
           <div :class="$style.caption">售后详情</div>
           <h3 :class="$style.orderNo">{{ detailRecord.after_sale_no }}</h3>
         </div>
-        <UiButton variant="secondary" @click="closeDetailPanel">关闭面板</UiButton>
+        <div :class="$style.detailStatusGroup">
+          <UiTag :tone="resolveStatus(detailRecord.after_sale_status).tone">
+            {{ resolveStatus(detailRecord.after_sale_status).label }}
+          </UiTag>
+          <UiTag :tone="refundStatusTone(detailRecord.refund_status)">
+            {{ formatRefundStatus(detailRecord.refund_status) }}
+          </UiTag>
+        </div>
+        <UiButton variant="secondary" size="sm" @click="closeDetailPanel">关闭面板</UiButton>
       </div>
 
-      <section :class="$style.detailGrid">
-        <div>
-          <div :class="$style.metaLabel">商品</div>
-          <div :class="$style.product">{{ detailRecord.product_name || '-' }}</div>
-        </div>
-        <div>
-          <div :class="$style.metaLabel">规格</div>
-          <div :class="$style.product">{{ detailRecord.sku_name || '-' }}</div>
-        </div>
-        <div>
-          <div :class="$style.metaLabel">申请类型</div>
-          <div :class="$style.product">{{ resolveTypeLabel(detailRecord.after_sale_type) }}</div>
-        </div>
-        <div>
-          <div :class="$style.metaLabel">退款金额</div>
-          <div :class="$style.product">{{ formatCurrency(detailRecord.refund_amount) }}</div>
-        </div>
-      </section>
-
-      <section :class="$style.detailGrid">
-        <div>
-          <div :class="$style.metaLabel">售后状态</div>
-          <div :class="$style.product">{{ resolveStatus(detailRecord.after_sale_status).label }}</div>
-        </div>
-        <div>
-          <div :class="$style.metaLabel">原因说明</div>
-          <div :class="$style.product">{{ detailRecord.reason_desc || '-' }}</div>
-        </div>
-        <div>
-          <div :class="$style.metaLabel">退款单号</div>
-          <div :class="$style.product">{{ detailRecord.refund_no || '-' }}</div>
-        </div>
-        <div>
-          <div :class="$style.metaLabel">退款状态</div>
-          <div :class="$style.product">{{ formatRefundStatus(detailRecord.refund_status) }}</div>
-        </div>
-      </section>
-
-      <section :class="$style.detailGrid">
-        <div>
-          <div :class="$style.metaLabel">商家处理结果</div>
-          <div :class="$style.product">{{ detailRecord.merchant_result || '-' }}</div>
-        </div>
-        <div>
-          <div :class="$style.metaLabel">退货物流</div>
-          <div :class="$style.product">
-            {{
-              detailRecord.return_company && detailRecord.return_logistics_no
-                ? `${detailRecord.return_company} / ${detailRecord.return_logistics_no}`
-                : '-'
-            }}
-          </div>
-        </div>
-        <div>
-          <div :class="$style.metaLabel">申请时间</div>
-          <div :class="$style.product">{{ formatDateTime(detailRecord.created_at) }}</div>
-        </div>
-        <div>
-          <div :class="$style.metaLabel">更新时间</div>
-          <div :class="$style.product">{{ formatDateTime(detailRecord.updated_at) }}</div>
-        </div>
-      </section>
-
-      <section v-if="detailRecord.proof_urls.length" :class="$style.detailBlock">
-        <div :class="$style.sectionTitle">凭证图片</div>
-        <div :class="$style.proofGrid">
-          <a
-            v-for="(proofUrl, index) in detailRecord.proof_urls"
-            :key="`${proofUrl}-${index}`"
-            :href="proofUrl"
-            target="_blank"
-            rel="noreferrer"
-            :class="$style.proofItem"
-          >
-            凭证 {{ index + 1 }}
-          </a>
-        </div>
-      </section>
-
-      <section :class="$style.detailBlock">
-        <div :class="$style.sectionTitle">售后日志</div>
-        <article
-          v-for="log in detailLogs"
-          :key="`${log.log_type}-${log.created_at}`"
-          :class="$style.logRow"
+      <div :class="$style.detailTabs">
+        <button
+          v-for="tab in aftersaleDetailTabs"
+          :key="tab.value"
+          type="button"
+          :class="[$style.detailTab, detailTab === tab.value ? $style.detailTabActive : '']"
+          @click="detailTab = tab.value"
         >
+          {{ tab.label }}
+        </button>
+      </div>
+
+      <template v-if="detailTab === 'overview'">
+        <section :class="$style.detailGrid">
           <div>
-            <div :class="$style.metaLabel">类型</div>
-            <div :class="$style.metaValue">{{ formatLogType(log.log_type) }}</div>
+            <div :class="$style.metaLabel">商品</div>
+            <div :class="$style.product">{{ detailRecord.product_name || '-' }}</div>
           </div>
           <div>
-            <div :class="$style.metaLabel">说明</div>
-            <div :class="$style.metaValue">{{ log.message }}</div>
+            <div :class="$style.metaLabel">规格</div>
+            <div :class="$style.product">{{ detailRecord.sku_name || '-' }}</div>
           </div>
           <div>
-            <div :class="$style.metaLabel">时间</div>
-            <div :class="$style.metaValue">{{ formatDateTime(log.created_at) }}</div>
+            <div :class="$style.metaLabel">申请类型</div>
+            <div :class="$style.product">{{ resolveTypeLabel(detailRecord.after_sale_type) }}</div>
           </div>
-        </article>
+          <div>
+            <div :class="$style.metaLabel">退款金额</div>
+            <div :class="$style.product">{{ formatCurrency(detailRecord.refund_amount) }}</div>
+          </div>
+        </section>
+
+        <section :class="$style.detailGrid">
+          <div>
+            <div :class="$style.metaLabel">售后状态</div>
+            <div :class="$style.product">{{ resolveStatus(detailRecord.after_sale_status).label }}</div>
+          </div>
+          <div>
+            <div :class="$style.metaLabel">原因说明</div>
+            <div :class="$style.product">{{ detailRecord.reason_desc || '-' }}</div>
+          </div>
+          <div>
+            <div :class="$style.metaLabel">退款单号</div>
+            <div :class="$style.product">{{ detailRecord.refund_no || '-' }}</div>
+          </div>
+          <div>
+            <div :class="$style.metaLabel">退款状态</div>
+            <div :class="$style.product">{{ formatRefundStatus(detailRecord.refund_status) }}</div>
+          </div>
+        </section>
+
+        <section :class="$style.detailGrid">
+          <div>
+            <div :class="$style.metaLabel">商家处理结果</div>
+            <div :class="$style.product">{{ detailRecord.merchant_result || '-' }}</div>
+          </div>
+          <div>
+            <div :class="$style.metaLabel">退货物流</div>
+            <div :class="$style.product">
+              {{
+                detailRecord.return_company && detailRecord.return_logistics_no
+                  ? `${detailRecord.return_company} / ${detailRecord.return_logistics_no}`
+                  : '-'
+              }}
+            </div>
+          </div>
+          <div>
+            <div :class="$style.metaLabel">申请时间</div>
+            <div :class="$style.product">{{ formatDateTime(detailRecord.created_at) }}</div>
+          </div>
+          <div>
+            <div :class="$style.metaLabel">更新时间</div>
+            <div :class="$style.product">{{ formatDateTime(detailRecord.updated_at) }}</div>
+          </div>
+        </section>
+
+        <section v-if="detailRecord.proof_urls.length" :class="$style.detailBlock">
+          <div :class="$style.sectionTitle">凭证图片</div>
+          <div :class="$style.proofGrid">
+            <a
+              v-for="(proofUrl, index) in detailRecord.proof_urls"
+              :key="`${proofUrl}-${index}`"
+              :href="proofUrl"
+              target="_blank"
+              rel="noreferrer"
+              :class="$style.proofItem"
+            >
+              凭证 {{ index + 1 }}
+            </a>
+          </div>
+        </section>
+        <UiStatePanel
+          v-else
+          tone="empty"
+          title="当前没有凭证图片"
+          description="用户本次售后未上传图片凭证，可结合原因说明和历史日志判断。"
+        />
+      </template>
+
+      <section v-else-if="detailTab === 'logs'" :class="$style.detailBlock">
+        <div :class="$style.sectionTitle">售后日志</div>
+        <template v-if="detailLogs.length">
+          <article
+            v-for="log in detailLogs"
+            :key="`${log.log_type}-${log.created_at}`"
+            :class="$style.logRow"
+          >
+            <div>
+              <div :class="$style.metaLabel">类型</div>
+              <div :class="$style.metaValue">{{ formatLogType(log.log_type) }}</div>
+            </div>
+            <div>
+              <div :class="$style.metaLabel">说明</div>
+              <div :class="$style.metaValue">{{ log.message }}</div>
+            </div>
+            <div>
+              <div :class="$style.metaLabel">时间</div>
+              <div :class="$style.metaValue">{{ formatDateTime(log.created_at) }}</div>
+            </div>
+          </article>
+        </template>
+        <UiStatePanel
+          v-else
+          tone="empty"
+          title="当前没有售后日志"
+          description="可以先查看概览信息，或稍后刷新后再试。"
+        />
       </section>
 
-      <section v-if="detailRecord.after_sale_status === 'pending_merchant'" :class="$style.detailBlock">
+      <section v-else-if="detailTab === 'review' && detailRecord.after_sale_status === 'pending_merchant'" :class="$style.detailBlock">
         <div :class="$style.sectionTitle">审核处理</div>
-        <textarea
-          v-model="approveRemark"
-          :class="$style.textarea"
-          placeholder="请输入审核意见"
-        />
+        <label :class="$style.field">
+          <span :class="$style.metaLabel">审核意见</span>
+          <textarea
+            v-model="approveRemark"
+            :class="$style.textarea"
+            placeholder="请输入审核意见"
+          />
+        </label>
         <div :class="$style.actions">
-          <UiButton variant="secondary" @click="approveRemark = ''">清空意见</UiButton>
-          <UiButton variant="secondary" :disabled="submitting" @click="submitReview('reject')">
+          <UiButton variant="secondary" size="sm" @click="approveRemark = ''">清空意见</UiButton>
+          <UiButton variant="secondary" size="sm" :disabled="submitting || !canSubmitReview" @click="submitReview('reject')">
             {{ submitting ? '正在提交...' : '驳回申请' }}
           </UiButton>
-          <UiButton :disabled="submitting" @click="submitReview('agree')">
+          <UiButton :disabled="submitting || !canSubmitReview" @click="submitReview('agree')">
             {{ submitting ? '正在提交...' : '同意申请' }}
           </UiButton>
         </div>
       </section>
 
-      <section v-if="detailRecord.after_sale_status === 'waiting_return'" :class="$style.detailBlock">
+      <section v-else-if="detailTab === 'return' && detailRecord.after_sale_status === 'waiting_return'" :class="$style.detailBlock">
         <div :class="$style.sectionTitle">退货物流代录</div>
         <div :class="$style.detailGrid">
           <label :class="$style.field">
@@ -257,12 +322,19 @@
           </label>
         </div>
         <div :class="$style.actions">
-          <UiButton variant="secondary" @click="resetReturnForm">清空物流信息</UiButton>
-          <UiButton :disabled="submitting" @click="submitReturnLogistics">
+          <UiButton variant="secondary" size="sm" @click="resetReturnForm">清空物流信息</UiButton>
+          <UiButton :disabled="submitting || !canSubmitReturnLogistics" @click="submitReturnLogistics">
             {{ submitting ? '正在提交...' : '提交代录物流' }}
           </UiButton>
         </div>
       </section>
+
+      <UiStatePanel
+        v-else
+        tone="empty"
+        title="当前操作不适用"
+        description="该售后单当前状态下无需审核或代录物流，可切换到概览或日志查看详情。"
+      />
     </UiCard>
   </WorkspaceLayout>
 </template>
@@ -306,9 +378,10 @@ const aftersalesTabs = ['全部', '待处理', '已同意', '已驳回', '待退
 
 const authStore = useAuthStore();
 const activeTab = ref('全部');
+const detailTab = ref<'overview' | 'logs' | 'review' | 'return'>('overview');
 const afterSalesMode = ref<'remote' | 'error'>('remote');
 const afterSalesLoading = ref(true);
-const afterSalesNotice = ref('正在加载真实售后接口。');
+const afterSalesNotice = ref('正在加载售后数据。');
 const actionMessage = ref('');
 const actionTone = ref<'info' | 'error'>('info');
 const records = ref<AfterSaleCardRecord[]>([]);
@@ -324,27 +397,34 @@ const returnCompany = ref('');
 const returnLogisticsNo = ref('');
 const submitting = ref(false);
 const detailAnchor = ref<HTMLElement | null>(null);
+const aftersaleDetailTabs = [
+  { value: 'overview' as const, label: '售后概览' },
+  { value: 'logs' as const, label: '售后日志' },
+  { value: 'review' as const, label: '审核处理' },
+  { value: 'return' as const, label: '退货物流' },
+];
+const canSubmitReview = computed(() => approveRemark.value.trim().length > 0);
+const canSubmitReturnLogistics = computed(() => (
+  returnCompany.value.trim().length > 0
+  && returnLogisticsNo.value.trim().length > 0
+));
 
 const afterSaleStatePanel = computed(() => {
   if (afterSalesLoading.value) {
     return {
       tone: 'loading' as const,
       title: '正在加载售后列表',
-      description: '页面正在读取真实售后数据。',
+      description: '页面正在读取售后数据。',
     };
   }
 
   if (afterSalesMode.value === 'remote') {
-    return {
-      tone: 'info' as const,
-      title: '已接入真实售后接口',
-      description: afterSalesNotice.value,
-    };
+    return null;
   }
 
   return {
     tone: 'error' as const,
-    title: '售后接口调用失败',
+    title: '售后数据加载失败',
     description: afterSalesNotice.value,
   };
 });
@@ -447,6 +527,26 @@ function formatRefundStatus(status: string | null | undefined): string {
   return status || '-';
 }
 
+function refundStatusTone(status: string | null | undefined): 'default' | 'primary' | 'info' | 'success' | 'danger' {
+  const normalized = (status || '').toLowerCase();
+  if (!normalized) {
+    return 'default';
+  }
+  if (normalized.includes('success') || normalized.includes('completed') || normalized.includes('done')) {
+    return 'success';
+  }
+  if (normalized.includes('processing') || normalized.includes('ing')) {
+    return 'primary';
+  }
+  if (normalized.includes('pending')) {
+    return 'info';
+  }
+  if (normalized.includes('fail') || normalized.includes('close') || normalized.includes('reject')) {
+    return 'danger';
+  }
+  return 'default';
+}
+
 function formatLogType(type: string | null | undefined): string {
   const normalized = (type || '').toLowerCase();
   if (!normalized) {
@@ -493,7 +593,7 @@ function toCardRecord(item: OrderAfterSaleSummaryResponseRaw): AfterSaleCardReco
   return {
     serviceNo: item.after_sale_no,
     orderNo: item.order_no,
-    product: item.product_name || '待补充商品信息',
+    product: item.product_name || '商品信息缺失',
     spec: item.sku_name || '默认规格',
     type: resolveTypeLabel(item.after_sale_type),
     amount: formatCurrency(item.refund_amount),
@@ -538,6 +638,7 @@ async function handleViewDetail(record: AfterSaleCardRecord) {
       merchantId: record.merchantId,
       storeId: record.storeId,
     });
+    detailTab.value = 'overview';
     scrollDetailIntoView();
   } catch (error) {
     setActionMessage(error instanceof Error ? error.message : '查询售后详情失败。', 'error');
@@ -676,7 +777,7 @@ async function loadAfterSales() {
     pagination.pageSize = response.page_size;
     pagination.total = response.total;
     afterSalesNotice.value = response.total
-      ? `当前列表展示的是售后服务真实数据，共 ${response.total} 条。`
+      ? `当前列表共 ${response.total} 条售后记录。`
       : '当前筛选条件下没有售后单。';
     records.value = response.list.map(toCardRecord);
   } catch (error) {
@@ -703,6 +804,7 @@ function handlePageSizeChange(pageSize: number) {
 function closeDetailPanel() {
   detailRecord.value = null;
   detailLogs.value = [];
+  detailTab.value = 'overview';
   approveRemark.value = '同意售后申请，请按流程继续处理。';
   resetReturnForm();
 }
@@ -723,33 +825,93 @@ watch(activeTab, () => {
 </script>
 
 <style module>
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+  padding: 18px;
+  border-radius: 20px;
+  border: 1px solid rgba(9, 29, 46, 0.08);
+  background: linear-gradient(180deg, #ffffff 0%, #f9fbff 100%);
+}
+
+.toolbarMain {
+  display: grid;
+  gap: 12px;
+  width: 100%;
+}
+
+.toolbarMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  color: var(--cdd-text-faint);
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .tabs {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 8px;
+  align-items: center;
 }
 
 .tab {
-  min-height: 44px;
-  padding: 0 18px;
-  border: 0;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.68);
+  min-height: 38px;
+  padding: 0 14px;
+  border: 1px solid rgba(9, 29, 46, 0.08);
+  border-radius: 14px;
+  background: rgba(248, 250, 253, 0.96);
   color: var(--cdd-text-soft);
-  box-shadow: inset 0 0 0 1px rgba(9, 29, 46, 0.06);
   font-size: 13px;
   font-weight: 800;
 }
 
 .tabActive {
-  color: #fff;
-  background: linear-gradient(135deg, var(--cdd-primary-deep), var(--cdd-primary));
+  color: #9c4304;
+  border-color: rgba(255, 107, 0, 0.22);
+  background: linear-gradient(135deg, rgba(255, 107, 0, 0.1), rgba(255, 249, 244, 0.98));
+  box-shadow: inset 0 0 0 1px rgba(255, 107, 0, 0.08);
 }
 
 .cards {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 18px;
+  gap: 16px;
+}
+
+.listSummaryCard {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+  padding: 18px;
+}
+
+.listSummaryTitle {
+  margin-top: 8px;
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+}
+
+.listSummaryText,
+.listSummaryMeta {
+  margin-top: 10px;
+  color: var(--cdd-text-soft);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.listSummaryMeta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px 14px;
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .card {
@@ -770,16 +932,16 @@ watch(activeTab, () => {
 .detailPanel,
 .detailBlock {
   display: grid;
-  gap: 18px;
+  gap: 16px;
 }
 
 .cardBody {
-  padding: 24px 24px 24px 28px;
+  padding: 18px 18px 18px 22px;
 }
 
 .detailPanel {
-  margin-top: 18px;
-  padding: 24px;
+  margin-top: 16px;
+  padding: 18px;
 }
 
 .cardHead {
@@ -789,9 +951,41 @@ watch(activeTab, () => {
   align-items: flex-start;
 }
 
+.detailStatusGroup {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.detailTabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.detailTab {
+  min-height: 38px;
+  padding: 0 14px;
+  border: 1px solid rgba(9, 29, 46, 0.08);
+  border-radius: 14px;
+  background: rgba(248, 250, 253, 0.96);
+  color: var(--cdd-text-soft);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.detailTabActive {
+  border-color: rgba(255, 107, 0, 0.22);
+  background: linear-gradient(135deg, rgba(255, 107, 0, 0.1), rgba(255, 249, 244, 0.98));
+  color: #9c4304;
+  box-shadow: inset 0 0 0 1px rgba(255, 107, 0, 0.08);
+}
+
 .caption {
   color: var(--cdd-text-faint);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -799,22 +993,22 @@ watch(activeTab, () => {
 
 .orderNo {
   margin: 8px 0 0;
-  font-size: 18px;
+  font-size: 17px;
 }
 
 .summary {
   display: grid;
-  grid-template-columns: 120px minmax(0, 1fr);
-  gap: 16px;
+  grid-template-columns: 108px minmax(0, 1fr);
+  gap: 12px;
   align-items: center;
 }
 
 .thumb {
-  min-height: 120px;
+  min-height: 96px;
   display: grid;
   gap: 8px;
   place-content: center;
-  border-radius: 20px;
+  border-radius: 16px;
   background:
     radial-gradient(circle at top left, rgba(255, 107, 0, 0.16), transparent 35%),
     linear-gradient(145deg, #eff5ff, #d9eaff);
@@ -833,7 +1027,7 @@ watch(activeTab, () => {
 }
 
 .product {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 800;
   line-height: 1.6;
   word-break: break-word;
@@ -846,9 +1040,9 @@ watch(activeTab, () => {
 }
 
 .amount {
-  margin-top: 12px;
+  margin-top: 10px;
   color: var(--cdd-primary);
-  font-size: 24px;
+  font-size: 22px;
   font-weight: 800;
 }
 
@@ -856,7 +1050,7 @@ watch(activeTab, () => {
 .detailGrid,
 .proofGrid {
   display: grid;
-  gap: 16px;
+  gap: 12px;
 }
 
 .metaGrid {
@@ -875,20 +1069,23 @@ watch(activeTab, () => {
 .updated {
   color: var(--cdd-text-faint);
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .metaValue {
   margin-top: 8px;
   color: var(--cdd-text-soft);
-  line-height: 1.7;
+  font-size: 13px;
+  line-height: 1.6;
 }
 
 .proofItem {
   display: grid;
   place-items: center;
-  min-height: 92px;
-  border-radius: 18px;
+  min-height: 76px;
+  border-radius: 16px;
   text-decoration: none;
   color: var(--cdd-primary-deep);
   font-weight: 800;
@@ -906,7 +1103,7 @@ watch(activeTab, () => {
 .actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: 8px;
 }
 
 .field {
@@ -917,8 +1114,8 @@ watch(activeTab, () => {
 .logRow {
   display: grid;
   grid-template-columns: 0.8fr 1.6fr 1fr;
-  gap: 16px;
-  padding: 14px 16px;
+  gap: 14px;
+  padding: 11px 12px;
   border-radius: 16px;
   background: rgba(237, 244, 255, 0.72);
 }
@@ -931,9 +1128,9 @@ watch(activeTab, () => {
 .input,
 .textarea {
   width: 100%;
-  padding: 14px 16px;
+  padding: 12px 14px;
   border: 0;
-  border-radius: 18px;
+  border-radius: 16px;
   background: rgba(237, 244, 255, 0.92);
   color: var(--cdd-text);
   font: inherit;
@@ -945,10 +1142,19 @@ watch(activeTab, () => {
 }
 
 .input {
-  min-height: 54px;
+  min-height: 50px;
 }
 
 @media (max-width: 1100px) {
+  .toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .listSummaryCard {
+    flex-direction: column;
+  }
+
   .cards {
     grid-template-columns: 1fr;
   }
@@ -959,7 +1165,10 @@ watch(activeTab, () => {
 }
 
 @media (max-width: 720px) {
+  .toolbarMeta,
   .cardHead,
+  .detailStatusGroup,
+  .detailTabs,
   .footer,
   .actions {
     flex-direction: column;

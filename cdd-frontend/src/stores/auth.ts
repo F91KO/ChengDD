@@ -125,7 +125,7 @@ export const useAuthStore = defineStore('auth', () => {
 
     session.value = next as AuthSession | null;
     if (session.value?.authMode === 'remote') {
-      authNotice.value = '当前连接真实接口。';
+      authNotice.value = '已登录，可继续访问业务页面。';
     } else {
       authNotice.value = '请先登录。';
     }
@@ -143,10 +143,10 @@ export const useAuthStore = defineStore('auth', () => {
         password,
       });
       const current = await fetchCurrentAuthContext(tokenPayload.access_token);
-      setSession(buildSessionFromRemote(tokenPayload, current), '当前连接真实接口。');
+      setSession(buildSessionFromRemote(tokenPayload, current), '已登录，可继续访问业务页面。');
       return {
         mode: 'remote' as const,
-        message: '登录成功，已连接真实接口。',
+        message: '登录成功。',
       };
     } finally {
       authenticating.value = false;
@@ -167,7 +167,7 @@ export const useAuthStore = defineStore('auth', () => {
         context: normalizeContext(current),
         user: buildUser(normalizeContext(current)),
       },
-      '当前连接真实接口。',
+      '已登录，可继续访问业务页面。',
     );
     return current;
   }

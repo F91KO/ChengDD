@@ -6,17 +6,16 @@
         <div :class="$style.badge">ChengDD 商家后台</div>
         <h1 :class="$style.title">把商家运营动作整理成一张低噪音工作台。</h1>
         <p :class="$style.description">
-          一期先覆盖登录、工作台、商品、订单、售后和配置中心。当前页面只走真实接口，
-          认证失败时会直接提示错误，不再回退前端本地假数据。
+          一期先覆盖登录、工作台、商品、订单、售后和配置中心，帮助商家把日常经营操作收口到统一后台。
         </p>
         <div :class="$style.statusCard">
-          <div :class="$style.statusLabel">当前接入状态</div>
+          <div :class="$style.statusLabel">当前状态</div>
           <div :class="$style.statusValue">{{ authStore.authNotice }}</div>
         </div>
         <ul :class="$style.highlights">
-          <li>Java 21 后端运行基线已确认，前端统一接入真实 API。</li>
-          <li>统一 token 注入、401 处理、刷新令牌与路由守卫已接入。</li>
-          <li>登录成功后才会加载商户、店铺与操作人上下文，不再使用前端假数据。</li>
+          <li>支持登录后进入工作台，统一查看商品、订单、售后和配置。</li>
+          <li>登录成功后会自动加载商户、店铺与操作人上下文。</li>
+          <li>异常状态会直接在页面中提示，便于快速定位问题。</li>
         </ul>
       </div>
 
@@ -25,11 +24,11 @@
           <div :class="$style.formEyebrow">商家后台登录</div>
           <div :class="$style.formTitle">欢迎回来</div>
         </div>
-        <div :class="$style.accountNotice">
-          <div :class="$style.accountTitle">默认本地账号</div>
-          <div :class="$style.accountValue">merchant_admin</div>
-          <div :class="$style.accountHint">请先启动本地认证服务和数据库，再使用该账号登录。</div>
-        </div>
+        <UiStatePanel
+          :tone="authStore.authMode === 'remote' ? 'info' : 'error'"
+          :title="authStore.authMode === 'remote' ? '认证状态' : '认证服务暂未就绪'"
+          :description="authStore.authNotice"
+        />
         <UiInput v-model="account" label="账号" placeholder="请输入运营账号" prefix="ID" />
         <UiInput
           v-model="password"
@@ -44,10 +43,10 @@
           :title="feedbackTitle"
           :description="feedback"
         />
-        <UiButton :disabled="submitting" type="submit" size="lg" block>
+        <UiButton :disabled="submitting || !canSubmitLogin" type="submit" size="lg" block>
           {{ submitting ? '正在进入工作台...' : '进入工作台' }}
         </UiButton>
-        <div :class="$style.helpText">登录成功后会优先加载真实身份上下文，再进入工作台。</div>
+        <div :class="$style.helpText">登录成功后会自动加载当前账号上下文，再进入工作台。</div>
       </form>
     </section>
   </div>
@@ -65,26 +64,33 @@ import { ApiClientError } from '@/types/api';
 const router = useRouter();
 const authStore = useAuthStore();
 
-const account = ref('merchant_admin');
-const password = ref('merchant123456');
+const account = ref('');
+const password = ref('');
 const submitting = ref(false);
 const feedback = ref('');
-
-const feedbackTone = computed(() => (authStore.authMode === 'remote' ? 'info' : 'error'));
-const feedbackTitle = computed(() => '接口状态');
+const feedbackTone = ref<'info' | 'error'>('info');
+const feedbackTitle = ref('登录状态');
+const canSubmitLogin = computed(() => account.value.trim().length > 0 && password.value.length > 0);
 
 async function handleLogin() {
   submitting.value = true;
   feedback.value = '';
 
   try {
+    if (!canSubmitLogin.value) {
+      throw new Error('请输入账号和密码后再登录。');
+    }
     const result = await authStore.login({
-      account: account.value.trim() || 'merchant_admin',
+      account: account.value.trim(),
       password: password.value,
     });
+    feedbackTone.value = 'info';
+    feedbackTitle.value = '登录结果';
     feedback.value = result.message;
     await router.push('/dashboard');
   } catch (error) {
+    feedbackTone.value = 'error';
+    feedbackTitle.value = '登录失败';
     feedback.value =
       error instanceof ApiClientError ? error.message : '登录失败，请检查服务启动状态或账号密码。';
   } finally {
@@ -229,34 +235,6 @@ async function handleLogin() {
   font-size: 28px;
   font-weight: 800;
   letter-spacing: -0.04em;
-}
-
-.accountNotice {
-  padding: 16px 18px;
-  border-radius: 20px;
-  background: rgba(237, 244, 255, 0.78);
-}
-
-.accountTitle {
-  color: var(--cdd-text-faint);
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.accountValue {
-  margin-top: 8px;
-  font-size: 18px;
-  font-weight: 800;
-  letter-spacing: -0.03em;
-}
-
-.accountHint {
-  margin-top: 6px;
-  color: var(--cdd-text-soft);
-  font-size: 12px;
-  line-height: 1.7;
 }
 
 .helpText {

@@ -4,6 +4,23 @@
     title="商家后台首页"
     description="把待办、经营数据、趋势和快捷动作放在同一屏，优先看见最需要处理的事情。"
   >
+    <section :class="$style.toolbar">
+      <div :class="$style.toolbarMain">
+        <div :class="$style.sectionEyebrow">经营总览</div>
+        <h3 :class="$style.toolbarTitle">今日经营、待办与快捷动作集中查看</h3>
+        <div :class="$style.toolbarMeta">
+          <span>商家：{{ authStore.user.merchantName }}</span>
+          <span>状态：{{ dashboardMode === 'remote' ? '数据正常' : '异常待排查' }}</span>
+          <span>待办：{{ taskItems.length }} 项</span>
+          <span>快捷动作：{{ quickActions.length }} 项</span>
+        </div>
+      </div>
+      <div :class="$style.toolbarActions">
+        <UiButton variant="secondary" size="md" @click="void router.push('/orders')">查看订单</UiButton>
+        <UiButton size="md" @click="void router.push('/products')">新增商品</UiButton>
+      </div>
+    </section>
+
     <UiStatePanel
       v-if="dashboardStatePanel"
       :tone="dashboardStatePanel.tone"
@@ -17,6 +34,19 @@
       :description="quickActionNotice"
     />
 
+    <section :class="$style.summaryGrid">
+      <UiCard
+        v-for="card in dashboardSummaryCards"
+        :key="card.label"
+        elevated
+        :class="$style.summaryCard"
+      >
+        <div :class="$style.summaryLabel">{{ card.label }}</div>
+        <div :class="$style.summaryValue">{{ card.value }}</div>
+        <div :class="[$style.summaryMeta, $style[card.tone]]">{{ card.meta }}</div>
+      </UiCard>
+    </section>
+
     <section :class="$style.heroGrid">
       <UiCard elevated :class="$style.heroCard">
         <div :class="$style.heroMeta">今日概览</div>
@@ -24,8 +54,8 @@
           <div :class="$style.heroContent">
             <h2 :class="$style.heroTitle">{{ authStore.user.merchantName }}</h2>
             <p :class="$style.heroDescription">
-              欢迎回来，当前工作台运行模式为
-              {{ dashboardMode === 'remote' ? '实时报表' : '异常待排查' }}。
+              欢迎回来，当前工作台状态为
+              {{ dashboardMode === 'remote' ? '数据正常' : '异常待排查' }}。
             </p>
           </div>
           <UiTag :tone="dashboardMode === 'remote' ? 'primary' : 'info'">
@@ -33,8 +63,8 @@
           </UiTag>
         </div>
         <div :class="$style.heroActions">
-          <UiButton size="lg" leading="+" @click="void router.push('/products')">新增商品</UiButton>
-          <UiButton variant="secondary" size="lg" @click="void router.push('/config')">配置中心</UiButton>
+          <UiButton size="md" leading="+" @click="void router.push('/products')">新增商品</UiButton>
+          <UiButton variant="secondary" size="md" @click="void router.push('/config')">配置中心</UiButton>
         </div>
       </UiCard>
 
@@ -49,6 +79,12 @@
             <div :class="$style.taskTitle">{{ task.title }}</div>
             <div :class="$style.taskDetail">{{ task.detail }}</div>
           </article>
+          <UiStatePanel
+            v-if="!taskItems.length"
+            tone="empty"
+            title="当前没有待办事项"
+            description="当前没有需要优先处理的待办事项。"
+          />
         </div>
       </UiCard>
     </section>
@@ -64,6 +100,12 @@
         <div :class="$style.metricValue">{{ metric.value }}</div>
         <div :class="[$style.metricDelta, $style[metric.tone]]">{{ metric.delta }}</div>
       </UiCard>
+      <UiStatePanel
+        v-if="!metricItems.length"
+        tone="empty"
+        title="暂无经营指标"
+        description="请先准备日报数据，随后首页会展示经营指标。"
+      />
     </section>
 
     <section :class="$style.contentGrid">
@@ -85,15 +127,6 @@
             <h3 :class="$style.sectionTitle">快捷动作</h3>
           </div>
         </div>
-        <UiStatePanel
-          :tone="dashboardMode === 'remote' ? 'info' : 'error'"
-          :title="dashboardMode === 'remote' ? '已接入真实报表接口' : '报表链路异常'"
-          :description="
-            dashboardMode === 'remote'
-              ? '工作台指标和趋势已接入 report-service，并基于本地 MySQL 报表数据返回。'
-              : dashboardNotice
-          "
-        />
         <div :class="$style.actionGrid">
           <button
             v-for="action in quickActions"
@@ -102,7 +135,12 @@
             :disabled="quickActionPending === action"
             @click="handleQuickAction(action)"
           >
-            {{ quickActionPending === action ? `${action}处理中...` : action }}
+            <span :class="$style.actionButtonTitle">
+              {{ quickActionPending === action ? `${action}处理中...` : action }}
+            </span>
+            <span :class="$style.actionButtonText">
+              {{ describeQuickAction(action) }}
+            </span>
           </button>
         </div>
       </UiCard>
@@ -122,7 +160,6 @@ import WorkspaceLayout from '@/components/layout/WorkspaceLayout.vue';
 import { createPublishRecord } from '@/services/config';
 import { exportOrdersCsv } from '@/services/order';
 import { fetchHomeEventDailyList, fetchMerchantDashboardSnapshot, fetchOrderDailyList } from '@/services/report';
-import { createReleaseTask } from '@/services/release';
 import { useAuthStore } from '@/stores/auth';
 import {
   buildDashboardTrendOption,
@@ -135,7 +172,7 @@ import type { EChartsOption } from 'echarts';
 const authStore = useAuthStore();
 const router = useRouter();
 const dashboardMode = ref<'remote' | 'error'>('remote');
-const dashboardNotice = ref('正在加载真实报表接口。');
+const dashboardNotice = ref('正在加载经营数据。');
 const metricItems = ref<DashboardMetricItem[]>([]);
 const taskItems = ref<DashboardTaskItem[]>([]);
 const trendOption = ref<EChartsOption>(buildDashboardTrendOption([], []));
@@ -143,19 +180,46 @@ const quickActionNotice = ref('');
 const quickActionTone = ref<'info' | 'error'>('info');
 const quickActionPending = ref('');
 
+const dashboardSummaryCards = computed(() => [
+  {
+    label: '当前状态',
+    value: dashboardMode.value === 'remote' ? '数据正常' : '异常待排查',
+    meta: dashboardMode.value === 'remote' ? '数据已更新' : dashboardNotice.value,
+    tone: dashboardMode.value === 'remote' ? 'primary' : 'danger',
+  },
+  {
+    label: '待办事项',
+    value: String(taskItems.value.length),
+    meta: taskItems.value.length ? taskItems.value[0].title : '当前没有待处理任务',
+    tone: taskItems.value.length ? 'info' : 'success',
+  },
+  {
+    label: '经营指标',
+    value: String(metricItems.value.length),
+    meta: metricItems.value.length ? '首页指标已加载' : '等待经营指标更新',
+    tone: metricItems.value.length ? 'success' : 'default',
+  },
+  {
+    label: '快捷动作',
+    value: String(quickActions.length),
+    meta: quickActionPending.value ? `${quickActionPending.value}执行中` : '支持商品、订单、配置与发布治理入口',
+    tone: quickActionPending.value ? 'primary' : 'default',
+  },
+]);
+
 const dashboardStatePanel = computed(() => {
   if (!authStore.businessScope.derivedFromContext) {
     return {
       tone: 'error' as const,
-      title: '工作台缺少真实业务上下文',
-      description: '鉴权上下文中的 merchant_id / store_id 不是数值类型，当前无法继续查询真实报表。',
+      title: '工作台缺少业务上下文',
+      description: '鉴权上下文中的 merchant_id / store_id 不是数值类型，当前无法继续查询经营数据。',
     };
   }
 
   if (dashboardMode.value === 'error') {
     return {
       tone: 'error' as const,
-      title: '报表接口调用失败',
+      title: '经营数据加载失败',
       description: dashboardNotice.value,
     };
   }
@@ -269,6 +333,22 @@ function setQuickActionNotice(message: string, tone: 'info' | 'error' = 'info') 
   quickActionTone.value = tone;
 }
 
+function describeQuickAction(action: string): string {
+  if (action === '新增商品') {
+    return '进入商品管理，直接创建并维护商品信息。';
+  }
+  if (action === '进入发布治理') {
+    return '进入发布治理页，确认模板版本后再创建发布任务。';
+  }
+  if (action === '导出订单') {
+    return '导出当前商家订单数据。';
+  }
+  if (action === '同步配置') {
+    return '创建配置发布记录并跳转到配置中心查看详情。';
+  }
+  return '执行当前快捷操作。';
+}
+
 function parseNumericTail(raw: string | null | undefined): number | null {
   if (!raw) {
     return null;
@@ -321,33 +401,19 @@ async function syncConfigFromDashboard() {
   await router.push('/config');
 }
 
-async function createReleaseFromDashboard() {
-  const merchantId = authStore.merchantIdForQuery;
+async function openReleaseGovernanceFromDashboard() {
   const storeId = authStore.storeIdForQuery;
   const miniProgramId = parseNumericTail(authStore.context?.miniProgramId) ?? storeId;
-  if (!merchantId || !storeId || !miniProgramId) {
-    throw new Error('当前缺少小程序发布上下文，无法创建发布任务。');
+  if (!storeId || !miniProgramId) {
+    throw new Error('当前缺少小程序发布上下文，无法进入发布治理。');
   }
 
-  const task = await createReleaseTask({
-    merchantId,
-    storeId,
-    miniProgramId,
-    templateVersionId: 9800001,
-    releaseType: 'full_release',
-    triggerSource: 'dashboard_manual',
-    releaseSnapshotJson: JSON.stringify({
-      source: 'dashboard_quick_action',
-      operator_name: authStore.user.operatorName,
-      merchant_id: merchantId,
-      store_id: storeId,
-    }),
-  });
-  setQuickActionNotice(`已创建发布任务 ${task.task_no}，当前状态 ${task.release_status}。`);
+  setQuickActionNotice('已进入发布治理，请确认模板版本后再创建发布任务。');
   await router.push({
     path: '/releases',
     query: {
-      task_no: task.task_no,
+      mini_program_id: String(miniProgramId),
+      trigger_source: 'dashboard_manual',
     },
   });
 }
@@ -367,8 +433,8 @@ async function handleQuickAction(action: string) {
       await syncConfigFromDashboard();
       return;
     }
-    if (action === '发布模板') {
-      await createReleaseFromDashboard();
+    if (action === '进入发布治理') {
+      await openReleaseGovernanceFromDashboard();
     }
   } catch (error) {
     setQuickActionNotice(error instanceof Error ? error.message : `${action}执行失败。`, 'error');
@@ -383,7 +449,7 @@ async function loadDashboard() {
   const merchantId = authStore.merchantIdForQuery;
   const storeId = authStore.storeIdForQuery;
   if (!merchantId || !storeId) {
-    clearDashboard('业务上下文未准备完成，无法查询真实报表。');
+    clearDashboard('业务上下文未准备完成，无法查询经营数据。');
     return;
   }
 
@@ -401,12 +467,12 @@ async function loadDashboard() {
     ]);
 
     if (!homeEvents.length || !orderSeries.length) {
-      clearDashboard('报表接口已接通，但当前数据库还没有足够的工作台日报数据。');
+      clearDashboard('当前还没有足够的工作台日报数据。');
       return;
     }
 
     dashboardMode.value = 'remote';
-    dashboardNotice.value = '工作台已连接真实报表接口。';
+    dashboardNotice.value = '经营数据已更新。';
     metricItems.value = toMetricItems(snapshot, homeEvents, orderSeries);
     taskItems.value = toTaskItems(snapshot);
     trendOption.value = toTrendOption(orderSeries);
@@ -421,14 +487,83 @@ onMounted(() => {
 </script>
 
 <style module>
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+  padding: 18px;
+  border-radius: 20px;
+  border: 1px solid rgba(9, 29, 46, 0.08);
+  background: linear-gradient(180deg, #ffffff 0%, #f9fbff 100%);
+}
+
+.toolbarMain {
+  display: grid;
+  gap: 10px;
+}
+
+.toolbarTitle {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+}
+
+.toolbarMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  color: var(--cdd-text-faint);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.toolbarActions {
+  display: flex;
+  gap: 10px;
+}
+
+.summaryGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.summaryCard {
+  display: grid;
+  gap: 8px;
+  padding: 18px;
+}
+
+.summaryLabel {
+  color: var(--cdd-text-faint);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.summaryValue {
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1.3;
+}
+
+.summaryMeta {
+  color: var(--cdd-text-soft);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
 .heroGrid {
   display: grid;
   grid-template-columns: minmax(0, 1.45fr) minmax(320px, 0.8fr);
-  gap: 24px;
+  gap: 20px;
 }
 
 .heroCard {
-  padding: 28px;
+  padding: 20px;
   overflow: hidden;
   background:
     radial-gradient(circle at top right, rgba(255, 107, 0, 0.12), transparent 28%),
@@ -448,7 +583,7 @@ onMounted(() => {
   justify-content: space-between;
   align-items: flex-start;
   gap: 16px;
-  margin-top: 22px;
+  margin-top: 16px;
 }
 
 .heroContent {
@@ -457,43 +592,44 @@ onMounted(() => {
 
 .heroTitle {
   margin: 0;
-  font-size: 34px;
+  font-size: 30px;
   line-height: 1.05;
   letter-spacing: -0.05em;
 }
 
 .heroDescription {
   max-width: 560px;
-  margin: 14px 0 0;
+  margin: 12px 0 0;
   color: var(--cdd-text-soft);
-  line-height: 1.8;
+  font-size: 14px;
+  line-height: 1.7;
 }
 
 .heroActions {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
-  margin-top: 24px;
+  gap: 10px;
+  margin-top: 16px;
 }
 
 .taskPanel {
-  padding: 24px;
+  padding: 18px;
 }
 
 .panelHeading {
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 800;
 }
 
 .taskList {
   display: grid;
-  gap: 12px;
-  margin-top: 18px;
+  gap: 10px;
+  margin-top: 14px;
 }
 
 .taskItem {
-  padding: 18px;
-  border-radius: 18px;
+  padding: 14px;
+  border-radius: 16px;
 }
 
 .taskItem.default {
@@ -509,25 +645,25 @@ onMounted(() => {
 }
 
 .taskTitle {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 800;
 }
 
 .taskDetail {
   margin-top: 8px;
   color: var(--cdd-text-soft);
-  font-size: 13px;
-  line-height: 1.7;
+  font-size: 12px;
+  line-height: 1.6;
 }
 
 .metricGrid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 16px;
+  gap: 14px;
 }
 
 .metricCard {
-  padding: 18px;
+  padding: 14px;
 }
 
 .metricLabel {
@@ -537,8 +673,8 @@ onMounted(() => {
 }
 
 .metricValue {
-  margin-top: 18px;
-  font-size: 30px;
+  margin-top: 14px;
+  font-size: 28px;
   font-weight: 800;
   letter-spacing: -0.04em;
 }
@@ -568,12 +704,12 @@ onMounted(() => {
 .contentGrid {
   display: grid;
   grid-template-columns: minmax(0, 1.5fr) minmax(320px, 0.8fr);
-  gap: 24px;
+  gap: 20px;
 }
 
 .chartCard,
 .actionCard {
-  padding: 24px;
+  padding: 18px;
 }
 
 .sectionHeader {
@@ -581,7 +717,7 @@ onMounted(() => {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 20px;
+  margin-bottom: 14px;
 }
 
 .sectionEyebrow {
@@ -600,38 +736,67 @@ onMounted(() => {
 
 .actionGrid {
   display: grid;
-  gap: 12px;
-  margin-top: 18px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 14px;
 }
 
 .actionButton {
-  min-height: 64px;
-  border: 0;
-  border-radius: 20px;
-  background: linear-gradient(180deg, rgba(237, 244, 255, 0.88), rgba(255, 255, 255, 0.98));
+  min-height: 62px;
+  display: grid;
+  gap: 6px;
+  align-content: center;
+  border: 1px solid rgba(9, 29, 46, 0.08);
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(248, 250, 253, 0.96), rgba(255, 255, 255, 0.98));
   color: var(--cdd-text);
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 800;
   text-align: left;
-  padding: 0 18px;
+  padding: 12px 14px;
   transition:
     transform 0.18s ease,
-    box-shadow 0.18s ease;
+    box-shadow 0.18s ease,
+    border-color 0.18s ease;
+}
+
+.actionButtonTitle {
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.actionButtonText {
+  color: var(--cdd-text-soft);
+  font-size: 12px;
+  line-height: 1.6;
+  font-weight: 600;
 }
 
 .actionButton:hover {
   transform: translateY(-1px);
-  box-shadow: var(--cdd-shadow-soft);
+  border-color: rgba(255, 107, 0, 0.16);
+  box-shadow: 0 8px 16px rgba(9, 29, 46, 0.08);
 }
 
 @media (max-width: 960px) {
+  .toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .summaryGrid,
   .heroGrid,
   .contentGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .actionGrid {
     grid-template-columns: 1fr;
   }
 }
 
 @media (max-width: 640px) {
+  .toolbar,
   .heroCard,
   .taskPanel,
   .chartCard,
@@ -639,11 +804,17 @@ onMounted(() => {
     padding: 18px;
   }
 
+  .toolbarMeta,
+  .toolbarActions,
   .heroTitleRow,
   .heroActions,
   .sectionHeader {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .toolbarActions :global(button) {
+    width: 100%;
   }
 
   .heroActions :global(button),

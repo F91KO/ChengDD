@@ -2,39 +2,43 @@
   <WorkspaceLayout
     eyebrow="Orders"
     title="订单管理"
-    description="查看真实订单列表、详情、物流发货和状态日志，减少在列表页与详情页之间来回切换。"
+    description="查看订单列表、详情、物流发货和状态日志，减少在列表页与详情页之间来回切换。"
   >
     <section :class="$style.toolbar">
-      <div :class="$style.filters">
-        <button
-          v-for="filter in orderFilters"
-          :key="filter"
-          :class="[$style.filterChip, filter === activeFilter ? $style.filterChipActive : '']"
-          @click="activeFilter = filter"
-        >
-          {{ filter }}
-        </button>
+      <div :class="$style.toolbarMain">
+        <div :class="$style.filters">
+          <button
+            v-for="filter in orderFilters"
+            :key="filter"
+            :class="[$style.filterChip, filter === activeFilter ? $style.filterChipActive : '']"
+            @click="activeFilter = filter"
+          >
+            {{ filter }}
+          </button>
+        </div>
+        <div :class="$style.toolbarMeta">
+          <span>当前筛选：{{ activeFilter }}</span>
+          <span>当前页 {{ orders.length }} 单</span>
+          <span>总计 {{ orderPagination.total }} 单</span>
+        </div>
       </div>
       <div :class="$style.toolbarActions">
-        <UiButton variant="secondary" @click="handleExportOrders">批量导出</UiButton>
-        <UiButton @click="openDeliveryPanelFromList">快速发货</UiButton>
+        <UiButton variant="secondary" size="sm" :disabled="orderLoadState.loading || !orders.length" @click="handleExportOrders">批量导出</UiButton>
+        <UiButton :disabled="orderLoadState.loading || !hasShippableOrders" @click="openDeliveryPanelFromList">快速发货</UiButton>
       </div>
     </section>
 
     <UiStatePanel
-      :tone="orderLoadState.loading ? 'loading' : orderLoadState.errorMessage ? 'error' : 'info'"
-      :title="
-        orderLoadState.loading
-          ? '正在加载订单列表'
-          : orderLoadState.errorMessage
-            ? '订单接口调用失败'
-            : '当前使用真实订单接口'
-      "
-      :description="
-        orderLoadState.loading
-          ? '正在读取订单服务数据。'
-          : orderLoadState.message
-      "
+      v-if="orderLoadState.loading"
+      tone="loading"
+      title="正在加载订单列表"
+      description="正在读取订单数据。"
+    />
+    <UiStatePanel
+      v-else-if="orderLoadState.errorMessage"
+      tone="error"
+      title="订单列表加载失败"
+      :description="orderLoadState.message"
     />
 
     <UiStatePanel
@@ -45,6 +49,20 @@
     />
 
     <section :class="$style.tableWrap">
+      <UiCard elevated :class="$style.listSummaryCard">
+        <div>
+          <div :class="$style.detailEyebrow">订单列表</div>
+          <div :class="$style.listSummaryTitle">当前筛选下的订单</div>
+          <div :class="$style.listSummaryText">
+            {{ activeFilter }} · 第 {{ orderPagination.page }} 页 · 每页 {{ orderPagination.pageSize }} 单
+          </div>
+        </div>
+        <div :class="$style.listSummaryMeta">
+          <span>总计 {{ orderPagination.total }} 单</span>
+          <span>当前展示 {{ orders.length }} 单</span>
+        </div>
+      </UiCard>
+
       <UiCard elevated :class="$style.tableCard">
         <div :class="$style.tableHeader">
           <span>订单号</span>
@@ -98,10 +116,11 @@
           <div :class="[$style.cell, $style.actionCell]">
             <div :class="$style.cellLabel">操作</div>
             <div :class="$style.rowActions">
-              <UiButton variant="secondary" @click="handleViewDetail(order)">查看详情</UiButton>
+              <UiButton variant="secondary" size="sm" @click="handleViewDetail(order)">查看详情</UiButton>
               <UiButton
                 v-if="canShipOrder(order)"
                 variant="secondary"
+                size="sm"
                 @click="openDeliveryPanel(order)"
               >
                 {{ getShipActionLabel(order) }}
@@ -114,9 +133,9 @@
           v-if="!orderLoadState.loading && orders.length === 0"
           tone="empty"
           title="当前筛选下没有订单"
-          description="当前条件下接口返回为空，可以切换筛选后重新查询。"
+          description="可以切换筛选条件，或稍后刷新后再查看。"
         >
-          <UiButton variant="secondary" @click="activeFilter = '全部'">查看全部订单</UiButton>
+          <UiButton variant="secondary" size="sm" @click="activeFilter = '全部'">查看全部订单</UiButton>
         </UiStatePanel>
       </UiCard>
     </section>
@@ -137,99 +156,124 @@
             <div :class="$style.detailEyebrow">订单详情</div>
             <div :class="$style.detailTitle">{{ selectedOrderDetail.order_no }}</div>
           </div>
-          <UiButton variant="secondary" @click="closeDetailPanel">关闭面板</UiButton>
+          <div :class="$style.detailStatusGroup">
+            <UiTag :tone="orderStatusTone(selectedOrderDetail.order_status)">
+              {{ formatOrderStatus(selectedOrderDetail.order_status) }}
+            </UiTag>
+            <UiTag :tone="payStatusTone(selectedOrderDetail.pay_status)">
+              {{ formatPayStatus(selectedOrderDetail.pay_status) }}
+            </UiTag>
+            <UiTag :tone="deliveryStatusTone(selectedOrderDetail.delivery_status)">
+              {{ formatDeliveryStatus(selectedOrderDetail.delivery_status) }}
+            </UiTag>
+          </div>
+          <UiButton variant="secondary" size="sm" @click="closeDetailPanel">关闭面板</UiButton>
         </div>
 
-        <section :class="$style.overviewGrid">
-          <article :class="$style.summaryCard">
-            <div :class="$style.summaryLabel">订单状态</div>
-            <div :class="$style.summaryValue">{{ formatOrderStatus(selectedOrderDetail.order_status) }}</div>
-          </article>
-          <article :class="$style.summaryCard">
-            <div :class="$style.summaryLabel">支付状态</div>
-            <div :class="$style.summaryValue">{{ formatPayStatus(selectedOrderDetail.pay_status) }}</div>
-          </article>
-          <article :class="$style.summaryCard">
-            <div :class="$style.summaryLabel">物流状态</div>
-            <div :class="$style.summaryValue">{{ formatDeliveryStatus(selectedOrderDetail.delivery_status) }}</div>
-          </article>
-          <article :class="$style.summaryCard">
-            <div :class="$style.summaryLabel">下单时间</div>
-            <div :class="$style.summaryValue">{{ formatDateTime(selectedOrderDetail.created_at) }}</div>
-          </article>
-        </section>
+        <div :class="$style.detailTabs">
+          <button
+            v-for="tab in orderDetailTabs"
+            :key="tab.value"
+            type="button"
+            :class="[$style.detailTab, detailTab === tab.value ? $style.detailTabActive : '']"
+            @click="detailTab = tab.value"
+          >
+            {{ tab.label }}
+          </button>
+        </div>
 
-        <section :class="$style.infoGrid">
-          <article :class="$style.infoCard">
-            <div :class="$style.sectionTitle">收货信息</div>
-            <div :class="$style.infoList">
-              <div :class="$style.infoItem">
-                <div :class="$style.infoLabel">收货人</div>
-                <div :class="$style.infoValue">{{ selectedOrderDetail.receiver_name || '-' }}</div>
-              </div>
-              <div :class="$style.infoItem">
-                <div :class="$style.infoLabel">联系电话</div>
-                <div :class="$style.infoValue">{{ selectedOrderDetail.receiver_mobile || '-' }}</div>
-              </div>
-              <div :class="$style.infoItem">
-                <div :class="$style.infoLabel">收货地址</div>
-                <div :class="$style.infoValue">{{ selectedOrderDetail.receiver_address || '-' }}</div>
-              </div>
-              <div :class="$style.infoItem">
-                <div :class="$style.infoLabel">买家备注</div>
-                <div :class="$style.infoValue">{{ selectedOrderDetail.buyer_remark || '-' }}</div>
-              </div>
-            </div>
-          </article>
+        <template v-if="detailTab === 'overview'">
+          <section :class="$style.overviewGrid">
+            <article :class="$style.summaryCard">
+              <div :class="$style.summaryLabel">订单状态</div>
+              <div :class="$style.summaryValue">{{ formatOrderStatus(selectedOrderDetail.order_status) }}</div>
+            </article>
+            <article :class="$style.summaryCard">
+              <div :class="$style.summaryLabel">支付状态</div>
+              <div :class="$style.summaryValue">{{ formatPayStatus(selectedOrderDetail.pay_status) }}</div>
+            </article>
+            <article :class="$style.summaryCard">
+              <div :class="$style.summaryLabel">物流状态</div>
+              <div :class="$style.summaryValue">{{ formatDeliveryStatus(selectedOrderDetail.delivery_status) }}</div>
+            </article>
+            <article :class="$style.summaryCard">
+              <div :class="$style.summaryLabel">下单时间</div>
+              <div :class="$style.summaryValue">{{ formatDateTime(selectedOrderDetail.created_at) }}</div>
+            </article>
+          </section>
 
-          <article :class="$style.infoCard">
-            <div :class="$style.sectionTitle">金额信息</div>
-            <div :class="$style.infoList">
-              <div :class="$style.infoItem">
-                <div :class="$style.infoLabel">订单总额</div>
-                <div :class="$style.infoValue">{{ formatCurrency(selectedOrderDetail.total_amount) }}</div>
+          <section :class="$style.infoGrid">
+            <article :class="$style.infoCard">
+              <div :class="$style.sectionTitle">收货信息</div>
+              <div :class="$style.infoList">
+                <div :class="$style.infoItem">
+                  <div :class="$style.infoLabel">收货人</div>
+                  <div :class="$style.infoValue">{{ selectedOrderDetail.receiver_name || '-' }}</div>
+                </div>
+                <div :class="$style.infoItem">
+                  <div :class="$style.infoLabel">联系电话</div>
+                  <div :class="$style.infoValue">{{ selectedOrderDetail.receiver_mobile || '-' }}</div>
+                </div>
+                <div :class="$style.infoItem">
+                  <div :class="$style.infoLabel">收货地址</div>
+                  <div :class="$style.infoValue">{{ selectedOrderDetail.receiver_address || '-' }}</div>
+                </div>
+                <div :class="$style.infoItem">
+                  <div :class="$style.infoLabel">买家备注</div>
+                  <div :class="$style.infoValue">{{ selectedOrderDetail.buyer_remark || '-' }}</div>
+                </div>
               </div>
-              <div :class="$style.infoItem">
-                <div :class="$style.infoLabel">优惠金额</div>
-                <div :class="$style.infoValue">{{ formatCurrency(selectedOrderDetail.discount_amount) }}</div>
-              </div>
-              <div :class="$style.infoItem">
-                <div :class="$style.infoLabel">运费</div>
-                <div :class="$style.infoValue">{{ formatCurrency(selectedOrderDetail.delivery_fee_amount) }}</div>
-              </div>
-              <div :class="$style.infoItem">
-                <div :class="$style.infoLabel">实付金额</div>
-                <div :class="$style.infoValue">{{ formatCurrency(selectedOrderDetail.paid_amount) }}</div>
-              </div>
-            </div>
-          </article>
+            </article>
 
-          <article :class="$style.infoCard">
-            <div :class="$style.sectionTitle">物流信息</div>
-            <div :class="$style.infoList">
-              <div :class="$style.infoItem">
-                <div :class="$style.infoLabel">物流公司编码</div>
-                <div :class="$style.infoValue">{{ selectedOrderDetail.logistics_company_code || '-' }}</div>
+            <article :class="$style.infoCard">
+              <div :class="$style.sectionTitle">金额信息</div>
+              <div :class="$style.infoList">
+                <div :class="$style.infoItem">
+                  <div :class="$style.infoLabel">订单总额</div>
+                  <div :class="$style.infoValue">{{ formatCurrency(selectedOrderDetail.total_amount) }}</div>
+                </div>
+                <div :class="$style.infoItem">
+                  <div :class="$style.infoLabel">优惠金额</div>
+                  <div :class="$style.infoValue">{{ formatCurrency(selectedOrderDetail.discount_amount) }}</div>
+                </div>
+                <div :class="$style.infoItem">
+                  <div :class="$style.infoLabel">运费</div>
+                  <div :class="$style.infoValue">{{ formatCurrency(selectedOrderDetail.delivery_fee_amount) }}</div>
+                </div>
+                <div :class="$style.infoItem">
+                  <div :class="$style.infoLabel">实付金额</div>
+                  <div :class="$style.infoValue">{{ formatCurrency(selectedOrderDetail.paid_amount) }}</div>
+                </div>
               </div>
-              <div :class="$style.infoItem">
-                <div :class="$style.infoLabel">物流公司名称</div>
-                <div :class="$style.infoValue">{{ selectedOrderDetail.logistics_company_name || '-' }}</div>
-              </div>
-              <div :class="$style.infoItem">
-                <div :class="$style.infoLabel">物流单号</div>
-                <div :class="$style.infoValue">{{ selectedOrderDetail.tracking_no || '-' }}</div>
-              </div>
-              <div :class="$style.infoItem">
-                <div :class="$style.infoLabel">发货时间</div>
-                <div :class="$style.infoValue">{{ formatDateTime(selectedOrderDetail.shipped_at) }}</div>
-              </div>
-            </div>
-          </article>
-        </section>
+            </article>
 
-        <section :class="$style.sectionBlock">
+            <article :class="$style.infoCard">
+              <div :class="$style.sectionTitle">物流信息</div>
+              <div :class="$style.infoList">
+                <div :class="$style.infoItem">
+                  <div :class="$style.infoLabel">物流公司编码</div>
+                  <div :class="$style.infoValue">{{ selectedOrderDetail.logistics_company_code || '-' }}</div>
+                </div>
+                <div :class="$style.infoItem">
+                  <div :class="$style.infoLabel">物流公司名称</div>
+                  <div :class="$style.infoValue">{{ selectedOrderDetail.logistics_company_name || '-' }}</div>
+                </div>
+                <div :class="$style.infoItem">
+                  <div :class="$style.infoLabel">物流单号</div>
+                  <div :class="$style.infoValue">{{ selectedOrderDetail.tracking_no || '-' }}</div>
+                </div>
+                <div :class="$style.infoItem">
+                  <div :class="$style.infoLabel">发货时间</div>
+                  <div :class="$style.infoValue">{{ formatDateTime(selectedOrderDetail.shipped_at) }}</div>
+                </div>
+              </div>
+            </article>
+          </section>
+        </template>
+
+        <section v-else-if="detailTab === 'items'" :class="$style.sectionBlock">
           <div :class="$style.sectionTitle">商品明细</div>
-          <div :class="$style.listWrap">
+          <div v-if="selectedOrderDetail.items.length" :class="$style.listWrap">
             <article v-for="item in selectedOrderDetail.items" :key="item.id" :class="$style.itemRow">
               <div :class="$style.itemMain">
                 <div :class="$style.itemName">{{ item.product_name }}</div>
@@ -245,11 +289,17 @@
               </div>
             </article>
           </div>
+          <UiStatePanel
+            v-else
+            tone="empty"
+            title="当前订单没有商品明细"
+            description="可以先查看概览信息，或稍后刷新后再试。"
+          />
         </section>
 
-        <section :class="$style.sectionBlock">
+        <section v-else-if="detailTab === 'logs'" :class="$style.sectionBlock">
           <div :class="$style.sectionTitle">状态日志</div>
-          <div :class="$style.listWrap">
+          <div v-if="selectedOrderDetail.status_logs.length" :class="$style.listWrap">
             <article
               v-for="log in selectedOrderDetail.status_logs"
               :key="`${log.operate_type}-${log.created_at}`"
@@ -274,9 +324,15 @@
               </div>
             </article>
           </div>
+          <UiStatePanel
+            v-else
+            tone="empty"
+            title="当前订单没有状态日志"
+            description="可以先查看概览信息，或稍后刷新后再试。"
+          />
         </section>
 
-        <section v-if="deliveryTarget && deliveryAction" :class="$style.deliveryBlock">
+        <section v-else-if="deliveryTarget && deliveryAction" :class="$style.deliveryBlock">
           <div :class="$style.deliveryHead">
             <div>
               <div :class="$style.sectionTitle">发货操作</div>
@@ -303,23 +359,33 @@
             <UiInput
               v-model="shipForm.trackingNo"
               label="物流单号"
-              placeholder="请输入真实运单号"
+              placeholder="请输入运单号"
             />
           </div>
 
-          <textarea
-            v-model="shipForm.shipRemark"
-            :class="$style.textarea"
-            placeholder="请输入发货备注，例如打包批次、交接说明或特殊配送要求"
-          />
+          <label :class="$style.fieldBlock">
+            <span :class="$style.summaryLabel">发货备注</span>
+            <textarea
+              v-model="shipForm.shipRemark"
+              :class="$style.textarea"
+              placeholder="请输入发货备注，例如打包批次、交接说明或特殊配送要求"
+            />
+          </label>
 
-          <div :class="$style.toolbarActions">
-            <UiButton variant="secondary" @click="resetShipForm">清空信息</UiButton>
+          <div :class="$style.panelActions">
+            <UiButton variant="secondary" size="sm" @click="resetShipForm">清空信息</UiButton>
             <UiButton :disabled="submitting || !canSubmitShip" @click="submitDelivery">
               {{ submitting ? '正在提交...' : deliveryAction.buttonLabel }}
             </UiButton>
           </div>
         </section>
+
+        <UiStatePanel
+          v-else
+          tone="empty"
+          title="当前没有待处理发货"
+          description="该订单当前状态下无需发货处理，可切换到概览或日志查看详情。"
+        />
       </UiCard>
     </div>
   </WorkspaceLayout>
@@ -349,6 +415,7 @@ import type { OrderDetailResponseRaw } from '@/types/order';
 
 const authStore = useAuthStore();
 const activeFilter = ref('全部');
+const detailTab = ref<'overview' | 'items' | 'logs' | 'delivery'>('overview');
 const actionMessage = ref('');
 const actionTone = ref<'info' | 'error'>('info');
 const selectedOrderDetail = ref<OrderDetailResponseRaw | null>(null);
@@ -361,6 +428,12 @@ const shipForm = reactive({
   trackingNo: '',
   shipRemark: '',
 });
+const orderDetailTabs = [
+  { value: 'overview' as const, label: '订单概览' },
+  { value: 'items' as const, label: '商品明细' },
+  { value: 'logs' as const, label: '状态日志' },
+  { value: 'delivery' as const, label: '发货操作' },
+];
 
 type DeliveryAction = {
   buttonLabel: string;
@@ -432,6 +505,23 @@ function formatOrderStatus(status: string | null | undefined): string {
   return status || '-';
 }
 
+function orderStatusTone(status: string | null | undefined): 'default' | 'primary' | 'info' | 'success' | 'danger' {
+  const normalized = (status || '').toLowerCase();
+  if (normalized.includes('finished') || normalized.includes('complete')) {
+    return 'success';
+  }
+  if (normalized.includes('pending_ship') || normalized.includes('paid') || normalized.includes('preparing')) {
+    return 'primary';
+  }
+  if (normalized.includes('pending_receive') || normalized.includes('shipped')) {
+    return 'info';
+  }
+  if (normalized.includes('cancel')) {
+    return 'danger';
+  }
+  return 'default';
+}
+
 function formatPayStatus(status: string | null | undefined): string {
   const normalized = (status || '').toLowerCase();
   if (normalized === 'unpaid' || normalized.includes('unpaid')) {
@@ -455,6 +545,23 @@ function formatPayStatus(status: string | null | undefined): string {
   return status || '-';
 }
 
+function payStatusTone(status: string | null | undefined): 'default' | 'primary' | 'info' | 'success' | 'danger' {
+  const normalized = (status || '').toLowerCase();
+  if (normalized.includes('paid') || normalized.includes('success')) {
+    return 'success';
+  }
+  if (normalized.includes('paying')) {
+    return 'primary';
+  }
+  if (normalized.includes('refund')) {
+    return 'info';
+  }
+  if (normalized.includes('close') || normalized.includes('cancel')) {
+    return 'danger';
+  }
+  return 'default';
+}
+
 function formatDeliveryStatus(status: string | null | undefined): string {
   const normalized = (status || '').toLowerCase();
   if (normalized.includes('pending')) {
@@ -470,6 +577,17 @@ function formatDeliveryStatus(status: string | null | undefined): string {
     return '已完成';
   }
   return status || '-';
+}
+
+function deliveryStatusTone(status: string | null | undefined): 'default' | 'primary' | 'info' | 'success' | 'danger' {
+  const normalized = (status || '').toLowerCase();
+  if (normalized.includes('delivered') || normalized.includes('received') || normalized.includes('signed') || normalized.includes('finish') || normalized.includes('complete')) {
+    return 'success';
+  }
+  if (normalized.includes('ship') || normalized.includes('deliver')) {
+    return 'primary';
+  }
+  return 'default';
 }
 
 function formatOperateType(type: string | null | undefined): string {
@@ -522,6 +640,7 @@ const deliveryAction = computed(() => {
   }
   return getDeliveryAction(deliveryTarget.value);
 });
+const hasShippableOrders = computed(() => orders.some((item) => canShipOrder(item)));
 
 const canSubmitShip = computed(() => (
   shipForm.logisticsCompanyCode.trim().length > 0
@@ -561,6 +680,7 @@ async function handleViewDetail(order: OrderCard) {
   try {
     selectedOrderDetail.value = await loadOrderDetailOrThrow(order);
     deliveryTarget.value = null;
+    detailTab.value = 'overview';
     scrollDetailIntoView();
   } catch (error) {
     setActionMessage(error instanceof Error ? error.message : '查询订单详情失败。', 'error');
@@ -571,6 +691,7 @@ async function openDeliveryPanel(order: OrderCard) {
   try {
     selectedOrderDetail.value = await loadOrderDetailOrThrow(order);
     deliveryTarget.value = order;
+    detailTab.value = 'delivery';
     shipForm.logisticsCompanyCode = selectedOrderDetail.value?.logistics_company_code ?? '';
     shipForm.logisticsCompanyName = selectedOrderDetail.value?.logistics_company_name ?? '';
     shipForm.trackingNo = selectedOrderDetail.value?.tracking_no ?? '';
@@ -658,6 +779,7 @@ async function handleExportOrders() {
 function closeDetailPanel() {
   selectedOrderDetail.value = null;
   deliveryTarget.value = null;
+  detailTab.value = 'overview';
   resetShipForm();
 }
 
@@ -675,41 +797,97 @@ watch(activeFilter, () => {
   display: flex;
   justify-content: space-between;
   gap: 16px;
-  align-items: center;
+  align-items: flex-start;
+  padding: 18px;
+  border-radius: 20px;
+  border: 1px solid rgba(9, 29, 46, 0.08);
+  background: linear-gradient(180deg, #ffffff 0%, #f9fbff 100%);
+}
+
+.toolbarMain {
+  display: grid;
+  gap: 12px;
 }
 
 .filters {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 8px;
+  align-items: center;
 }
 
 .filterChip {
-  min-height: 42px;
-  padding: 0 16px;
-  border: 0;
-  border-radius: 999px;
+  min-height: 38px;
+  padding: 0 14px;
+  border: 1px solid rgba(9, 29, 46, 0.08);
+  border-radius: 14px;
   color: var(--cdd-text-soft);
-  background: rgba(255, 255, 255, 0.68);
-  box-shadow: inset 0 0 0 1px rgba(9, 29, 46, 0.06);
+  background: rgba(248, 250, 253, 0.96);
   font-size: 13px;
   font-weight: 800;
 }
 
 .filterChipActive {
-  color: #fff;
-  background: linear-gradient(135deg, var(--cdd-primary-deep), var(--cdd-primary));
+  color: #9c4304;
+  border-color: rgba(255, 107, 0, 0.22);
+  background: linear-gradient(135deg, rgba(255, 107, 0, 0.1), rgba(255, 249, 244, 0.98));
+  box-shadow: inset 0 0 0 1px rgba(255, 107, 0, 0.08);
 }
 
 .toolbarActions {
   display: flex;
-  gap: 12px;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.toolbarMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  color: var(--cdd-text-faint);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.listSummaryCard {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+  margin-bottom: 16px;
+  padding: 18px;
+}
+
+.listSummaryTitle {
+  margin-top: 8px;
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+}
+
+.listSummaryText,
+.listSummaryMeta {
+  margin-top: 10px;
+  color: var(--cdd-text-soft);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.listSummaryMeta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px 14px;
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .formGrid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px;
+  gap: 12px;
 }
 
 .tableWrap {
@@ -726,9 +904,9 @@ watch(activeFilter, () => {
 .row {
   display: grid;
   grid-template-columns: 1.3fr 0.7fr 1fr 0.8fr 0.8fr 1fr 1.2fr;
-  gap: 16px;
+  gap: 14px;
   align-items: start;
-  padding: 18px 22px;
+  padding: 14px 16px;
 }
 
 .tableHeader {
@@ -764,7 +942,7 @@ watch(activeFilter, () => {
 }
 
 .mainText {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 800;
 }
 
@@ -780,10 +958,10 @@ watch(activeFilter, () => {
 }
 
 .detailPanel {
-  margin-top: 18px;
-  padding: 24px;
+  margin-top: 16px;
+  padding: 18px;
   display: grid;
-  gap: 20px;
+  gap: 16px;
 }
 
 .detailHead {
@@ -791,6 +969,7 @@ watch(activeFilter, () => {
   justify-content: space-between;
   gap: 16px;
   align-items: center;
+  flex-wrap: wrap;
 }
 
 .detailEyebrow {
@@ -803,22 +982,54 @@ watch(activeFilter, () => {
 
 .detailTitle {
   margin-top: 8px;
-  font-size: 24px;
+  font-size: 22px;
   font-weight: 800;
   letter-spacing: -0.04em;
+}
+
+.detailStatusGroup {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.detailTabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.detailTab {
+  min-height: 38px;
+  padding: 0 14px;
+  border: 1px solid rgba(9, 29, 46, 0.08);
+  border-radius: 14px;
+  background: rgba(248, 250, 253, 0.96);
+  color: var(--cdd-text-soft);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.detailTabActive {
+  border-color: rgba(255, 107, 0, 0.22);
+  background: linear-gradient(135deg, rgba(255, 107, 0, 0.1), rgba(255, 249, 244, 0.98));
+  color: #9c4304;
+  box-shadow: inset 0 0 0 1px rgba(255, 107, 0, 0.08);
 }
 
 .overviewGrid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 14px;
+  gap: 12px;
 }
 
 .summaryCard,
 .infoCard,
 .deliveryBlock {
-  padding: 18px;
-  border-radius: 20px;
+  padding: 14px;
+  border-radius: 16px;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(246, 249, 255, 0.94));
   box-shadow: inset 0 0 0 1px rgba(9, 29, 46, 0.05);
 }
@@ -835,7 +1046,7 @@ watch(activeFilter, () => {
 
 .summaryValue {
   margin-top: 10px;
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 800;
   line-height: 1.4;
 }
@@ -843,13 +1054,13 @@ watch(activeFilter, () => {
 .infoGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
+  gap: 14px;
 }
 
 .infoList {
   display: grid;
-  gap: 14px;
-  margin-top: 16px;
+  gap: 10px;
+  margin-top: 12px;
 }
 
 .infoItem {
@@ -865,7 +1076,7 @@ watch(activeFilter, () => {
 
 .sectionBlock {
   display: grid;
-  gap: 14px;
+  gap: 12px;
 }
 
 .sectionTitle {
@@ -875,15 +1086,15 @@ watch(activeFilter, () => {
 
 .listWrap {
   display: grid;
-  gap: 12px;
+  gap: 10px;
 }
 
 .itemRow,
 .logRow {
   display: grid;
   gap: 14px;
-  padding: 16px 18px;
-  border-radius: 18px;
+  padding: 12px 14px;
+  border-radius: 16px;
   background: rgba(237, 244, 255, 0.72);
   box-shadow: inset 0 0 0 1px rgba(9, 29, 46, 0.04);
 }
@@ -935,7 +1146,7 @@ watch(activeFilter, () => {
 
 .deliveryBlock {
   display: grid;
-  gap: 14px;
+  gap: 12px;
   background:
     radial-gradient(circle at top right, rgba(255, 107, 0, 0.1), transparent 30%),
     linear-gradient(180deg, rgba(255, 250, 245, 0.98), rgba(255, 255, 255, 0.94));
@@ -954,14 +1165,26 @@ watch(activeFilter, () => {
   line-height: 1.7;
 }
 
+.fieldBlock {
+  display: grid;
+  gap: 8px;
+}
+
+.panelActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .textarea {
-  min-height: 104px;
+  min-height: 96px;
   width: 100%;
-  padding: 14px 16px;
+  padding: 12px 14px;
   border: 0;
-  border-radius: 18px;
+  border-radius: 16px;
   background: rgba(237, 244, 255, 0.92);
   color: var(--cdd-text);
+  font: inherit;
   resize: vertical;
 }
 
@@ -973,6 +1196,10 @@ watch(activeFilter, () => {
 
   .toolbarActions {
     justify-content: flex-end;
+  }
+
+  .listSummaryCard {
+    flex-direction: column;
   }
 
   .overviewGrid {
@@ -1010,6 +1237,9 @@ watch(activeFilter, () => {
 
 @media (max-width: 640px) {
   .toolbarActions,
+  .detailStatusGroup,
+  .detailTabs,
+  .panelActions,
   .rowActions,
   .detailHead,
   .deliveryHead {
@@ -1018,13 +1248,16 @@ watch(activeFilter, () => {
   }
 
   .toolbarActions :global(button),
+  .panelActions :global(button),
   .rowActions :global(button),
   .toolbarActions,
+  .panelActions,
   .rowActions {
     width: 100%;
   }
 
   .toolbarActions :global(button),
+  .panelActions :global(button),
   .rowActions :global(button) {
     width: 100%;
   }

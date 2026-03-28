@@ -1,4 +1,5 @@
 import { reactive } from 'vue';
+import { buildCategoryOptions, findHierarchyOption } from '@/modules/categories/tree';
 import { fetchAllCategoryList, fetchProductList } from '@/services/product';
 import { useAuthStore } from '@/stores/auth';
 import type { ProductCategoryResponseRaw, ProductSummaryResponseRaw } from '@/types/product';
@@ -9,8 +10,12 @@ export type ProductCard = {
   storeId: number;
   categoryId: number;
   categoryName: string;
+  categoryPath: string;
   name: string;
+  subtitle: string;
+  productCode: string;
   sku: string;
+  skuPreview: string;
   price: string;
   sales: string;
   inventory: string;
@@ -50,7 +55,7 @@ export const productLoadState = reactive({
   loading: false,
   loaded: false,
   errorMessage: '',
-  message: '等待加载真实商品数据。',
+  message: '等待加载商品数据。',
 });
 
 let loadPromise: Promise<void> | null = null;
@@ -120,10 +125,28 @@ function buildSalesLabel(item: ProductSummaryResponseRaw): string {
   return '0 件';
 }
 
+function buildSkuPreview(item: ProductSummaryResponseRaw): string {
+  if (!item.sku_summaries?.length) {
+    return '暂无 SKU 规格';
+  }
+  const previews = item.sku_summaries
+    .map((sku) => sku.sku_name?.trim())
+    .filter((skuName): skuName is string => Boolean(skuName));
+  if (!previews.length) {
+    return `共 ${item.sku_count} 个 SKU`;
+  }
+  if (previews.length <= 3) {
+    return previews.join(' / ');
+  }
+  return `${previews.slice(0, 3).join(' / ')} 等 ${previews.length} 个规格`;
+}
+
 function mapRemoteProduct(
   item: ProductSummaryResponseRaw,
   categories: Map<number, ProductCategoryResponseRaw>,
+  categoryOptions: ReturnType<typeof buildCategoryOptions>,
 ): ProductCard {
+  const productCode = item.product_code || `SPU-${item.id}`;
   const mappedStatus = statusToCard(item.status);
   return {
     id: item.id,
@@ -131,8 +154,14 @@ function mapRemoteProduct(
     storeId: item.store_id,
     categoryId: item.category_id,
     categoryName: categories.get(item.category_id)?.category_name ?? '分类缺失',
+    categoryPath: findHierarchyOption(categoryOptions, String(item.category_id))?.pathLabel
+      ?? categories.get(item.category_id)?.category_name
+      ?? '分类缺失',
     name: item.product_name,
-    sku: item.product_code || `SPU-${item.id}`,
+    subtitle: item.product_sub_title?.trim() ?? '',
+    productCode,
+    sku: productCode,
+    skuPreview: buildSkuPreview(item),
     price: buildPriceLabel(item),
     sales: buildSalesLabel(item),
     inventory: buildInventoryLabel(item),
@@ -189,7 +218,7 @@ export async function loadProducts(force = false, status?: string, keyword?: str
     if (!merchantId || !storeId) {
       replaceProductData([], buildStats(0, 0, 0), normalizedPage, normalizedPageSize, 0);
       productLoadState.loaded = true;
-      productLoadState.message = '当前账号缺少真实商户上下文，无法加载商品数据。';
+      productLoadState.message = '当前账号缺少商户上下文，无法加载商品数据。';
       productLoadState.errorMessage = productLoadState.message;
       productLoadState.loading = false;
       return;
@@ -225,9 +254,10 @@ export async function loadProducts(force = false, status?: string, keyword?: str
         : initialPage;
 
       const categoryMap = new Map(allCategories.map((item) => [item.id, item]));
+      const categoryOptions = buildCategoryOptions(allCategories);
 
       replaceProductData(
-        remotePage.list.map((item) => mapRemoteProduct(item, categoryMap)),
+        remotePage.list.map((item) => mapRemoteProduct(item, categoryMap, categoryOptions)),
         buildStats(onShelfPage.total, draftPage.total, offShelfPage.total),
         remotePage.page,
         remotePage.page_size,
@@ -237,15 +267,15 @@ export async function loadProducts(force = false, status?: string, keyword?: str
       lastRequestKey = requestKey;
       productLoadState.message = normalizedKeyword
         ? remotePage.total
-          ? `已通过后端搜索“${normalizedKeyword}”，共返回 ${remotePage.total} 条商品。`
-          : `后端搜索“${normalizedKeyword}”未返回商品结果。`
+          ? `已搜索“${normalizedKeyword}”，共返回 ${remotePage.total} 条商品。`
+          : `搜索“${normalizedKeyword}”未返回商品结果。`
         : remotePage.total
-          ? `已加载真实商品摘要、SKU 价格与库存信息，共 ${remotePage.total} 条。`
+          ? `已加载商品摘要、SKU 价格与库存信息，共 ${remotePage.total} 条。`
           : '当前商家暂无商品数据。';
     } catch (error) {
       replaceProductData([], buildStats(0, 0, 0), normalizedPage, normalizedPageSize, 0);
       productLoadState.loaded = true;
-      productLoadState.errorMessage = error instanceof Error ? error.message : '商品接口调用失败。';
+      productLoadState.errorMessage = error instanceof Error ? error.message : '商品数据加载失败。';
       productLoadState.message = productLoadState.errorMessage;
     } finally {
       productLoadState.loading = false;

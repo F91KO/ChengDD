@@ -25,152 +25,89 @@
       </UiCard>
     </section>
 
-    <section :class="$style.grid">
-      <div :class="$style.mainColumn">
-        <UiCard elevated :class="$style.panel">
-          <div :class="$style.panelHead">
-            <div>
-              <div :class="$style.eyebrowText">模板初始化</div>
-              <h3 :class="$style.titleText">选择分类模板并初始化分类树</h3>
-            </div>
-            <div :class="$style.panelActions">
-              <UiButton variant="secondary" @click="loadPage">刷新数据</UiButton>
-              <UiButton variant="secondary" @click="openCreateCategory(0)">
-                新增一级分类
-              </UiButton>
-              <UiButton :disabled="submitting === 'init' || !selectedTemplate" @click="handleInitialize">
-                {{ submitting === 'init' ? '正在初始化...' : '使用模板初始化' }}
-              </UiButton>
-            </div>
-          </div>
+    <UiCard elevated :class="$style.setupPanel">
+      <div :class="$style.panelHead">
+        <div>
+          <div :class="$style.eyebrowText">模板初始化</div>
+          <h3 :class="$style.titleText">先选模板，再初始化基础分类树</h3>
+        </div>
+        <div :class="$style.panelActions">
+          <UiButton :disabled="submitting === 'init' || !selectedTemplate" @click="handleInitialize">
+            {{ submitting === 'init' ? '正在初始化...' : '使用模板初始化' }}
+          </UiButton>
+        </div>
+      </div>
 
-          <div :class="$style.templateGrid">
-            <label :class="$style.fieldBlock">
-              <span :class="$style.fieldLabel">分类模板</span>
-              <select v-model="selectedTemplateValue" :class="$style.select">
-                <option value="">请选择模板</option>
-                <option v-for="template in templates" :key="template.id" :value="String(template.id)">
-                  {{ template.template_name }} · {{ template.template_version }}
-                </option>
-              </select>
-            </label>
-            <div v-if="selectedTemplate" :class="$style.templateMeta">
-              <UiTag :tone="templateTone(selectedTemplate.status)">{{ templateStatusLabel(selectedTemplate.status) }}</UiTag>
-              <span>{{ industryLabel(selectedTemplate.industry_code) }}</span>
-              <span>最大层级 {{ selectedTemplate.max_level }}</span>
-              <span>节点 {{ selectedTemplate.categories.length }} 个</span>
-            </div>
+      <div :class="$style.setupGrid">
+        <div :class="$style.setupMain">
+          <UiHierarchySelect
+            v-model="selectedTemplateValue"
+            label="分类模板"
+            :options="templateOptions"
+            placeholder="请选择模板"
+            search-placeholder="搜索模板名称、行业或版本"
+            empty-text="请先选择分类模板"
+          />
+          <div v-if="selectedTemplate" :class="$style.templateMeta">
+            <UiTag :tone="templateTone(selectedTemplate.status)">{{ templateStatusLabel(selectedTemplate.status) }}</UiTag>
+            <span>{{ industryLabel(selectedTemplate.industry_code) }}</span>
+            <span>最大层级 {{ selectedTemplate.max_level }}</span>
+            <span>节点 {{ selectedTemplate.categories.length }} 个</span>
           </div>
-
           <p v-if="selectedTemplate?.template_desc" :class="$style.templateDesc">
             {{ selectedTemplate.template_desc }}
           </p>
-
-          <div v-if="selectedTemplate" :class="$style.previewList">
-            <div
-              v-for="node in selectedTemplateRows"
-              :key="`${selectedTemplate.id}-${node.template_category_code}`"
-              :class="$style.previewRow"
-            >
-              <span :style="{ paddingInlineStart: `${node.depth * 22}px` }" :class="$style.previewName">
-                {{ node.category_name }}
-              </span>
-              <UiTag :tone="node.is_visible ? 'success' : 'default'">
-                {{ node.is_visible ? '前台展示' : '前台隐藏' }}
-              </UiTag>
-            </div>
-          </div>
-        </UiCard>
-
-        <UiCard elevated :class="$style.panel">
-          <div :class="$style.panelHead">
-            <div>
-              <div :class="$style.eyebrowText">分类列表</div>
-              <h3 :class="$style.titleText">当前商家分类树</h3>
-            </div>
-            <div :class="$style.treeMeta">
-              <span>共 {{ categoryPagination.total }} 项</span>
-              <span>当前页 {{ categoryRows.length }} 项</span>
-              <span>{{ searchKeyword ? '搜索结果' : '当前页结果' }} {{ filteredCategoryRows.length }} 项</span>
-            </div>
-          </div>
-
           <UiStatePanel
-            v-if="!categoryPagination.total"
+            v-if="!selectedTemplate"
             tone="empty"
-            title="当前尚未初始化分类"
-            description="可先选择平台分类模板，一键生成基础分类结构，再继续新增和调整。"
+            title="当前没有可用模板"
+            description="平台后台还没有可初始化的分类模板，请先维护模板后再初始化商家分类树。"
           />
+        </div>
 
-          <template v-else>
-            <div :class="$style.searchPanel">
-              <span :class="$style.searchIcon">⌕</span>
-              <input
-                v-model.trim="searchKeyword"
-                :class="$style.searchInput"
-                type="search"
-                placeholder="搜索分类名称..."
-              />
-            </div>
-
-            <UiStatePanel
-              v-if="searchKeyword && !filteredCategoryRows.length"
-              tone="empty"
-              title="未匹配到分类"
-              description="可尝试其他关键词，或先新增分类。"
-            />
-
-            <div v-else :class="$style.categoryList">
-              <div
-                v-for="row in pagedCategoryRows"
-                :key="row.id"
-                :class="[
-                  $style.categoryRow,
-                  selectedCategory?.id === row.id ? $style.categoryRowActive : '',
-                  isCategoryMatched(row) ? $style.categoryRowMatched : '',
-                ]"
-                @click="openEditCategory(row.id)"
-              >
-                <div :class="$style.categoryMain" :style="{ paddingInlineStart: `${row.depth * 24}px` }">
-                  <div :class="$style.categoryNameLine">
-                    <span :class="$style.foldIcon">{{ row.depth > 0 ? '└' : '▸' }}</span>
-                    <span :class="$style.categoryName">{{ row.category_name }}</span>
-                    <UiTag :tone="row.template_id ? 'primary' : 'default'">
-                      {{ row.template_id ? '模板同步' : '商家新增' }}
-                    </UiTag>
-                    <UiTag :tone="row.is_enabled ? 'success' : 'danger'">
-                      {{ row.is_enabled ? '已启用' : '已停用' }}
-                    </UiTag>
-                    <UiTag :tone="row.is_visible ? 'info' : 'default'">
-                      {{ row.is_visible ? '前台展示' : '前台隐藏' }}
-                    </UiTag>
-                    <span v-if="selectedCategory?.id === row.id" :class="$style.editingBadge">正在编辑</span>
-                  </div>
-                  <div :class="$style.categoryMeta">
-                    <span>层级 {{ row.category_level }}</span>
-                    <span>排序 {{ row.sort_order }}</span>
-                    <span>父级 {{ row.parentName || '顶级分类' }}</span>
-                  </div>
-                </div>
-                <div :class="$style.inlineRowActions">
-                  <UiButton variant="secondary" @click.stop="openCreateCategory(row.id)">新增子分类</UiButton>
-                  <UiButton variant="secondary" @click.stop="openEditCategory(row.id)">编辑</UiButton>
-                </div>
-              </div>
-            </div>
-
-            <UiPagination
-              v-if="categoryPagination.total"
-              :page="categoryPagination.page"
-              :page-size="categoryPagination.pageSize"
-              :total="categoryPagination.total"
-              :disabled="loading"
-              @update:page="handleCategoryPageChange"
-              @update:page-size="handleCategoryPageSizeChange"
-            />
-          </template>
-        </UiCard>
+        <div v-if="selectedTemplate" :class="$style.previewPanel">
+          <CategoryTemplateTreePreview
+            :rows="selectedTemplateRows"
+            title="模板预览"
+            :summary="`共 ${selectedTemplateRows.length} 个节点`"
+            compact
+            :show-enabled="false"
+            visible-label="前台展示"
+            hidden-label="前台隐藏"
+          />
+        </div>
+        <UiStatePanel
+          v-else
+          tone="empty"
+          title="模板预览不可用"
+          description="选择模板后，这里会显示完整节点结构和层级预览。"
+        />
       </div>
+    </UiCard>
+
+    <section :class="$style.grid">
+      <ProductCategoryWorkbench
+        :rows="pagedCategoryRows"
+        :selected-category-id="selectedCategory?.id ?? null"
+        :selected-category-name="selectedCategory?.category_name ?? ''"
+        :search-keyword="searchKeyword"
+        :form-mode="formMode"
+        :total-categories="categories.length"
+        :visible-count="categoryRows.length"
+        :current-page-count="pagedCategoryRows.length"
+        :page="categoryPagination.page"
+        :page-size="categoryPagination.pageSize"
+        :total="categoryPageTotal"
+        :loading="loading"
+        @update:search-keyword="searchKeyword = $event"
+        @update:page="handleCategoryPageChange"
+        @update:page-size="handleCategoryPageSizeChange"
+        @refresh="loadPage"
+        @create-root="openCreateCategory(0)"
+        @create-child="openCreateCategory"
+        @edit="openEditCategory"
+        @toggle="toggleCategoryRow"
+      />
 
       <UiCard elevated :class="$style.sidePanel">
         <div :class="$style.panelHead">
@@ -182,55 +119,92 @@
           </div>
         </div>
 
-        <div v-if="selectedCategory && formMode === 'edit'" :class="$style.detailGrid">
-          <div>
-            <div :class="$style.detailLabel">分类 ID</div>
-            <div :class="$style.detailValue">{{ selectedCategory.id }}</div>
+        <div :class="$style.editorHint">
+          {{ formMode === 'edit' ? '点击左侧分类即可快速切换编辑对象。' : '从左侧列表选择父级，或直接创建一级分类。' }}
+        </div>
+
+        <UiStatePanel
+          v-if="formMode === 'edit' && !selectedCategory"
+          tone="empty"
+          title="当前没有选中分类"
+          description="请先在左侧列表中选择一个分类，再查看并编辑分类详情。"
+        />
+
+        <UiStatePanel
+          v-if="!categories.length && formMode === 'create'"
+          tone="empty"
+          title="当前商家还没有分类"
+          description="可以先使用模板初始化，也可以直接创建一级分类作为根节点。"
+        />
+
+        <div v-if="selectedCategory && formMode === 'edit'" :class="$style.formSection">
+          <div :class="$style.sectionHeader">
+            <div :class="$style.sectionTitle">当前分类信息</div>
           </div>
-          <div>
-            <div :class="$style.detailLabel">来源</div>
-            <div :class="$style.detailValue">{{ selectedCategory.template_id ? '模板同步' : '商家新增' }}</div>
-          </div>
-          <div>
-            <div :class="$style.detailLabel">父级分类</div>
-            <div :class="$style.detailValue">{{ parentCategoryName(selectedCategory.parent_id) }}</div>
-          </div>
-          <div>
-            <div :class="$style.detailLabel">层级</div>
-            <div :class="$style.detailValue">{{ selectedCategory.category_level }}</div>
+          <div :class="$style.detailGrid">
+            <div>
+              <div :class="$style.detailLabel">分类 ID</div>
+              <div :class="$style.detailValue">{{ selectedCategory.id }}</div>
+            </div>
+            <div>
+              <div :class="$style.detailLabel">来源</div>
+              <div :class="$style.detailValue">{{ selectedCategory.template_id ? '模板同步' : '商家新增' }}</div>
+            </div>
+            <div>
+              <div :class="$style.detailLabel">父级分类</div>
+              <div :class="$style.detailValue">{{ parentCategoryName(selectedCategory.parent_id) }}</div>
+            </div>
+            <div>
+              <div :class="$style.detailLabel">层级</div>
+              <div :class="$style.detailValue">{{ selectedCategory.category_level }}</div>
+            </div>
+            <div>
+              <div :class="$style.detailLabel">完整路径</div>
+              <div :class="$style.detailValue">{{ selectedCategoryPathLabel }}</div>
+            </div>
           </div>
         </div>
 
-        <div :class="$style.formGrid">
-          <label :class="$style.fieldBlock">
-            <span :class="$style.fieldLabel">父级分类</span>
-            <select v-model="form.parentId" :class="$style.select" :disabled="formMode === 'edit'">
-              <option value="0">顶级分类</option>
-              <option v-for="item in parentOptions" :key="item.id" :value="String(item.id)">
-                {{ item.category_name }}
-              </option>
-            </select>
-          </label>
-          <UiInput v-model="form.categoryName" label="分类名称" placeholder="请输入分类名称" />
-          <UiInput v-model="form.sortOrder" label="排序值" placeholder="例如：10" />
+        <div :class="$style.formSection">
+          <div :class="$style.sectionHeader">
+            <div :class="$style.sectionTitle">基础信息</div>
+          </div>
+          <div :class="$style.formGrid">
+            <UiHierarchySelect
+              v-model="form.parentId"
+              label="父级分类"
+              :options="parentOptions"
+              placeholder="请选择父级分类"
+              search-placeholder="搜索父级分类名称或路径"
+              empty-text="尚未选择父级分类"
+              :disabled="formMode === 'edit'"
+            />
+            <UiInput v-model="form.categoryName" label="分类名称" placeholder="请输入分类名称" />
+            <UiInput v-model="form.sortOrder" label="排序值" placeholder="例如：10" />
+          </div>
         </div>
 
-        <div :class="$style.switchList">
-          <label :class="$style.switchItem">
-            <input v-model="form.enabled" type="checkbox" />
-            <span>启用分类</span>
-          </label>
-          <label :class="$style.switchItem">
-            <input v-model="form.visible" type="checkbox" />
-            <span>前台展示</span>
-          </label>
+        <div :class="$style.formSection">
+          <div :class="$style.sectionHeader">
+            <div :class="$style.sectionTitle">展示与状态</div>
+          </div>
+          <div :class="$style.switchList">
+            <label :class="$style.switchItem">
+              <input v-model="form.enabled" type="checkbox" />
+              <span>启用分类</span>
+            </label>
+            <label :class="$style.switchItem">
+              <input v-model="form.visible" type="checkbox" />
+              <span>前台展示</span>
+            </label>
+          </div>
         </div>
 
-        <div :class="$style.panelActions">
-          <UiButton variant="secondary" @click="resetForm">
+        <div :class="$style.actionFooter">
+          <UiButton variant="secondary" size="sm" @click="resetForm">
             重置表单
           </UiButton>
-          <UiButton :disabled="Boolean(submitting)" @click="handleSubmit">
+          <UiButton :disabled="Boolean(submitting) || !canSubmitForm" @click="handleSubmit">
             {{ submitting === 'save' ? '正在保存...' : formMode === 'edit' ? '保存分类' : '创建分类' }}
           </UiButton>
         </div>
@@ -240,18 +214,20 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
+import { computed, onMounted, reactive, ref, watch } from 'vue';
+import CategoryTemplateTreePreview from '@/components/category/CategoryTemplateTreePreview.vue';
+import ProductCategoryWorkbench from '@/components/category/ProductCategoryWorkbench.vue';
 import UiButton from '@/components/base/UiButton.vue';
 import UiCard from '@/components/base/UiCard.vue';
+import UiHierarchySelect from '@/components/base/UiHierarchySelect.vue';
 import UiInput from '@/components/base/UiInput.vue';
-import UiPagination from '@/components/base/UiPagination.vue';
 import UiStatePanel from '@/components/base/UiStatePanel.vue';
 import UiTag from '@/components/base/UiTag.vue';
 import WorkspaceLayout from '@/components/layout/WorkspaceLayout.vue';
+import { buildCategoryOptions, findHierarchyOption } from '@/modules/categories/tree';
 import {
   createCategory,
   fetchAllCategoryList,
-  fetchCategoryList,
   fetchCategoryTemplateList,
   initializeCategoryTree,
   updateCategory,
@@ -265,7 +241,14 @@ import type {
 
 type SubmitMode = '' | 'init' | 'save';
 type FormMode = 'create' | 'edit';
-type CategoryRowView = ProductCategoryResponseRaw & { depth: number; parentName: string };
+type CategoryRowView = ProductCategoryResponseRaw & {
+  depth: number;
+  parentName: string;
+  pathLabel: string;
+  hasChildren: boolean;
+  isExpanded: boolean;
+  isMatched: boolean;
+};
 
 const authStore = useAuthStore();
 
@@ -275,12 +258,11 @@ const actionMessage = ref('');
 const actionTone = ref<'info' | 'error'>('info');
 const templates = ref<ProductCategoryTemplateResponseRaw[]>([]);
 const categories = ref<ProductCategoryResponseRaw[]>([]);
-const currentPageCategories = ref<ProductCategoryResponseRaw[]>([]);
 const selectedCategoryId = ref<number | null>(null);
 const selectedTemplateValue = ref('');
 const formMode = ref<FormMode>('create');
 const searchKeyword = ref('');
-let searchTimer: ReturnType<typeof setTimeout> | null = null;
+const expandedCategoryIds = ref<Set<number>>(new Set());
 const categoryPagination = reactive({
   page: 1,
   pageSize: 20,
@@ -313,6 +295,10 @@ const selectedCategory = computed(() =>
 const selectedTemplate = computed(() =>
   templates.value.find((item) => item.id === Number(selectedTemplateValue.value)) ?? null,
 );
+const canSubmitForm = computed(() => (
+  form.categoryName.trim().length > 0
+  && form.sortOrder.trim().length > 0
+));
 
 const stats = computed(() => [
   { label: '分类总数', value: String(categories.value.length) },
@@ -321,25 +307,159 @@ const stats = computed(() => [
   { label: '模板同步', value: String(categories.value.filter((item) => item.template_id).length) },
 ]);
 
-const parentOptions = computed(() =>
-  categories.value.filter((item) => item.category_level < 3).sort(sortCategories),
-);
+const allCategoryOptions = computed(() => buildCategoryOptions(categories.value));
 
-const categoryRows = computed<CategoryRowView[]>(() =>
-  currentPageCategories.value.map((item) => ({
-    ...item,
-    depth: Math.max(0, item.category_level - 1),
-    parentName: parentCategoryName(item.parent_id),
+const parentOptions = computed(() => [
+  {
+    value: '0',
+    id: 0,
+    parentId: 0,
+    depth: 0,
+    label: '顶级分类',
+    pathLabel: '顶级分类',
+    searchText: '顶级分类 顶层 根 0',
+  },
+  ...buildCategoryOptions(categories.value, (item) => item.category_level < 3),
+]);
+
+const templateOptions = computed(() =>
+  templates.value.map((template) => ({
+    value: String(template.id),
+    label: `${template.template_name} · ${template.template_version}`,
+    pathLabel: `${template.template_name} / ${industryLabel(template.industry_code)} / ${template.template_version}`,
+    searchText: [
+      template.template_name,
+      template.template_version,
+      template.industry_code,
+      industryLabel(template.industry_code),
+      template.template_desc ?? '',
+    ]
+      .join(' ')
+      .toLowerCase(),
   })),
 );
 
-const filteredCategoryRows = computed(() => {
-  return categoryRows.value;
+const categoryChildrenMap = computed(() => {
+  const map = new Map<number, ProductCategoryResponseRaw[]>();
+  categories.value.forEach((item) => {
+    const current = map.get(item.parent_id) ?? [];
+    current.push(item);
+    map.set(item.parent_id, current);
+  });
+  map.forEach((items) => items.sort(sortCategories));
+  return map;
 });
 
-const pagedCategoryRows = computed(() => filteredCategoryRows.value);
+const matchedCategoryIds = computed(() => {
+  const keyword = searchKeyword.value.trim().toLowerCase();
+  if (!keyword) {
+    return new Set<number>();
+  }
+  return new Set(
+    categories.value
+      .filter((item) => {
+        const pathLabel = findHierarchyOption(allCategoryOptions.value, String(item.id))?.pathLabel ?? item.category_name;
+        return `${item.category_name} ${pathLabel}`.toLowerCase().includes(keyword);
+      })
+      .map((item) => item.id),
+  );
+});
 
-const selectedTemplateRows = computed(() => flattenTemplateNodes(selectedTemplate.value?.categories ?? []));
+const searchVisibleIds = computed(() => {
+  if (!searchKeyword.value.trim()) {
+    return null;
+  }
+  const visible = new Set<number>();
+  const categoryMap = new Map(categories.value.map((item) => [item.id, item]));
+  matchedCategoryIds.value.forEach((id) => {
+    let current = categoryMap.get(id) ?? null;
+    while (current) {
+      if (visible.has(current.id)) {
+        break;
+      }
+      visible.add(current.id);
+      current = current.parent_id ? (categoryMap.get(current.parent_id) ?? null) : null;
+    }
+  });
+  return visible;
+});
+
+function buildVisibleCategoryRows(parentId: number, depth: number, rows: CategoryRowView[]) {
+  const children = categoryChildrenMap.value.get(parentId) ?? [];
+  children.forEach((item) => {
+    const pathLabel = findHierarchyOption(allCategoryOptions.value, String(item.id))?.pathLabel ?? item.category_name;
+    const hasChildren = (categoryChildrenMap.value.get(item.id)?.length ?? 0) > 0;
+    const isExpanded = expandedCategoryIds.value.has(item.id);
+    const visibleIdSet = searchVisibleIds.value;
+    const shouldShow = !visibleIdSet || visibleIdSet.has(item.id);
+    if (shouldShow) {
+      rows.push({
+        ...item,
+        depth,
+        parentName: parentCategoryName(item.parent_id),
+        pathLabel,
+        hasChildren,
+        isExpanded,
+        isMatched: isCategoryMatchedByPath(pathLabel),
+      });
+    }
+    if (hasChildren && (searchKeyword.value.trim() ? hasVisibleDescendant(item.id, searchVisibleIds.value) : isExpanded)) {
+      buildVisibleCategoryRows(item.id, depth + 1, rows);
+    }
+  });
+}
+
+const categoryRows = computed<CategoryRowView[]>(() => {
+  const rows: CategoryRowView[] = [];
+  buildVisibleCategoryRows(0, 0, rows);
+  return rows;
+});
+
+const filteredCategoryRows = computed(() => categoryRows.value);
+const categoryRootSegments = computed<CategoryRowView[][]>(() => {
+  const segments: CategoryRowView[][] = [];
+  let current: CategoryRowView[] = [];
+
+  filteredCategoryRows.value.forEach((row) => {
+    if (row.depth === 0 && current.length) {
+      segments.push(current);
+      current = [row];
+      return;
+    }
+    current.push(row);
+  });
+
+  if (current.length) {
+    segments.push(current);
+  }
+
+  return segments;
+});
+const categoryPageTotal = computed(() => categoryRootSegments.value.length);
+
+const pagedCategoryRows = computed(() => {
+  const page = Math.max(1, categoryPagination.page);
+  const pageSize = Math.max(1, categoryPagination.pageSize);
+  const start = (page - 1) * pageSize;
+  return categoryRootSegments.value
+    .slice(start, start + pageSize)
+    .flat();
+});
+
+const selectedTemplateRows = computed(() =>
+  flattenTemplateNodes(selectedTemplate.value?.categories ?? []).map((node) => ({
+    ...node,
+    key: `${selectedTemplate.value?.id ?? 'template'}-${node.template_category_code}`,
+  })),
+);
+
+const selectedCategoryPathLabel = computed(() => {
+  if (!selectedCategory.value) {
+    return '未选择分类';
+  }
+  return findHierarchyOption(allCategoryOptions.value, String(selectedCategory.value.id))?.pathLabel
+    ?? selectedCategory.value.category_name;
+});
 
 function sortCategories(left: ProductCategoryResponseRaw, right: ProductCategoryResponseRaw) {
   if (left.sort_order !== right.sort_order) {
@@ -348,10 +468,14 @@ function sortCategories(left: ProductCategoryResponseRaw, right: ProductCategory
   return left.id - right.id;
 }
 
+function normalizeTemplateParentCode(parentCode: string | null | undefined): string {
+  return parentCode?.trim() ? parentCode.trim() : 'ROOT';
+}
+
 function flattenTemplateNodes(nodes: ProductCategoryTemplateNodeResponseRaw[]) {
   const byParent = new Map<string, ProductCategoryTemplateNodeResponseRaw[]>();
   nodes.forEach((item) => {
-    const key = item.parent_template_category_code ?? 'ROOT';
+    const key = normalizeTemplateParentCode(item.parent_template_category_code);
     const current = byParent.get(key) ?? [];
     current.push(item);
     byParent.set(key, current);
@@ -359,14 +483,26 @@ function flattenTemplateNodes(nodes: ProductCategoryTemplateNodeResponseRaw[]) {
   byParent.forEach((items) => items.sort((left, right) => left.sort_order - right.sort_order || left.id - right.id));
 
   const rows: Array<ProductCategoryTemplateNodeResponseRaw & { depth: number }> = [];
+  const visitedCodes = new Set<string>();
   const walk = (parentCode: string | null, depth: number) => {
-    const children = byParent.get(parentCode ?? 'ROOT') ?? [];
+    const children = byParent.get(normalizeTemplateParentCode(parentCode)) ?? [];
     children.forEach((child) => {
+      if (visitedCodes.has(child.template_category_code)) {
+        return;
+      }
+      visitedCodes.add(child.template_category_code);
       rows.push({ ...child, depth });
       walk(child.template_category_code, depth + 1);
     });
   };
   walk(null, 0);
+  nodes.forEach((item) => {
+    if (visitedCodes.has(item.template_category_code)) {
+      return;
+    }
+    visitedCodes.add(item.template_category_code);
+    rows.push({ ...item, depth: Math.max(0, item.category_level - 1) });
+  });
   return rows;
 }
 
@@ -430,27 +566,60 @@ function parentCategoryName(parentId: number) {
   return categories.value.find((item) => item.id === parentId)?.category_name ?? '父级分类缺失';
 }
 
-function isCategoryMatched(row: CategoryRowView) {
+function isCategoryMatchedByPath(pathLabel: string) {
   const keyword = searchKeyword.value.trim().toLowerCase();
   if (!keyword) {
     return false;
   }
-  return row.category_name.toLowerCase().includes(keyword);
+  return pathLabel.toLowerCase().includes(keyword);
+}
+
+function hasVisibleDescendant(categoryId: number, visibleIds: Set<number> | null): boolean {
+  if (!visibleIds) {
+    return false;
+  }
+  const children = categoryChildrenMap.value.get(categoryId) ?? [];
+  return children.some((child) => visibleIds.has(child.id) || hasVisibleDescendant(child.id, visibleIds));
+}
+
+function initializeExpandedState() {
+  expandedCategoryIds.value = new Set(
+    categories.value.filter((item) => item.category_level <= 2).map((item) => item.id),
+  );
+}
+
+function ensureCategoryVisible(categoryId: number) {
+  const nextExpanded = new Set(expandedCategoryIds.value);
+  let current = categories.value.find((item) => item.id === categoryId) ?? null;
+  while (current && current.parent_id) {
+    nextExpanded.add(current.parent_id);
+    current = categories.value.find((item) => item.id === current?.parent_id) ?? null;
+  }
+  expandedCategoryIds.value = nextExpanded;
+}
+
+function toggleCategoryRow(categoryId: number) {
+  const nextExpanded = new Set(expandedCategoryIds.value);
+  if (nextExpanded.has(categoryId)) {
+    nextExpanded.delete(categoryId);
+  } else {
+    nextExpanded.add(categoryId);
+  }
+  expandedCategoryIds.value = nextExpanded;
 }
 
 function handleCategoryPageChange(page: number) {
   categoryPagination.page = page;
-  void loadPage();
 }
 
 function handleCategoryPageSizeChange(pageSize: number) {
   categoryPagination.page = 1;
   categoryPagination.pageSize = pageSize;
-  void loadPage();
 }
 
 function openCreateCategory(parentId: number) {
   formMode.value = 'create';
+  ensureCategoryVisible(parentId);
   form.parentId = String(parentId);
   form.categoryName = '';
   form.sortOrder = '10';
@@ -464,6 +633,7 @@ function openEditCategory(categoryId: number) {
     return;
   }
   selectedCategoryId.value = category.id;
+  ensureCategoryVisible(category.id);
   formMode.value = 'edit';
   form.parentId = String(category.parent_id);
   form.categoryName = category.category_name;
@@ -486,15 +656,8 @@ async function loadPage() {
   try {
     await authStore.ensureCurrentContext();
     const { merchantId, storeId } = getRequiredScope();
-    const [templatePage, categoryPage, allCategoryRows] = await Promise.all([
+    const [templatePage, allCategoryRows] = await Promise.all([
       fetchCategoryTemplateList({ page: 1, pageSize: 200 }),
-      fetchCategoryList({
-        merchantId,
-        storeId,
-        keyword: searchKeyword.value.trim() || undefined,
-        page: categoryPagination.page,
-        pageSize: categoryPagination.pageSize,
-      }),
       fetchAllCategoryList({
         merchantId,
         storeId,
@@ -502,16 +665,24 @@ async function loadPage() {
       }),
     ]);
     templates.value = templatePage.list;
-    currentPageCategories.value = categoryPage.list;
     categories.value = allCategoryRows;
-    categoryPagination.page = categoryPage.page;
-    categoryPagination.pageSize = categoryPage.page_size;
-    categoryPagination.total = categoryPage.total;
+    if (!expandedCategoryIds.value.size) {
+      initializeExpandedState();
+    }
     if (!selectedTemplateValue.value || !templatePage.list.some((item) => String(item.id) === selectedTemplateValue.value)) {
       selectedTemplateValue.value = templatePage.list[0] ? String(templatePage.list[0].id) : '';
     }
     if (!selectedCategoryId.value || !allCategoryRows.some((item) => item.id === selectedCategoryId.value)) {
-      selectedCategoryId.value = categoryPage.list[0]?.id ?? null;
+      selectedCategoryId.value = allCategoryRows[0]?.id ?? null;
+    }
+    if (selectedCategoryId.value) {
+      ensureCategoryVisible(selectedCategoryId.value);
+    }
+    const rootCategoryCount = allCategoryRows.filter((item) =>
+      item.parent_id === 0 || !allCategoryRows.some((candidate) => candidate.id === item.parent_id)).length;
+    const maxPage = Math.max(1, Math.ceil(Math.max(1, rootCategoryCount) / categoryPagination.pageSize));
+    if (categoryPagination.page > maxPage) {
+      categoryPagination.page = maxPage;
     }
   } catch (error) {
     setActionMessage(error instanceof Error ? error.message : '加载分类页面失败。', 'error');
@@ -587,18 +758,14 @@ onMounted(() => {
 });
 
 watch(searchKeyword, () => {
-  if (searchTimer) {
-    clearTimeout(searchTimer);
-  }
-  searchTimer = setTimeout(() => {
-    categoryPagination.page = 1;
-    void loadPage();
-  }, 300);
+  categoryPagination.page = 1;
 });
 
-onBeforeUnmount(() => {
-  if (searchTimer) {
-    clearTimeout(searchTimer);
+watch(categoryRootSegments, (segments) => {
+  categoryPagination.total = segments.length;
+  const maxPage = Math.max(1, Math.ceil(Math.max(1, segments.length) / categoryPagination.pageSize));
+  if (categoryPagination.page > maxPage) {
+    categoryPagination.page = maxPage;
   }
 });
 </script>
@@ -606,7 +773,7 @@ onBeforeUnmount(() => {
 <style module>
 .grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(320px, 0.86fr);
+  grid-template-columns: minmax(0, 1.65fr) minmax(360px, 0.95fr);
   gap: 18px;
 }
 
@@ -634,17 +801,18 @@ onBeforeUnmount(() => {
   font-weight: 800;
 }
 
-.mainColumn {
-  display: grid;
-  gap: 18px;
-}
-
+.setupPanel,
 .panel,
 .sidePanel {
   padding: 20px;
   border-radius: 20px;
   border: 1px solid rgba(9, 29, 46, 0.08);
   background: linear-gradient(180deg, #ffffff 0%, #f9fbff 100%);
+}
+
+.setupPanel {
+  display: grid;
+  gap: 18px;
 }
 
 .sidePanel {
@@ -678,6 +846,13 @@ onBeforeUnmount(() => {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+  align-items: center;
+}
+
+.listHeader {
+  display: grid;
+  justify-items: end;
+  gap: 12px;
 }
 
 .treeMeta {
@@ -688,11 +863,21 @@ onBeforeUnmount(() => {
   color: var(--cdd-text-soft);
 }
 
-.templateGrid,
+.setupGrid {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.92fr) minmax(0, 1.08fr);
+  gap: 16px;
+}
+
+.setupMain,
+.previewPanel,
 .formGrid {
   display: grid;
-  gap: 14px;
-  margin-top: 18px;
+  gap: 12px;
+}
+
+.formGrid {
+  margin-top: 16px;
 }
 
 .fieldBlock {
@@ -710,9 +895,9 @@ onBeforeUnmount(() => {
 }
 
 .select {
-  min-height: 48px;
+  min-height: 44px;
   border: 1px solid rgba(9, 29, 46, 0.08);
-  border-radius: 16px;
+  border-radius: 14px;
   padding: 0 14px;
   background: #fff;
   color: var(--cdd-text);
@@ -733,16 +918,68 @@ onBeforeUnmount(() => {
   line-height: 1.8;
 }
 
-.previewList,
+.previewPanel {
+  padding: 12px;
+  border-radius: 16px;
+  background: rgba(237, 244, 255, 0.72);
+}
+
+.previewHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.previewTitle {
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.previewMeta {
+  color: var(--cdd-text-faint);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.previewListCompact,
 .categoryList {
   display: grid;
   gap: 10px;
+}
+
+.listWorkspace {
+  display: grid;
+  gap: 14px;
+  margin-top: 16px;
+}
+
+.listToolbar {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: grid;
+  gap: 10px;
+  align-items: start;
+  padding-bottom: 4px;
+  background: linear-gradient(180deg, #f9fbff 0%, rgba(249, 251, 255, 0.92) 100%);
+}
+
+.previewListCompact {
   margin-top: 18px;
+  max-height: 320px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.listScroller {
+  max-height: min(62vh, 920px);
+  overflow: auto;
+  padding-right: 6px;
 }
 
 .searchPanel {
   position: relative;
-  margin-top: 16px;
 }
 
 .searchIcon {
@@ -768,32 +1005,6 @@ onBeforeUnmount(() => {
   outline: none;
   border-color: rgba(255, 107, 0, 0.7);
   box-shadow: 0 0 0 3px rgba(255, 107, 0, 0.14);
-}
-
-.batchHint {
-  margin-top: 12px;
-  border-radius: 14px;
-  padding: 10px 12px;
-  background: rgba(255, 107, 0, 0.12);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-}
-
-.batchHintText {
-  color: #9c4304;
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.batchLink {
-  border: 0;
-  background: transparent;
-  color: #ff6b00;
-  font-size: 12px;
-  font-weight: 800;
-  cursor: pointer;
 }
 
 .previewRow,
@@ -852,14 +1063,33 @@ onBeforeUnmount(() => {
   align-items: center;
 }
 
-.foldIcon {
-  color: #7a8b99;
-  width: 14px;
+.foldButton {
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 8px;
+  background: rgba(9, 29, 46, 0.06);
+  color: #6b7c8c;
+  font-size: 12px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.foldButtonEmpty {
+  background: transparent;
+  cursor: default;
 }
 
 .categoryName {
   font-size: 16px;
   font-weight: 800;
+}
+
+.categoryPath {
+  margin-top: 8px;
+  color: var(--cdd-text-faint);
+  font-size: 12px;
+  line-height: 1.6;
 }
 
 .editingBadge {
@@ -886,26 +1116,57 @@ onBeforeUnmount(() => {
   gap: 8px;
 }
 
-.selectionBar {
+.editorHint {
   margin-top: 12px;
   border-radius: 14px;
   padding: 10px 12px;
+  background: rgba(255, 245, 235, 0.72);
+  color: #9c4304;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.6;
+}
+
+.selectionBar {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 14px;
   background: rgba(237, 244, 255, 0.88);
   border: 1px solid rgba(9, 29, 46, 0.08);
+  color: var(--cdd-text-soft);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.formSection {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+  padding: 12px;
+  border-radius: 16px;
+  background: rgba(237, 244, 255, 0.52);
+}
+
+.sectionHeader {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  color: var(--cdd-text-soft);
-  font-size: 12px;
-  font-weight: 700;
+}
+
+.sectionTitle {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--cdd-text);
 }
 
 .detailGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
-  margin-top: 18px;
 }
 
 .detailValue {
@@ -914,18 +1175,33 @@ onBeforeUnmount(() => {
   line-height: 1.7;
 }
 
+.actionFooter {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 18px;
+  padding-top: 12px;
+  background: linear-gradient(180deg, rgba(249, 251, 255, 0) 0%, #f9fbff 28%);
+}
+
+.paginationBar {
+  padding-top: 4px;
+  border-top: 1px solid rgba(9, 29, 46, 0.06);
+}
+
 .switchList {
   display: grid;
   gap: 10px;
-  margin-top: 18px;
 }
 
 .switchItem {
   display: flex;
   gap: 10px;
   align-items: center;
-  padding: 14px 16px;
-  border-radius: 16px;
+  padding: 10px 12px;
+  border-radius: 14px;
   background: rgba(237, 244, 255, 0.72);
   font-weight: 700;
 }
@@ -935,38 +1211,57 @@ onBeforeUnmount(() => {
     grid-template-columns: 1fr;
   }
 
+  .setupGrid {
+    grid-template-columns: 1fr;
+  }
+
   .sidePanel {
     position: static;
   }
 
-  .selectionBar,
-  .batchHint {
-    flex-direction: column;
-    align-items: flex-start;
+  .listScroller {
+    max-height: none;
+  }
+
+  .actionFooter,
+  .listToolbar {
+    position: static;
   }
 }
 
 @media (max-width: 720px) {
+  .setupPanel,
   .panel,
   .sidePanel {
     padding: 18px;
   }
 
   .panelHead,
+  .previewHead,
   .previewRow,
-  .categoryRow,
+  .categoryRow {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .listHeader {
+    justify-items: stretch;
+  }
+
   .selectionBar {
     flex-direction: column;
     align-items: flex-start;
   }
 
   .inlineRowActions,
-  .panelActions {
+  .panelActions,
+  .actionFooter {
     width: 100%;
   }
 
   .inlineRowActions :global(button),
-  .panelActions :global(button) {
+  .panelActions :global(button),
+  .actionFooter :global(button) {
     width: 100%;
   }
 

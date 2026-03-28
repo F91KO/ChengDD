@@ -2,7 +2,7 @@
   <WorkspaceLayout
     eyebrow="Release"
     title="发布治理"
-    description="在一个页面内完成发布任务创建、任务查询、状态推进、结果回写和回滚联调，所有展示文案统一使用中文。"
+    description="在一个页面内完成发布任务创建、任务查询和回滚处理。"
   >
     <UiStatePanel
       v-if="pageStatePanel"
@@ -27,44 +27,55 @@
           </div>
         </div>
 
-        <div :class="$style.formGrid">
-          <UiInput v-model="createForm.miniProgramId" label="小程序 ID" placeholder="例如 1001" />
-          <UiInput
-            v-model="createForm.templateVersionId"
-            label="模板版本 ID"
-            placeholder="例如 9800001"
+        <div :class="$style.formSection">
+          <div :class="$style.sectionTitle">基础参数</div>
+          <div :class="$style.formGrid">
+            <UiInput v-model="createForm.miniProgramId" label="小程序 ID" placeholder="例如 1001" />
+            <UiInput
+              v-model="createForm.templateVersionId"
+              label="模板版本 ID"
+              placeholder="请输入实际模板版本 ID"
+            />
+
+            <label :class="$style.selectField">
+              <span :class="$style.fieldLabel">发布类型</span>
+              <div :class="$style.selectWrap">
+                <select v-model="createForm.releaseType" :class="$style.select">
+                  <option
+                    v-for="option in releaseTypeOptions"
+                    :key="option.value"
+                    :value="option.value"
+                  >
+                    {{ option.label }}
+                  </option>
+                </select>
+              </div>
+            </label>
+
+            <label :class="$style.selectField">
+              <span :class="$style.fieldLabel">触发来源</span>
+              <div :class="$style.selectWrap">
+                <select v-model="createForm.triggerSource" :class="$style.select">
+                  <option
+                    v-for="option in triggerSourceOptions"
+                    :key="option.value"
+                    :value="option.value"
+                  >
+                    {{ option.label }}
+                  </option>
+                </select>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <div :class="$style.formSection">
+          <div :class="$style.sectionTitle">发布快照</div>
+          <UiStatePanel
+            tone="info"
+            title="创建前确认模板版本"
+            description="请确认模板版本和发布快照内容后再创建任务。"
           />
-
-          <label :class="$style.selectField">
-            <span :class="$style.fieldLabel">发布类型</span>
-            <div :class="$style.selectWrap">
-              <select v-model="createForm.releaseType" :class="$style.select">
-                <option
-                  v-for="option in releaseTypeOptions"
-                  :key="option.value"
-                  :value="option.value"
-                >
-                  {{ option.label }}
-                </option>
-              </select>
-            </div>
-          </label>
-
-          <label :class="$style.selectField">
-            <span :class="$style.fieldLabel">触发来源</span>
-            <div :class="$style.selectWrap">
-              <select v-model="createForm.triggerSource" :class="$style.select">
-                <option
-                  v-for="option in triggerSourceOptions"
-                  :key="option.value"
-                  :value="option.value"
-                >
-                  {{ option.label }}
-                </option>
-              </select>
-            </div>
-          </label>
-
           <label :class="$style.fieldWide">
             <span :class="$style.fieldLabel">发布快照</span>
             <textarea
@@ -76,8 +87,8 @@
         </div>
 
         <div :class="$style.actions">
-          <UiButton variant="secondary" @click="resetCreateForm">重置表单</UiButton>
-          <UiButton :disabled="submitting === 'create'" @click="handleCreateTask">
+          <UiButton variant="secondary" size="sm" @click="resetCreateForm">重置表单</UiButton>
+          <UiButton :disabled="submitting === 'create' || !canCreateTask" @click="handleCreateTask">
             {{ submitting === 'create' ? '正在创建...' : '创建发布任务' }}
           </UiButton>
         </div>
@@ -91,151 +102,211 @@
           </div>
         </div>
 
-        <div :class="$style.formGrid">
-          <UiInput v-model="lookupTaskNo" label="任务号" placeholder="例如 rls_20260325_xxx" />
-          <UiInput
-            v-model="rollbackTargetVersion"
-            label="回滚目标版本"
-            placeholder="例如 0.9.0"
+        <div :class="$style.formSection">
+          <div :class="$style.sectionTitle">任务定位</div>
+          <div :class="$style.formGrid">
+            <UiInput v-model="lookupTaskNo" label="任务号" placeholder="例如 rls_20260325_xxx" />
+          </div>
+        </div>
+
+        <div :class="$style.actionBlock">
+          <div :class="$style.actionGroupTitle">任务查询</div>
+          <div :class="$style.actions">
+            <UiButton variant="secondary" size="sm" :disabled="submitting === 'query' || !canQueryTask" @click="handleFetchTask">
+              {{ submitting === 'query' ? '正在查询...' : '查询任务详情' }}
+            </UiButton>
+          </div>
+          <UiStatePanel
+            tone="info"
+            title="查询后可查看任务进度"
+            description="任务状态更新后，可在下方查看摘要和执行步骤。"
           />
-          <label :class="$style.fieldWide">
-            <span :class="$style.fieldLabel">回滚原因</span>
-            <textarea
-              v-model="rollbackReason"
-              :class="$style.textarea"
-              placeholder="请输入回滚原因"
+        </div>
+
+        <div :class="$style.formSection">
+          <div :class="$style.sectionTitle">回滚参数</div>
+          <div :class="$style.formGrid">
+            <UiInput
+              v-model="rollbackTargetVersion"
+              label="回滚目标版本"
+              placeholder="例如 0.9.0"
             />
-          </label>
+            <label :class="$style.fieldWide">
+              <span :class="$style.fieldLabel">回滚原因</span>
+              <textarea
+                v-model="rollbackReason"
+                :class="$style.textarea"
+                placeholder="请输入回滚原因"
+              />
+            </label>
+          </div>
+          <div :class="$style.actions">
+            <UiButton
+              variant="secondary"
+              size="sm"
+              :disabled="submitting === 'rollback' || !canRollbackTask"
+              @click="handleRollbackTask"
+            >
+              {{ submitting === 'rollback' ? '正在回滚...' : '发起回滚任务' }}
+            </UiButton>
+          </div>
         </div>
 
         <div :class="$style.actions">
-          <UiButton variant="secondary" :disabled="submitting === 'query'" @click="handleFetchTask">
-            {{ submitting === 'query' ? '正在查询...' : '查询任务详情' }}
-          </UiButton>
           <UiButton
             variant="secondary"
-            :disabled="!releaseTask || submitting === 'run'"
-            @click="handleMarkRunning"
+            size="sm"
+            :disabled="!releaseTask"
+            @click="releaseTask && (lookupTaskNo = releaseTask.task_no)"
           >
-            {{ submitting === 'run' ? '正在推进...' : '标记为运行中' }}
-          </UiButton>
-          <UiButton
-            variant="secondary"
-            :disabled="!releaseTask || submitting === 'success'"
-            @click="handleMarkSuccess"
-          >
-            {{ submitting === 'success' ? '正在推进...' : '标记为执行成功' }}
-          </UiButton>
-          <UiButton
-            variant="secondary"
-            :disabled="!releaseTask || submitting === 'sync'"
-            @click="handleSyncResult"
-          >
-            {{ submitting === 'sync' ? '正在回写...' : '回写生效状态' }}
-          </UiButton>
-          <UiButton
-            variant="secondary"
-            :disabled="!releaseTask || submitting === 'rollback'"
-            @click="handleRollbackTask"
-          >
-            {{ submitting === 'rollback' ? '正在回滚...' : '发起回滚任务' }}
+            使用当前任务号
           </UiButton>
         </div>
       </UiCard>
     </section>
 
+    <UiStatePanel
+      v-if="!releaseTask && !loading"
+      tone="empty"
+      title="当前还没有选中发布任务"
+      description="可以先创建任务，或者输入任务号查询历史发布记录。"
+    >
+      <UiButton variant="secondary" size="sm" @click="resetCreateForm">恢复表单内容</UiButton>
+    </UiStatePanel>
+
     <UiCard v-if="releaseTask" elevated :class="$style.detailPanel">
       <div :class="$style.panelHead">
-        <div>
-          <div :class="$style.eyebrow">任务详情</div>
-          <h3 :class="$style.title">{{ releaseTask.task_no }}</h3>
+          <div>
+            <div :class="$style.eyebrow">任务详情</div>
+            <h3 :class="$style.title">{{ releaseTask.task_no }}</h3>
+          </div>
+          <div :class="$style.statusGroup">
+            <UiTag :tone="releaseStatusTone(releaseTask.release_status)">
+              {{ formatReleaseStatus(releaseTask.release_status) }}
+            </UiTag>
+            <UiTag :tone="resultSyncTone(releaseTask.result_sync_status)">
+              {{ formatResultSyncStatus(releaseTask.result_sync_status) }}
+            </UiTag>
+          </div>
         </div>
+
+      <div :class="$style.detailTabs">
+        <button
+          v-for="tab in detailTabs"
+          :key="tab.value"
+          type="button"
+          :class="[$style.detailTab, detailTab === tab.value ? $style.detailTabActive : '']"
+          @click="detailTab = tab.value"
+        >
+          {{ tab.label }}
+        </button>
       </div>
 
-      <div :class="$style.detailGrid">
-        <div>
-          <div :class="$style.fieldLabel">发布状态</div>
-          <div :class="$style.detailValue">{{ formatReleaseStatus(releaseTask.release_status) }}</div>
+      <template v-if="detailTab === 'overview'">
+        <div :class="$style.formSection">
+          <div :class="$style.sectionTitle">任务摘要</div>
+          <div :class="$style.detailGrid">
+            <div>
+              <div :class="$style.fieldLabel">发布状态</div>
+              <div :class="$style.detailValue">{{ formatReleaseStatus(releaseTask.release_status) }}</div>
+            </div>
+            <div>
+              <div :class="$style.fieldLabel">当前步骤</div>
+              <div :class="$style.detailValue">{{ formatStepCode(releaseTask.current_step_code) }}</div>
+            </div>
+            <div>
+              <div :class="$style.fieldLabel">结果回写</div>
+              <div :class="$style.detailValue">{{ formatResultSyncStatus(releaseTask.result_sync_status) }}</div>
+            </div>
+            <div>
+              <div :class="$style.fieldLabel">回滚任务</div>
+              <div :class="$style.detailValue">{{ releaseTask.rollback_task_no || '-' }}</div>
+            </div>
+          </div>
         </div>
-        <div>
-          <div :class="$style.fieldLabel">当前步骤</div>
-          <div :class="$style.detailValue">{{ formatStepCode(releaseTask.current_step_code) }}</div>
-        </div>
-        <div>
-          <div :class="$style.fieldLabel">结果回写</div>
-          <div :class="$style.detailValue">{{ formatResultSyncStatus(releaseTask.result_sync_status) }}</div>
-        </div>
-        <div>
-          <div :class="$style.fieldLabel">回滚任务</div>
-          <div :class="$style.detailValue">{{ releaseTask.rollback_task_no || '-' }}</div>
-        </div>
-      </div>
 
-      <div :class="$style.detailGrid">
-        <div>
-          <div :class="$style.fieldLabel">商家 / 门店</div>
-          <div :class="$style.detailValue">
-            {{ releaseTask.merchant_id }} / {{ releaseTask.store_id }}
+        <div :class="$style.formSection">
+          <div :class="$style.sectionTitle">上下文信息</div>
+          <div :class="$style.detailGrid">
+            <div>
+              <div :class="$style.fieldLabel">商家 / 门店</div>
+              <div :class="$style.detailValue">
+                {{ releaseTask.merchant_id }} / {{ releaseTask.store_id }}
+              </div>
+            </div>
+            <div>
+              <div :class="$style.fieldLabel">小程序 / 模板</div>
+              <div :class="$style.detailValue">
+                {{ releaseTask.mini_program_id }} / {{ releaseTask.template_version_id }}
+              </div>
+            </div>
+            <div>
+              <div :class="$style.fieldLabel">触发来源</div>
+              <div :class="$style.detailValue">{{ formatTriggerSource(releaseTask.trigger_source) }}</div>
+            </div>
+            <div>
+              <div :class="$style.fieldLabel">发布类型</div>
+              <div :class="$style.detailValue">{{ formatReleaseType(releaseTask.release_type) }}</div>
+            </div>
           </div>
         </div>
-        <div>
-          <div :class="$style.fieldLabel">小程序 / 模板</div>
-          <div :class="$style.detailValue">
-            {{ releaseTask.mini_program_id }} / {{ releaseTask.template_version_id }}
-          </div>
-        </div>
-        <div>
-          <div :class="$style.fieldLabel">触发来源</div>
-          <div :class="$style.detailValue">{{ formatTriggerSource(releaseTask.trigger_source) }}</div>
-        </div>
-        <div>
-          <div :class="$style.fieldLabel">发布类型</div>
-          <div :class="$style.detailValue">{{ formatReleaseType(releaseTask.release_type) }}</div>
-        </div>
-      </div>
 
-      <div :class="$style.detailGrid">
-        <div>
-          <div :class="$style.fieldLabel">开始时间</div>
-          <div :class="$style.detailValue">{{ releaseTask.started_at || '-' }}</div>
-        </div>
-        <div>
-          <div :class="$style.fieldLabel">完成时间</div>
-          <div :class="$style.detailValue">{{ releaseTask.finished_at || '-' }}</div>
-        </div>
-        <div :class="$style.detailSpanTwo">
-          <div :class="$style.fieldLabel">错误信息</div>
-          <div :class="$style.detailValue">
-            {{ releaseTask.last_error_message || releaseTask.last_error_code || '-' }}
+        <div :class="$style.formSection">
+          <div :class="$style.sectionTitle">执行时间与异常</div>
+          <div :class="$style.detailGrid">
+            <div>
+              <div :class="$style.fieldLabel">开始时间</div>
+              <div :class="$style.detailValue">{{ releaseTask.started_at || '-' }}</div>
+            </div>
+            <div>
+              <div :class="$style.fieldLabel">完成时间</div>
+              <div :class="$style.detailValue">{{ releaseTask.finished_at || '-' }}</div>
+            </div>
+            <div :class="$style.detailSpanTwo">
+              <div :class="$style.fieldLabel">错误信息</div>
+              <div :class="$style.detailValue">
+                {{ releaseTask.last_error_message || releaseTask.last_error_code || '-' }}
+              </div>
+            </div>
           </div>
         </div>
-      </div>
+      </template>
 
-      <div v-if="releaseTask.steps.length" :class="$style.stepTable">
-        <div :class="$style.stepHead">
-          <span>步骤</span>
-          <span>状态</span>
-          <span>重试</span>
-          <span>结果</span>
+      <div v-else>
+        <div v-if="releaseTask.steps.length" :class="$style.stepTable">
+          <div :class="$style.stepHead">
+            <span>步骤</span>
+            <span>状态</span>
+            <span>重试</span>
+            <span>结果</span>
+          </div>
+          <div v-for="step in releaseTask.steps" :key="step.step_code" :class="$style.stepRow">
+            <div :class="$style.stepCell">
+              <div :class="$style.stepCellLabel">步骤</div>
+              <div :class="$style.strong">{{ step.step_name || formatStepCode(step.step_code) }}</div>
+            </div>
+            <div :class="$style.stepCell">
+              <div :class="$style.stepCellLabel">状态</div>
+              <UiTag :tone="stepStatusTone(step.step_status)">
+                {{ formatStepStatus(step.step_status) }}
+              </UiTag>
+            </div>
+            <div :class="$style.stepCell">
+              <div :class="$style.stepCellLabel">重试</div>
+              <div>{{ step.retry_count }}</div>
+            </div>
+            <div :class="$style.stepCell">
+              <div :class="$style.stepCellLabel">结果</div>
+              <div>{{ step.result_message || step.error_code || '-' }}</div>
+            </div>
+          </div>
         </div>
-        <div v-for="step in releaseTask.steps" :key="step.step_code" :class="$style.stepRow">
-          <div :class="$style.stepCell">
-            <div :class="$style.stepCellLabel">步骤</div>
-            <div :class="$style.strong">{{ step.step_name || formatStepCode(step.step_code) }}</div>
-          </div>
-          <div :class="$style.stepCell">
-            <div :class="$style.stepCellLabel">状态</div>
-            <div>{{ formatStepStatus(step.step_status) }}</div>
-          </div>
-          <div :class="$style.stepCell">
-            <div :class="$style.stepCellLabel">重试</div>
-            <div>{{ step.retry_count }}</div>
-          </div>
-          <div :class="$style.stepCell">
-            <div :class="$style.stepCellLabel">结果</div>
-            <div>{{ step.result_message || step.error_code || '-' }}</div>
-          </div>
-        </div>
+        <UiStatePanel
+          v-else
+          tone="empty"
+          title="暂无步骤记录"
+          description="创建任务后推进执行，步骤记录会在这里展示。"
+        />
       </div>
     </UiCard>
   </WorkspaceLayout>
@@ -248,19 +319,15 @@ import UiButton from '@/components/base/UiButton.vue';
 import UiCard from '@/components/base/UiCard.vue';
 import UiInput from '@/components/base/UiInput.vue';
 import UiStatePanel from '@/components/base/UiStatePanel.vue';
+import UiTag from '@/components/base/UiTag.vue';
 import WorkspaceLayout from '@/components/layout/WorkspaceLayout.vue';
 import {
   createReleaseTask,
   fetchReleaseTask,
   rollbackReleaseTask,
-  syncReleaseTaskResult,
-  updateReleaseTaskStatus,
-  updateReleaseTaskStep,
 } from '@/services/release';
 import { useAuthStore } from '@/stores/auth';
 import type { ReleaseTaskResponseRaw } from '@/types/release';
-
-const DEFAULT_TEMPLATE_VERSION_ID = '9800001';
 
 const releaseTypeOptions = [
   { value: 'full_release', label: '全量发布' },
@@ -270,7 +337,7 @@ const releaseTypeOptions = [
 
 const triggerSourceOptions = [
   { value: 'merchant_console', label: '商家后台' },
-  { value: 'dashboard_manual', label: '工作台快捷操作' },
+  { value: 'dashboard_manual', label: '工作台触发' },
   { value: 'system', label: '系统触发' },
   { value: 'api', label: '接口触发' },
 ];
@@ -280,21 +347,38 @@ const router = useRouter();
 const authStore = useAuthStore();
 
 const loading = ref(false);
-const submitting = ref<'create' | 'query' | 'run' | 'success' | 'sync' | 'rollback' | ''>('');
+const submitting = ref<'create' | 'query' | 'rollback' | ''>('');
 const actionMessage = ref('');
 const actionTone = ref<'info' | 'error'>('info');
 const releaseTask = ref<ReleaseTaskResponseRaw | null>(null);
+const detailTab = ref<'overview' | 'steps'>('overview');
 const lookupTaskNo = ref('');
 const rollbackTargetVersion = ref('0.9.0');
-const rollbackReason = ref('联调验证后回滚');
+const rollbackReason = ref('版本验证后回滚');
+const detailTabs = [
+  { value: 'overview' as const, label: '任务概览' },
+  { value: 'steps' as const, label: '执行步骤' },
+];
 
 const createForm = reactive({
   miniProgramId: '',
-  templateVersionId: DEFAULT_TEMPLATE_VERSION_ID,
+  templateVersionId: '',
   releaseType: 'full_release',
   triggerSource: 'merchant_console',
   releaseSnapshotJson: '',
 });
+const canCreateTask = computed(() => (
+  Boolean(authStore.merchantIdForQuery && authStore.storeIdForQuery)
+  && createForm.miniProgramId.trim().length > 0
+  && createForm.templateVersionId.trim().length > 0
+  && createForm.releaseSnapshotJson.trim().length > 0
+));
+const canQueryTask = computed(() => lookupTaskNo.value.trim().length > 0);
+const canRollbackTask = computed(() => (
+  Boolean(releaseTask.value)
+  && rollbackTargetVersion.value.trim().length > 0
+  && rollbackReason.value.trim().length > 0
+));
 
 const pageStatePanel = computed(() => {
   if (loading.value) {
@@ -363,6 +447,20 @@ function formatReleaseStatus(value: string | null | undefined): string {
   return value || '-';
 }
 
+function releaseStatusTone(value: string | null | undefined): 'default' | 'primary' | 'info' | 'success' | 'danger' {
+  const normalized = (value || '').toLowerCase();
+  if (normalized.includes('success') || normalized.includes('done') || normalized.includes('finished')) {
+    return 'success';
+  }
+  if (normalized.includes('running')) {
+    return 'primary';
+  }
+  if (normalized.includes('fail') || normalized.includes('error')) {
+    return 'danger';
+  }
+  return 'default';
+}
+
 function formatResultSyncStatus(value: string | null | undefined): string {
   const normalized = (value || '').toLowerCase();
   if (!normalized) {
@@ -381,6 +479,20 @@ function formatResultSyncStatus(value: string | null | undefined): string {
     return '回写失败';
   }
   return value || '-';
+}
+
+function resultSyncTone(value: string | null | undefined): 'default' | 'primary' | 'info' | 'success' | 'danger' {
+  const normalized = (value || '').toLowerCase();
+  if (normalized === 'active' || normalized.includes('success') || normalized.includes('done')) {
+    return 'success';
+  }
+  if (normalized.includes('pending') || normalized.includes('wait')) {
+    return 'primary';
+  }
+  if (normalized.includes('fail') || normalized.includes('error')) {
+    return 'danger';
+  }
+  return 'default';
 }
 
 function formatStepStatus(value: string | null | undefined): string {
@@ -403,6 +515,20 @@ function formatStepStatus(value: string | null | undefined): string {
   return value || '-';
 }
 
+function stepStatusTone(value: string | null | undefined): 'default' | 'primary' | 'info' | 'success' | 'danger' {
+  const normalized = (value || '').toLowerCase();
+  if (normalized.includes('success') || normalized.includes('done')) {
+    return 'success';
+  }
+  if (normalized.includes('running')) {
+    return 'primary';
+  }
+  if (normalized.includes('fail') || normalized.includes('error')) {
+    return 'danger';
+  }
+  return 'default';
+}
+
 function formatStepCode(value: string | null | undefined): string {
   const map: Record<string, string> = {
     validate_env: '环境校验',
@@ -418,7 +544,7 @@ function resetCreateForm() {
   const fallbackMiniProgramId =
     parseNumericTail(authStore.context?.miniProgramId) ?? authStore.storeIdForQuery ?? 1001;
   createForm.miniProgramId = String(fallbackMiniProgramId);
-  createForm.templateVersionId = DEFAULT_TEMPLATE_VERSION_ID;
+  createForm.templateVersionId = '';
   createForm.releaseType = 'full_release';
   createForm.triggerSource = 'merchant_console';
   createForm.releaseSnapshotJson = JSON.stringify(
@@ -441,6 +567,7 @@ async function handleFetchTask() {
     }
     submitting.value = 'query';
     releaseTask.value = await fetchReleaseTask(taskNo);
+    detailTab.value = 'overview';
     await router.replace({
       path: '/releases',
       query: {
@@ -483,6 +610,7 @@ async function handleCreateTask() {
       releaseSnapshotJson: createForm.releaseSnapshotJson.trim(),
     });
     releaseTask.value = task;
+    detailTab.value = 'overview';
     lookupTaskNo.value = task.task_no;
     await router.replace({
       path: '/releases',
@@ -517,100 +645,10 @@ async function handleRollbackTask() {
       rollbackReason: rollbackReason.value.trim(),
     });
     lookupTaskNo.value = releaseTask.value.task_no;
+    detailTab.value = 'overview';
     setActionMessage(`已为任务 ${releaseTask.value.task_no} 创建回滚任务。`);
   } catch (error) {
     setActionMessage(error instanceof Error ? error.message : '发起回滚失败。', 'error');
-  } finally {
-    submitting.value = '';
-  }
-}
-
-async function reloadCurrentTask() {
-  if (!releaseTask.value) {
-    return;
-  }
-  releaseTask.value = await fetchReleaseTask(releaseTask.value.task_no);
-}
-
-async function handleMarkRunning() {
-  try {
-    if (!releaseTask.value) {
-      throw new Error('请先查询或创建发布任务。');
-    }
-
-    submitting.value = 'run';
-    await updateReleaseTaskStep({
-      taskNo: releaseTask.value.task_no,
-      stepCode: 'validate_env',
-      stepName: '环境校验',
-      stepOrder: 2,
-      stepStatus: 'running',
-      resultMessage: '前端联调将任务推进到运行中',
-    });
-    releaseTask.value = await updateReleaseTaskStatus({
-      taskNo: releaseTask.value.task_no,
-      targetStatus: 'running',
-      currentStepCode: 'validate_env',
-    });
-    setActionMessage(`任务 ${releaseTask.value.task_no} 已推进到执行中。`);
-  } catch (error) {
-    setActionMessage(error instanceof Error ? error.message : '推进任务执行失败。', 'error');
-  } finally {
-    submitting.value = '';
-  }
-}
-
-async function handleMarkSuccess() {
-  try {
-    if (!releaseTask.value) {
-      throw new Error('请先查询或创建发布任务。');
-    }
-
-    submitting.value = 'success';
-    await updateReleaseTaskStep({
-      taskNo: releaseTask.value.task_no,
-      stepCode: 'validate_env',
-      stepName: '环境校验',
-      stepOrder: 2,
-      stepStatus: 'success',
-      resultMessage: '前端联调标记环境校验通过',
-    });
-    await updateReleaseTaskStep({
-      taskNo: releaseTask.value.task_no,
-      stepCode: 'release_done',
-      stepName: '发布完成',
-      stepOrder: 3,
-      stepStatus: 'success',
-      resultMessage: '前端联调标记发布完成',
-    });
-    releaseTask.value = await updateReleaseTaskStatus({
-      taskNo: releaseTask.value.task_no,
-      targetStatus: 'success',
-      currentStepCode: 'release_done',
-    });
-    setActionMessage(`任务 ${releaseTask.value.task_no} 已标记为执行成功。`);
-  } catch (error) {
-    setActionMessage(error instanceof Error ? error.message : '标记任务成功失败。', 'error');
-  } finally {
-    submitting.value = '';
-  }
-}
-
-async function handleSyncResult() {
-  try {
-    if (!releaseTask.value) {
-      throw new Error('请先查询或创建发布任务。');
-    }
-
-    submitting.value = 'sync';
-    releaseTask.value = await syncReleaseTaskResult({
-      taskNo: releaseTask.value.task_no,
-      mappingStatus: 'active',
-    });
-    await reloadCurrentTask();
-    setActionMessage(`任务 ${releaseTask.value.task_no} 已完成生效状态回写。`);
-  } catch (error) {
-    setActionMessage(error instanceof Error ? error.message : '回写发布结果失败。', 'error');
   } finally {
     submitting.value = '';
   }
@@ -621,6 +659,14 @@ async function initializePage() {
   try {
     await authStore.ensureCurrentContext();
     resetCreateForm();
+    const miniProgramId = typeof route.query.mini_program_id === 'string' ? route.query.mini_program_id : '';
+    const triggerSource = typeof route.query.trigger_source === 'string' ? route.query.trigger_source : '';
+    if (miniProgramId) {
+      createForm.miniProgramId = miniProgramId;
+    }
+    if (triggerSourceOptions.some((item) => item.value === triggerSource)) {
+      createForm.triggerSource = triggerSource;
+    }
     const taskNo = typeof route.query.task_no === 'string' ? route.query.task_no : '';
     if (taskNo) {
       lookupTaskNo.value = taskNo;
@@ -651,6 +697,13 @@ onMounted(() => {
   padding: 24px;
 }
 
+.formPanel,
+.lookupPanel,
+.detailPanel {
+  display: grid;
+  gap: 16px;
+}
+
 .panelHead {
   display: flex;
   justify-content: space-between;
@@ -672,10 +725,24 @@ onMounted(() => {
   letter-spacing: -0.04em;
 }
 
+.formSection {
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 16px;
+  background: rgba(237, 244, 255, 0.52);
+}
+
+.sectionTitle,
+.actionGroupTitle {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--cdd-text);
+}
+
 .formGrid {
   display: grid;
-  gap: 14px;
-  margin-top: 18px;
+  gap: 12px;
 }
 
 .fieldWide,
@@ -693,9 +760,9 @@ onMounted(() => {
 .selectWrap {
   display: flex;
   align-items: center;
-  min-height: 54px;
-  padding: 0 16px;
-  border-radius: 18px;
+  min-height: 50px;
+  padding: 0 14px;
+  border-radius: 16px;
   background: rgba(237, 244, 255, 0.95);
   box-shadow: inset 0 0 0 1px transparent;
   transition:
@@ -718,11 +785,11 @@ onMounted(() => {
 }
 
 .textarea {
-  min-height: 108px;
+  min-height: 96px;
   width: 100%;
-  padding: 14px 16px;
+  padding: 12px 14px;
   border: 0;
-  border-radius: 18px;
+  border-radius: 16px;
   background: rgba(237, 244, 255, 0.92);
   color: var(--cdd-text);
   resize: vertical;
@@ -731,8 +798,45 @@ onMounted(() => {
 .actions {
   display: flex;
   flex-wrap: wrap;
+  gap: 10px;
+}
+
+.actionBlock {
+  display: grid;
   gap: 12px;
-  margin-top: 18px;
+}
+
+.statusGroup {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.detailTabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.detailTab {
+  min-height: 38px;
+  padding: 0 14px;
+  border: 1px solid rgba(9, 29, 46, 0.08);
+  border-radius: 14px;
+  background: rgba(248, 250, 253, 0.96);
+  color: var(--cdd-text-soft);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.detailTabActive {
+  border-color: rgba(255, 107, 0, 0.22);
+  background: linear-gradient(135deg, rgba(255, 107, 0, 0.1), rgba(255, 249, 244, 0.98));
+  color: #9c4304;
+  box-shadow: inset 0 0 0 1px rgba(255, 107, 0, 0.08);
 }
 
 .detailPanel {
@@ -833,14 +937,20 @@ onMounted(() => {
 
 @media (max-width: 640px) {
   .panelHead,
-  .actions {
+  .actions,
+  .statusGroup {
     flex-direction: column;
     align-items: flex-start;
   }
 
   .actions,
+  .statusGroup,
   .actions :global(button) {
     width: 100%;
+  }
+
+  .detailTabs {
+    flex-direction: column;
   }
 
   .actions :global(button) {

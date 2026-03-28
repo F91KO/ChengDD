@@ -31,7 +31,7 @@ export const orderLoadState = reactive({
   loading: false,
   loaded: false,
   errorMessage: '',
-  message: '等待加载真实订单数据。',
+  message: '等待加载订单数据。',
 });
 
 let loadPromise: Promise<void> | null = null;
@@ -187,7 +187,7 @@ export async function loadOrders(force = false, orderStatus?: string, page = ord
     if (!merchantId || !storeId) {
       replaceOrders([], normalizedPage, normalizedPageSize, 0);
       orderLoadState.loaded = true;
-      orderLoadState.message = '当前账号缺少真实商户上下文，无法加载订单数据。';
+      orderLoadState.message = '当前账号缺少商户上下文，无法加载订单数据。';
       orderLoadState.errorMessage = orderLoadState.message;
       orderLoadState.loading = false;
       return;
@@ -220,12 +220,12 @@ export async function loadOrders(force = false, orderStatus?: string, page = ord
       orderLoadState.loaded = true;
       lastRequestKey = requestKey;
       orderLoadState.message = remotePage.total
-        ? `已加载真实订单接口数据，共 ${remotePage.total} 条。`
-        : '当前筛选条件下没有真实订单数据。';
+        ? `已加载订单数据，共 ${remotePage.total} 条。`
+        : '当前筛选条件下没有订单数据。';
     } catch (error) {
       replaceOrders([], normalizedPage, normalizedPageSize, 0);
       orderLoadState.loaded = true;
-      orderLoadState.errorMessage = error instanceof Error ? error.message : '订单接口调用失败。';
+      orderLoadState.errorMessage = error instanceof Error ? error.message : '订单数据加载失败。';
       orderLoadState.message = orderLoadState.errorMessage;
     } finally {
       orderLoadState.loading = false;

@@ -2,8 +2,25 @@
   <WorkspaceLayout
     eyebrow="Config"
     title="配置中心"
-    description="统一查看商家功能开关、生效配置、报表健康度和发布记录，方便本地联调时快速确认配置链路是否正常。"
+    description="统一查看商家功能开关、生效配置、报表健康度和发布记录，方便快速确认配置链路是否正常。"
   >
+    <section :class="$style.toolbar">
+      <div :class="$style.toolbarMain">
+        <div :class="$style.eyebrow">配置工作台</div>
+        <h3 :class="$style.toolbarTitle">生效开关、配置结果与发布记录统一查看</h3>
+        <div :class="$style.toolbarMeta">
+          <span>商家：{{ effectiveConfigSummary.merchantId }}</span>
+          <span>配置来源：{{ effectiveConfigSummary.configSource }}</span>
+          <span>商家时区：{{ effectiveConfigSummary.timeZone }}</span>
+          <span>发布记录：{{ publishRecords.length }} 条</span>
+        </div>
+      </div>
+      <div :class="$style.toolbarActions">
+        <UiButton variant="secondary" size="sm" @click="loadConfigCenter">刷新配置</UiButton>
+        <UiButton @click="handleCreatePublish">发起发布</UiButton>
+      </div>
+    </section>
+
     <UiStatePanel
       v-if="configStatePanel"
       :tone="configStatePanel.tone"
@@ -18,14 +35,27 @@
       :description="actionMessage"
     />
 
+    <section :class="$style.summaryGrid">
+      <UiCard
+        v-for="card in summaryCards"
+        :key="card.label"
+        elevated
+        :class="$style.summaryCard"
+      >
+        <div :class="$style.summaryLabel">{{ card.label }}</div>
+        <div :class="$style.summaryValue">{{ card.value }}</div>
+        <div :class="[$style.summaryMetaText, $style[card.tone]]">{{ card.meta }}</div>
+      </UiCard>
+    </section>
+
     <section :class="$style.grid">
       <UiCard elevated :class="$style.mainPanel">
         <div :class="$style.panelHead">
           <div>
             <div :class="$style.eyebrow">功能开关</div>
             <h3 :class="$style.title">当前商家生效中的能力</h3>
+            <div :class="$style.panelDescription">直接查看开关状态、来源和作用域，避免进入详情页后再判断是否生效。</div>
           </div>
-          <UiButton variant="secondary" @click="loadConfigCenter">刷新配置</UiButton>
         </div>
 
         <div :class="$style.configList">
@@ -38,7 +68,7 @@
               <UiTag :tone="item.statusTone as 'default' | 'primary' | 'success'">
                 {{ item.status }}
               </UiTag>
-              <UiButton variant="secondary" @click="handleToggleSwitch(item)">
+              <UiButton variant="secondary" size="sm" @click="handleToggleSwitch(item)">
                 {{ item.effectiveValue === 'on' ? '关闭' : '开启' }}
               </UiButton>
             </div>
@@ -55,15 +85,27 @@
 
       <UiCard elevated :class="$style.sidePanel">
         <div :class="$style.eyebrow">生效配置</div>
-        <h3 :class="$style.title">联调基线</h3>
+        <h3 :class="$style.title">当前生效配置</h3>
+        <div :class="$style.panelDescription">平台默认值、商家覆盖和报表健康度集中放在侧边，便于快速确认当前配置上下文。</div>
 
-        <ul :class="$style.notes">
-          <li>平台默认时区：{{ platformDefaultTimeZone }}</li>
-          <li>商家当前时区：{{ effectiveConfigSummary.timeZone }}</li>
-          <li>配置来源：{{ effectiveConfigSummary.configSource }}</li>
-          <li>商家标识：{{ effectiveConfigSummary.merchantId }}</li>
-          <li>报表状态：{{ reportHealthSummary }}</li>
-        </ul>
+        <div :class="$style.sideFacts">
+          <article :class="$style.factCard">
+            <div :class="$style.fieldLabel">平台默认时区</div>
+            <div :class="$style.factValue">{{ platformDefaultTimeZone }}</div>
+          </article>
+          <article :class="$style.factCard">
+            <div :class="$style.fieldLabel">商家当前时区</div>
+            <div :class="$style.factValue">{{ effectiveConfigSummary.timeZone }}</div>
+          </article>
+          <article :class="$style.factCard">
+            <div :class="$style.fieldLabel">配置来源</div>
+            <div :class="$style.factValue">{{ effectiveConfigSummary.configSource }}</div>
+          </article>
+          <article :class="$style.factCard">
+            <div :class="$style.fieldLabel">报表状态</div>
+            <div :class="$style.factValue">{{ reportHealthSummary }}</div>
+          </article>
+        </div>
 
         <div :class="$style.formStack">
           <label :class="$style.fieldBlock">
@@ -75,7 +117,7 @@
             />
           </label>
           <div :class="$style.inlineActions">
-            <UiButton variant="secondary" @click="handleUpdatePlatformTimeZone">更新平台默认值</UiButton>
+            <UiButton variant="secondary" size="sm" @click="handleUpdatePlatformTimeZone">更新平台默认值</UiButton>
           </div>
 
           <label :class="$style.fieldBlock">
@@ -87,21 +129,10 @@
             />
           </label>
           <div :class="$style.inlineActions">
-            <UiButton variant="secondary" @click="handleUpdateMerchantTimeZone">保存商家覆盖</UiButton>
+            <UiButton variant="secondary" size="sm" @click="handleUpdateMerchantTimeZone">保存商家覆盖</UiButton>
           </div>
         </div>
 
-        <div :class="$style.sideState">
-          <UiStatePanel
-            :tone="configMode === 'remote' ? 'info' : 'error'"
-            :title="configMode === 'remote' ? '已接入真实配置接口' : '配置服务调用失败'"
-            :description="
-              configMode === 'remote'
-                ? '当前页面读取的是 config-service 的真实配置和商家开关结果。'
-                : configNotice
-            "
-          />
-        </div>
       </UiCard>
     </section>
 
@@ -110,7 +141,7 @@
         <div :class="$style.sectionBlock">
           <div :class="$style.panelHead">
             <div>
-              <div :class="$style.eyebrow">联调健康度</div>
+              <div :class="$style.eyebrow">数据健康度</div>
               <h3 :class="$style.title">报表与看板数据状态</h3>
             </div>
           </div>
@@ -147,6 +178,13 @@
               </div>
             </div>
           </div>
+
+          <UiStatePanel
+            v-else
+            tone="empty"
+            title="暂无健康度明细"
+            description="当前还没有报表健康检查项返回，可以稍后刷新后重试。"
+          />
         </div>
 
         <div :class="$style.sectionBlock">
@@ -178,7 +216,7 @@
           </div>
 
           <div :class="$style.inlineActions">
-            <UiButton variant="secondary" :disabled="!publishRecords.length" @click="handleRollbackLatest">
+            <UiButton variant="secondary" size="sm" :disabled="!publishRecords.length" @click="handleRollbackLatest">
               回滚最新记录
             </UiButton>
           </div>
@@ -366,7 +404,7 @@ type ConfigGroupItem = {
 
 const authStore = useAuthStore();
 const configMode = ref<'remote' | 'error'>('remote');
-const configNotice = ref('正在加载真实配置接口。');
+const configNotice = ref('正在加载配置数据。');
 const configGroups = ref<ConfigGroupItem[]>([]);
 const effectiveConfig = ref<ConfigKvValueResponseRaw | null>(null);
 const platformConfig = ref<ConfigKvValueResponseRaw | null>(null);
@@ -376,8 +414,8 @@ const selectedPublishRecord = ref<ConfigPublishRecordResponseRaw | null>(null);
 const publishDetailLoading = ref(false);
 const actionMessage = ref('');
 const actionTone = ref<'info' | 'error'>('info');
-const publishNote = ref('本地联调发布');
-const rollbackReason = ref('联调验证后回滚');
+const publishNote = ref('商家配置发布');
+const rollbackReason = ref('配置回滚');
 const platformTimeZoneInput = ref('Asia/Shanghai');
 const merchantOverrideTimeZoneInput = ref('Asia/Shanghai');
 const publishDetailAnchor = ref<HTMLElement | null>(null);
@@ -390,6 +428,13 @@ const reportHealthSummary = computed(() => {
 });
 
 const platformDefaultTimeZone = computed(() => platformConfig.value?.config_value || 'Asia/Shanghai');
+const enabledSwitchCount = computed(() => configGroups.value.filter((item) => item.effectiveValue === 'on').length);
+const reportHealthIssueCount = computed(() => {
+  if (!reportHealth.value?.items?.length) {
+    return 0;
+  }
+  return reportHealth.value.items.filter((item) => item.status !== 'ready').length;
+});
 
 const effectiveConfigSummary = computed(() => {
   if (!effectiveConfig.value) {
@@ -407,6 +452,33 @@ const effectiveConfigSummary = computed(() => {
   };
 });
 
+const summaryCards = computed(() => [
+  {
+    label: '已开启开关',
+    value: String(enabledSwitchCount.value),
+    meta: `共 ${configGroups.value.length} 项能力开关`,
+    tone: 'success',
+  },
+  {
+    label: '商家当前时区',
+    value: effectiveConfigSummary.value.timeZone,
+    meta: `来源 ${effectiveConfigSummary.value.configSource}`,
+    tone: 'primary',
+  },
+  {
+    label: '报表健康项',
+    value: reportHealth.value?.ready ? '已就绪' : '待补数',
+    meta: reportHealthIssueCount.value > 0 ? `异常 ${reportHealthIssueCount.value} 项` : '未发现异常',
+    tone: reportHealthIssueCount.value > 0 ? 'danger' : 'success',
+  },
+  {
+    label: '发布记录',
+    value: String(publishRecords.value.length),
+    meta: selectedPublishRecord.value ? `当前选中 ${selectedPublishRecord.value.task_no}` : '未选中记录',
+    tone: 'default',
+  },
+]);
+
 const configStatePanel = computed(() => {
   if (configMode.value !== 'error') {
     return null;
@@ -414,7 +486,7 @@ const configStatePanel = computed(() => {
 
   return {
     tone: 'error' as const,
-    title: '配置接口调用失败',
+    title: '配置数据加载失败',
     description: configNotice.value,
   };
 });
@@ -480,7 +552,7 @@ async function loadConfigCenter() {
     ]);
 
     configMode.value = 'remote';
-    configNotice.value = '配置中心已连接真实接口。';
+    configNotice.value = '配置数据已更新。';
     configGroups.value = toConfigGroups(switches);
     effectiveConfig.value = timeZoneConfig;
     platformConfig.value = nextPlatformConfig;
@@ -533,7 +605,7 @@ async function handleCreatePublish() {
       merchantId,
       storeId,
       operatorName: authStore.user.operatorName || '商家管理员',
-      publishNote: publishNote.value.trim() || '本地联调发布',
+      publishNote: publishNote.value.trim() || '商家配置发布',
     });
     await loadConfigCenter();
     await handleSelectPublishRecord(record.task_no);
@@ -553,7 +625,7 @@ async function handleRollbackLatest() {
     await rollbackPublishRecord({
       taskNo: latest.task_no,
       operatorName: authStore.user.operatorName || '商家管理员',
-      rollbackReason: rollbackReason.value.trim() || '联调验证后回滚',
+      rollbackReason: rollbackReason.value.trim() || '配置验证后回滚',
     });
     await loadConfigCenter();
     await handleSelectPublishRecord(latest.task_no);
@@ -588,7 +660,7 @@ async function handleUpdatePlatformTimeZone() {
       configGroup: 'system',
       configKey: 'default_time_zone',
       configValue: nextValue,
-      configDesc: '前端联调更新的平台默认时区',
+      configDesc: '页面更新的平台默认时区',
     });
     await loadConfigCenter();
     setActionMessage(`平台默认时区已更新为 ${nextValue}。`);
@@ -623,6 +695,76 @@ onMounted(() => {
 </script>
 
 <style module>
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+  padding: 18px;
+  border-radius: 20px;
+  border: 1px solid rgba(9, 29, 46, 0.08);
+  background: linear-gradient(180deg, #ffffff 0%, #f9fbff 100%);
+}
+
+.toolbarMain {
+  display: grid;
+  gap: 10px;
+}
+
+.toolbarTitle {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+}
+
+.toolbarMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  color: var(--cdd-text-faint);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.toolbarActions {
+  display: flex;
+  gap: 10px;
+}
+
+.summaryGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.summaryCard {
+  display: grid;
+  gap: 10px;
+  padding: 18px;
+}
+
+.summaryLabel {
+  color: var(--cdd-text-faint);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.summaryValue {
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1.3;
+  word-break: break-word;
+}
+
+.summaryMetaText {
+  color: var(--cdd-text-soft);
+  font-size: 13px;
+  line-height: 1.7;
+}
+
 .grid {
   display: grid;
   grid-template-columns: minmax(0, 1.45fr) minmax(320px, 0.9fr);
@@ -632,7 +774,7 @@ onMounted(() => {
 .mainPanel,
 .sidePanel,
 .recordPanel {
-  padding: 24px;
+  padding: 18px;
 }
 
 .sidePanel {
@@ -662,17 +804,24 @@ onMounted(() => {
   letter-spacing: -0.04em;
 }
 
+.panelDescription {
+  margin-top: 10px;
+  color: var(--cdd-text-soft);
+  font-size: 13px;
+  line-height: 1.7;
+}
+
 .configList,
 .recordTable,
 .formStack,
 .publishDetail {
   display: grid;
-  gap: 14px;
+  gap: 12px;
 }
 
 .configList,
 .formStack {
-  margin-top: 20px;
+  margin-top: 16px;
 }
 
 .configItem {
@@ -680,8 +829,8 @@ onMounted(() => {
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
-  padding: 18px;
-  border-radius: 18px;
+  padding: 14px;
+  border-radius: 16px;
   background: rgba(237, 244, 255, 0.72);
   border: 1px solid rgba(9, 29, 46, 0.05);
 }
@@ -709,11 +858,25 @@ onMounted(() => {
   flex-shrink: 0;
 }
 
-.notes {
-  margin: 18px 0 0;
-  padding-left: 18px;
-  color: var(--cdd-text-soft);
-  line-height: 1.9;
+.sideFacts {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.factCard {
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(237, 244, 255, 0.72);
+  box-shadow: inset 0 0 0 1px rgba(9, 29, 46, 0.05);
+}
+
+.factValue {
+  margin-top: 8px;
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1.6;
+  word-break: break-word;
 }
 
 .sideState {
@@ -721,14 +884,14 @@ onMounted(() => {
 }
 
 .sectionBlock + .sectionBlock {
-  margin-top: 28px;
+  margin-top: 24px;
 }
 
 .publishFormGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
-  margin-top: 18px;
+  gap: 12px;
+  margin-top: 14px;
 }
 
 .fieldBlock {
@@ -737,28 +900,30 @@ onMounted(() => {
 }
 
 .fieldLabel {
-  color: var(--cdd-text-soft);
-  font-size: 13px;
-  font-weight: 700;
+  color: var(--cdd-text-faint);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .textarea {
-  min-height: 96px;
+  min-height: 88px;
   width: 100%;
-  padding: 14px 16px;
+  padding: 12px 14px;
   border: 0;
-  border-radius: 18px;
+  border-radius: 16px;
   background: rgba(237, 244, 255, 0.92);
   color: var(--cdd-text);
   resize: vertical;
 }
 
 .input {
-  min-height: 54px;
+  min-height: 50px;
   width: 100%;
-  padding: 14px 16px;
+  padding: 12px 14px;
   border: 0;
-  border-radius: 18px;
+  border-radius: 16px;
   background: rgba(237, 244, 255, 0.92);
   color: var(--cdd-text);
   font: inherit;
@@ -767,7 +932,7 @@ onMounted(() => {
 .inlineActions {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: 8px;
 }
 
 .recordHead,
@@ -775,9 +940,9 @@ onMounted(() => {
 .recordRowStatic {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 16px;
+  gap: 14px;
   align-items: start;
-  padding: 14px 16px;
+  padding: 11px 12px;
 }
 
 .recordHead {
@@ -850,6 +1015,12 @@ onMounted(() => {
 }
 
 @media (max-width: 1080px) {
+  .toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .summaryGrid,
   .grid,
   .publishFormGrid,
   .detailGrid,
@@ -863,6 +1034,8 @@ onMounted(() => {
 }
 
 @media (max-width: 720px) {
+  .toolbarMeta,
+  .toolbarActions,
   .panelHead,
   .configItem,
   .configActions {
@@ -870,12 +1043,15 @@ onMounted(() => {
     align-items: flex-start;
   }
 
+  .toolbarActions,
+  .toolbarActions :global(button),
   .configActions,
   .inlineActions,
   .inlineActions :global(button) {
     width: 100%;
   }
 
+  .toolbarActions :global(button),
   .configActions :global(button),
   .inlineActions :global(button) {
     width: 100%;

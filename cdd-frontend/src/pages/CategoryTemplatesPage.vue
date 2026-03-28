@@ -38,16 +38,34 @@
             <h3 :class="$style.titleText">当前可用分类模板</h3>
           </div>
           <div :class="$style.panelActions">
-            <UiButton variant="secondary" @click="loadTemplates">刷新模板</UiButton>
-            <UiButton variant="secondary" @click="toggleCreateForm">
+            <UiButton variant="secondary" size="sm" @click="loadTemplates">刷新模板</UiButton>
+            <UiButton variant="secondary" size="sm" @click="toggleCreateForm">
               {{ showCreateForm ? '收起创建表单' : '新建模板' }}
             </UiButton>
           </div>
         </div>
 
+        <div :class="$style.listToolbar">
+          <UiInput v-model="templateKeyword" placeholder="搜索模板名称、行业、版本..." prefix="搜" />
+          <div :class="$style.statusBar">
+            <button
+              v-for="option in templateStatusOptions"
+              :key="option.value"
+              type="button"
+              :class="[$style.statusChip, templateStatusFilter === option.value ? $style.statusChipActive : '']"
+              @click="templateStatusFilter = option.value"
+            >
+              <span>{{ option.label }}</span>
+              <strong>{{ option.count }}</strong>
+            </button>
+          </div>
+        </div>
+
         <div :class="$style.panelSubHead">
           <h4 :class="$style.subTitle">核心模板库</h4>
-          <div :class="$style.sortText">排序方式：最近更新</div>
+          <div :class="$style.sortText">
+            {{ templateKeyword.trim() ? `搜索结果 ${filteredTemplates.length} 项` : '排序方式：推荐优先' }}
+          </div>
         </div>
 
         <div :class="$style.templateList">
@@ -75,6 +93,18 @@
             </div>
           </button>
         </div>
+
+        <UiStatePanel
+          v-if="!pagedTemplates.length"
+          tone="empty"
+          title="当前没有匹配模板"
+          :description="templateKeyword.trim() || templateStatusFilter !== 'all' ? '请调整搜索词或状态筛选后重试。' : '平台后台还没有可用模板，请先创建模板。'"
+        >
+          <UiButton variant="secondary" size="sm" @click="resetTemplateFilters">重置筛选</UiButton>
+          <UiButton variant="secondary" size="sm" @click="toggleCreateForm">
+            {{ showCreateForm ? '收起创建表单' : '新建模板' }}
+          </UiButton>
+        </UiStatePanel>
 
         <UiPagination
           v-if="templatePagination.total"
@@ -115,32 +145,11 @@
             {{ selectedTemplate.template_desc }}
           </p>
 
-          <div :class="$style.previewHead">
-            <div :class="$style.previewTitle">结构预览</div>
-            <UiTag :tone="templateTone(selectedTemplate.status)">
-              {{ templateStatusLabel(selectedTemplate.status) }}
-            </UiTag>
-          </div>
-
-          <div :class="$style.previewList">
-            <div
-              v-for="node in selectedTemplateRows"
-              :key="`${selectedTemplate.id}-${node.template_category_code}`"
-              :class="$style.previewRow"
-            >
-              <span :style="{ paddingInlineStart: `${node.depth * 22}px` }" :class="$style.previewName">
-                {{ node.category_name }}
-              </span>
-              <div :class="$style.previewTags">
-                <UiTag :tone="node.is_enabled ? 'success' : 'danger'">
-                  {{ node.is_enabled ? '启用' : '停用' }}
-                </UiTag>
-                <UiTag :tone="node.is_visible ? 'info' : 'default'">
-                  {{ node.is_visible ? '展示' : '隐藏' }}
-                </UiTag>
-              </div>
-            </div>
-          </div>
+          <CategoryTemplateTreePreview
+            :rows="selectedTemplateRows"
+            title="结构预览"
+            :summary="templateStatusLabel(selectedTemplate.status)"
+          />
         </div>
         <UiStatePanel
           v-else
@@ -159,6 +168,12 @@
         </div>
       </div>
 
+      <UiStatePanel
+        tone="info"
+        title="模板会直接进入平台模板库"
+        description="建议先录入根节点和一级节点，确认层级结构后再继续扩展详细节点。"
+      />
+
       <div :class="$style.formGrid">
         <UiInput v-model="form.templateName" label="模板名称" placeholder="例如：社区精选模板" />
         <UiInput v-model="form.industryCode" label="行业编码" placeholder="例如：fresh_retail" />
@@ -172,14 +187,21 @@
 
       <div :class="$style.nodeSectionHead">
         <div :class="$style.sectionTitle">模板节点</div>
-        <UiButton variant="secondary" @click="addNode">新增节点</UiButton>
+        <UiButton variant="secondary" size="sm" @click="addNode">新增节点</UiButton>
       </div>
 
       <div :class="$style.nodeList">
         <article v-for="node in form.nodes" :key="node.clientId" :class="$style.nodeCard">
           <div :class="$style.nodeGrid">
             <UiInput v-model="node.templateCategoryCode" label="分类编码" placeholder="例如：fresh_fruit" />
-            <UiInput v-model="node.parentTemplateCategoryCode" label="父级编码" placeholder="顶级可留空" />
+            <UiHierarchySelect
+              v-model="node.parentTemplateCategoryCode"
+              label="父级节点"
+              :options="parentNodeOptions(node.clientId)"
+              placeholder="顶级节点"
+              search-placeholder="搜索父级编码或名称"
+              empty-text="顶级节点无需选择父级"
+            />
             <UiInput v-model="node.categoryName" label="分类名称" placeholder="例如：水果优选" />
             <UiInput v-model="node.sortOrder" label="排序值" placeholder="例如：10" />
           </div>
@@ -192,7 +214,7 @@
               <input v-model="node.visible" type="checkbox" />
               <span>前台展示</span>
             </label>
-            <UiButton variant="secondary" :disabled="form.nodes.length <= 1" @click="removeNode(node.clientId)">
+            <UiButton variant="secondary" size="sm" :disabled="form.nodes.length <= 1" @click="removeNode(node.clientId)">
               删除节点
             </UiButton>
           </div>
@@ -200,8 +222,8 @@
       </div>
 
       <div :class="$style.panelActions">
-        <UiButton variant="secondary" @click="resetForm">重置表单</UiButton>
-        <UiButton :disabled="submitting" @click="handleCreateTemplate">
+        <UiButton variant="secondary" size="sm" @click="resetForm">重置表单</UiButton>
+        <UiButton :disabled="submitting || !canCreateTemplate" @click="handleCreateTemplate">
           {{ submitting ? '正在创建...' : '提交模板' }}
         </UiButton>
       </div>
@@ -210,9 +232,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref, watchEffect } from 'vue';
+import CategoryTemplateTreePreview from '@/components/category/CategoryTemplateTreePreview.vue';
 import UiButton from '@/components/base/UiButton.vue';
 import UiCard from '@/components/base/UiCard.vue';
+import UiHierarchySelect from '@/components/base/UiHierarchySelect.vue';
 import UiInput from '@/components/base/UiInput.vue';
 import UiPagination from '@/components/base/UiPagination.vue';
 import UiStatePanel from '@/components/base/UiStatePanel.vue';
@@ -239,6 +263,8 @@ const actionTone = ref<'info' | 'error'>('info');
 const templates = ref<ProductCategoryTemplateResponseRaw[]>([]);
 const selectedTemplateId = ref<number | null>(null);
 const showCreateForm = ref(false);
+const templateKeyword = ref('');
+const templateStatusFilter = ref<'all' | 'recommended' | 'enabled' | 'disabled'>('all');
 const templatePagination = reactive({
   page: 1,
   pageSize: 10,
@@ -269,7 +295,12 @@ const selectedTemplate = computed(() =>
   templates.value.find((item) => item.id === selectedTemplateId.value) ?? templates.value[0] ?? null,
 );
 
-const selectedTemplateRows = computed(() => flattenTemplateNodes(selectedTemplate.value?.categories ?? []));
+const selectedTemplateRows = computed(() =>
+  flattenTemplateNodes(selectedTemplate.value?.categories ?? []).map((node) => ({
+    ...node,
+    key: `${selectedTemplate.value?.id ?? 'template'}-${node.template_category_code}`,
+  })),
+);
 const sortedTemplates = computed(() =>
   [...templates.value].sort((left, right) => {
     const rank = (status: string) => {
@@ -289,15 +320,63 @@ const sortedTemplates = computed(() =>
   }),
 );
 
+const filteredTemplates = computed(() => {
+  const keyword = templateKeyword.value.trim().toLowerCase();
+  return sortedTemplates.value.filter((template) => {
+    if (templateStatusFilter.value !== 'all' && template.status !== templateStatusFilter.value) {
+      return false;
+    }
+    if (!keyword) {
+      return true;
+    }
+    return [
+      template.template_name,
+      template.template_version,
+      template.industry_code,
+      industryLabel(template.industry_code),
+      template.template_desc ?? '',
+    ]
+      .join(' ')
+      .toLowerCase()
+      .includes(keyword);
+  });
+});
+
+const templateStatusOptions = computed(() => [
+  { value: 'all' as const, label: '全部模板', count: String(templates.value.length) },
+  { value: 'recommended' as const, label: '推荐模板', count: String(templates.value.filter((item) => item.status === 'recommended').length) },
+  { value: 'enabled' as const, label: '已启用', count: String(templates.value.filter((item) => item.status === 'enabled').length) },
+  { value: 'disabled' as const, label: '已停用', count: String(templates.value.filter((item) => item.status === 'disabled').length) },
+]);
+const templateNodeMap = computed(() => buildTemplateNodeMap(form.nodes));
+const canCreateTemplate = computed(() => (
+  form.templateName.trim().length > 0
+  && form.industryCode.trim().length > 0
+  && form.templateVersion.trim().length > 0
+  && form.maxLevel.trim().length > 0
+  && form.nodes.length > 0
+  && form.nodes.every((node) => (
+    node.templateCategoryCode.trim().length > 0
+    && node.categoryName.trim().length > 0
+    && node.sortOrder.trim().length > 0
+  ))
+  && !hasDuplicateTemplateNodeCodes(form.nodes)
+  && !hasMissingTemplateParents(form.nodes)
+  && !hasTemplateNodeCycle(form.nodes)
+));
+
 const pagedTemplates = computed(() => {
-  return sortedTemplates.value;
+  const page = Math.max(1, templatePagination.page);
+  const pageSize = Math.max(1, templatePagination.pageSize);
+  const start = (page - 1) * pageSize;
+  return filteredTemplates.value.slice(start, start + pageSize);
 });
 
 const stats = computed(() => [
   { label: '模板总数', value: String(templatePagination.total), hint: '平台可选模板', emphasis: false },
-  { label: '当前页推荐', value: String(templates.value.filter((item) => item.status === 'recommended').length), hint: '建议优先初始化', emphasis: false },
-  { label: '当前页行业覆盖率', value: templates.value.length ? `${Math.round((new Set(templates.value.map((item) => item.industry_code)).size / templates.value.length) * 100)}%` : '0%', hint: '当前页行业编码占比', emphasis: false },
-  { label: '当前页启用', value: String(templates.value.filter((item) => item.status !== 'disabled').length), hint: '当前页可初始化', emphasis: true },
+  { label: '当前页推荐', value: String(pagedTemplates.value.filter((item) => item.status === 'recommended').length), hint: '建议优先初始化', emphasis: false },
+  { label: '当前页行业覆盖率', value: pagedTemplates.value.length ? `${Math.round((new Set(pagedTemplates.value.map((item) => item.industry_code)).size / pagedTemplates.value.length) * 100)}%` : '0%', hint: '当前页行业编码占比', emphasis: false },
+  { label: '当前页启用', value: String(pagedTemplates.value.filter((item) => item.status !== 'disabled').length), hint: '当前页可初始化', emphasis: true },
 ]);
 
 function setActionMessage(message: string, tone: 'info' | 'error' = 'info') {
@@ -344,10 +423,97 @@ function templateTone(status: string) {
   return 'default' as const;
 }
 
+function normalizeTemplateNodeCode(value: string | null | undefined): string {
+  return value?.trim() ?? '';
+}
+
+function buildTemplateNodeMap(nodes: TemplateNodeForm[]) {
+  const map = new Map<string, TemplateNodeForm>();
+  nodes.forEach((node) => {
+    const code = normalizeTemplateNodeCode(node.templateCategoryCode);
+    if (!code || map.has(code)) {
+      return;
+    }
+    map.set(code, node);
+  });
+  return map;
+}
+
+function hasDuplicateTemplateNodeCodes(nodes: TemplateNodeForm[]): boolean {
+  const codes = new Set<string>();
+  return nodes.some((node) => {
+    const code = normalizeTemplateNodeCode(node.templateCategoryCode);
+    if (!code) {
+      return false;
+    }
+    if (codes.has(code)) {
+      return true;
+    }
+    codes.add(code);
+    return false;
+  });
+}
+
+function hasMissingTemplateParents(nodes: TemplateNodeForm[]): boolean {
+  const nodeMap = buildTemplateNodeMap(nodes);
+  return nodes.some((node) => {
+    const parentCode = normalizeTemplateNodeCode(node.parentTemplateCategoryCode);
+    return parentCode.length > 0 && !nodeMap.has(parentCode);
+  });
+}
+
+function hasTemplateNodeCycle(nodes: TemplateNodeForm[]): boolean {
+  const nodeMap = buildTemplateNodeMap(nodes);
+  return nodes.some((node) => {
+    const code = normalizeTemplateNodeCode(node.templateCategoryCode);
+    if (!code) {
+      return false;
+    }
+    const visited = new Set<string>([code]);
+    let parentCode = normalizeTemplateNodeCode(node.parentTemplateCategoryCode);
+    while (parentCode) {
+      if (visited.has(parentCode)) {
+        return true;
+      }
+      visited.add(parentCode);
+      const parentNode = nodeMap.get(parentCode);
+      if (!parentNode) {
+        return false;
+      }
+      parentCode = normalizeTemplateNodeCode(parentNode.parentTemplateCategoryCode);
+    }
+    return false;
+  });
+}
+
+function isTemplateNodeDescendant(nodeCode: string, ancestorCode: string, nodeMap: Map<string, TemplateNodeForm>): boolean {
+  const visited = new Set<string>();
+  let currentCode = normalizeTemplateNodeCode(nodeCode);
+  while (currentCode) {
+    if (currentCode === ancestorCode) {
+      return true;
+    }
+    if (visited.has(currentCode)) {
+      return false;
+    }
+    visited.add(currentCode);
+    const currentNode = nodeMap.get(currentCode);
+    if (!currentNode) {
+      return false;
+    }
+    currentCode = normalizeTemplateNodeCode(currentNode.parentTemplateCategoryCode);
+  }
+  return false;
+}
+
+function normalizeTemplateParentCode(parentCode: string | null | undefined): string {
+  return parentCode?.trim() ? parentCode.trim() : 'ROOT';
+}
+
 function flattenTemplateNodes(nodes: ProductCategoryTemplateNodeResponseRaw[]) {
   const byParent = new Map<string, ProductCategoryTemplateNodeResponseRaw[]>();
   nodes.forEach((item) => {
-    const key = item.parent_template_category_code ?? 'ROOT';
+    const key = normalizeTemplateParentCode(item.parent_template_category_code);
     const current = byParent.get(key) ?? [];
     current.push(item);
     byParent.set(key, current);
@@ -355,14 +521,26 @@ function flattenTemplateNodes(nodes: ProductCategoryTemplateNodeResponseRaw[]) {
   byParent.forEach((items) => items.sort((left, right) => left.sort_order - right.sort_order || left.id - right.id));
 
   const rows: Array<ProductCategoryTemplateNodeResponseRaw & { depth: number }> = [];
+  const visitedCodes = new Set<string>();
   const walk = (parentCode: string | null, depth: number) => {
-    const children = byParent.get(parentCode ?? 'ROOT') ?? [];
+    const children = byParent.get(normalizeTemplateParentCode(parentCode)) ?? [];
     children.forEach((child) => {
+      if (visitedCodes.has(child.template_category_code)) {
+        return;
+      }
+      visitedCodes.add(child.template_category_code);
       rows.push({ ...child, depth });
       walk(child.template_category_code, depth + 1);
     });
   };
   walk(null, 0);
+  nodes.forEach((item) => {
+    if (visitedCodes.has(item.template_category_code)) {
+      return;
+    }
+    visitedCodes.add(item.template_category_code);
+    rows.push({ ...item, depth: Math.max(0, item.category_level - 1) });
+  });
   return rows;
 }
 
@@ -376,6 +554,30 @@ function buildNode(seed?: Partial<TemplateNodeForm>, index = 0): TemplateNodeFor
     enabled: seed?.enabled ?? true,
     visible: seed?.visible ?? true,
   };
+}
+
+function parentNodeOptions(currentClientId: string) {
+  const currentNode = form.nodes.find((item) => item.clientId === currentClientId) ?? null;
+  const currentCode = normalizeTemplateNodeCode(currentNode?.templateCategoryCode);
+  return [
+    ...form.nodes
+      .filter((item) => {
+        const code = normalizeTemplateNodeCode(item.templateCategoryCode);
+        if (item.clientId === currentClientId || !code) {
+          return false;
+        }
+        if (!currentCode) {
+          return true;
+        }
+        return !isTemplateNodeDescendant(code, currentCode, templateNodeMap.value);
+      })
+      .map((item) => ({
+        value: normalizeTemplateNodeCode(item.templateCategoryCode),
+        label: `${normalizeTemplateNodeCode(item.templateCategoryCode)} · ${item.categoryName.trim() || '未命名节点'}`,
+        pathLabel: `${normalizeTemplateNodeCode(item.templateCategoryCode)} / ${item.categoryName.trim() || '未命名节点'}`,
+        searchText: `${item.templateCategoryCode} ${item.categoryName}`.toLowerCase(),
+      })),
+  ];
 }
 
 function resetForm() {
@@ -398,15 +600,19 @@ function toggleCreateForm() {
   }
 }
 
+function resetTemplateFilters() {
+  templateKeyword.value = '';
+  templateStatusFilter.value = 'all';
+  templatePagination.page = 1;
+}
+
 function handleTemplatePageChange(page: number) {
   templatePagination.page = page;
-  void loadTemplates();
 }
 
 function handleTemplatePageSizeChange(pageSize: number) {
   templatePagination.page = 1;
   templatePagination.pageSize = pageSize;
-  void loadTemplates();
 }
 
 function addNode() {
@@ -425,12 +631,10 @@ async function loadTemplates() {
   loading.value = true;
   try {
     const templatePage = await fetchCategoryTemplateList({
-      page: templatePagination.page,
-      pageSize: templatePagination.pageSize,
+      page: 1,
+      pageSize: 200,
     });
     templates.value = templatePage.list;
-    templatePagination.page = templatePage.page;
-    templatePagination.pageSize = templatePage.page_size;
     templatePagination.total = templatePage.total;
     if (!selectedTemplateId.value || !templatePage.list.some((item) => item.id === selectedTemplateId.value)) {
       selectedTemplateId.value = templatePage.list[0]?.id ?? null;
@@ -459,6 +663,15 @@ async function handleCreateTemplate() {
     }
     if (!form.nodes.length) {
       throw new Error('模板节点不能为空。');
+    }
+    if (hasDuplicateTemplateNodeCodes(form.nodes)) {
+      throw new Error('模板分类编码不能重复。');
+    }
+    if (hasMissingTemplateParents(form.nodes)) {
+      throw new Error('存在未匹配的父级节点，请重新选择父级。');
+    }
+    if (hasTemplateNodeCycle(form.nodes)) {
+      throw new Error('模板节点存在循环父子关系，请调整父级节点。');
     }
     submitting.value = true;
     const created = await createCategoryTemplate({
@@ -504,6 +717,14 @@ async function handleCreateTemplate() {
 onMounted(() => {
   resetForm();
   void loadTemplates();
+});
+
+watchEffect(() => {
+  templatePagination.total = filteredTemplates.value.length;
+  const maxPage = Math.max(1, Math.ceil(Math.max(1, filteredTemplates.value.length) / templatePagination.pageSize));
+  if (templatePagination.page > maxPage) {
+    templatePagination.page = maxPage;
+  }
 });
 </script>
 
@@ -562,7 +783,7 @@ onMounted(() => {
 .panel,
 .sidePanel,
 .createPanel {
-  padding: 20px;
+  padding: 18px;
   border-radius: 20px;
   border: 1px solid rgba(9, 29, 46, 0.08);
   background: linear-gradient(180deg, #ffffff 0%, #f9fbff 100%);
@@ -599,11 +820,58 @@ onMounted(() => {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-  margin-top: 18px;
+  align-items: center;
+}
+
+.listToolbar {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+  align-items: start;
+}
+
+.statusBar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.statusChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 38px;
+  padding: 0 14px;
+  border: 1px solid rgba(9, 29, 46, 0.08);
+  border-radius: 14px;
+  background: rgba(248, 250, 253, 0.96);
+  color: var(--cdd-text-soft);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    transform 0.16s ease,
+    background 0.16s ease,
+    color 0.16s ease,
+    border-color 0.16s ease,
+    box-shadow 0.16s ease;
+}
+
+.statusChip:hover {
+  transform: translateY(-1px);
+}
+
+.statusChipActive {
+  border-color: rgba(255, 107, 0, 0.22);
+  background: linear-gradient(135deg, rgba(255, 107, 0, 0.1), rgba(255, 249, 244, 0.98));
+  color: #9c4304;
+  box-shadow: inset 0 0 0 1px rgba(255, 107, 0, 0.08);
 }
 
 .panelSubHead {
-  margin-top: 18px;
+  margin-top: 16px;
   display: flex;
   justify-content: space-between;
   gap: 10px;
@@ -626,30 +894,30 @@ onMounted(() => {
 .previewList,
 .nodeList {
   display: grid;
-  gap: 12px;
-  margin-top: 18px;
+  gap: 10px;
+  margin-top: 14px;
 }
 
 .templateCard {
-  border-radius: 20px;
-  padding: 18px;
+  border-radius: 18px;
+  padding: 16px;
   background: #fff;
   text-align: left;
   border: 1px solid rgba(9, 29, 46, 0.08);
-  box-shadow: 0 8px 22px rgba(9, 29, 46, 0.06);
+  box-shadow: 0 6px 16px rgba(9, 29, 46, 0.05);
   transition: all 0.18s ease;
 }
 
 .templateCard:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 14px 30px rgba(9, 29, 46, 0.12);
-  border-color: rgba(255, 107, 0, 0.28);
+  transform: translateY(-1px);
+  box-shadow: 0 10px 20px rgba(9, 29, 46, 0.08);
+  border-color: rgba(255, 107, 0, 0.18);
 }
 
 .templateCardActive {
-  border-color: rgba(255, 107, 0, 0.42);
+  border-color: rgba(255, 107, 0, 0.28);
   background: linear-gradient(180deg, rgba(255, 248, 242, 0.96), rgba(255, 255, 255, 0.98));
-  box-shadow: 0 14px 30px rgba(255, 107, 0, 0.14);
+  box-shadow: 0 10px 20px rgba(255, 107, 0, 0.1);
 }
 
 .templateCardHead {
@@ -690,8 +958,8 @@ onMounted(() => {
 .detailGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
-  margin-top: 18px;
+  gap: 12px;
+  margin-top: 14px;
 }
 
 .detailLabel,
@@ -709,7 +977,7 @@ onMounted(() => {
 }
 
 .previewHead {
-  margin-top: 18px;
+  margin-top: 16px;
   display: flex;
   justify-content: space-between;
   gap: 10px;
@@ -727,7 +995,7 @@ onMounted(() => {
   justify-content: space-between;
   gap: 12px;
   align-items: center;
-  padding: 12px 14px;
+  padding: 10px 12px;
   border-radius: 16px;
   background: rgba(237, 244, 255, 0.72);
   border: 1px solid rgba(9, 29, 46, 0.06);
@@ -743,8 +1011,8 @@ onMounted(() => {
 .formGrid,
 .nodeGrid {
   display: grid;
-  gap: 14px;
-  margin-top: 18px;
+  gap: 12px;
+  margin-top: 14px;
 }
 
 .fieldWide {
@@ -753,10 +1021,10 @@ onMounted(() => {
 }
 
 .textarea {
-  min-height: 112px;
+  min-height: 96px;
   border: 1px solid rgba(9, 29, 46, 0.08);
   border-radius: 16px;
-  padding: 14px;
+  padding: 12px 14px;
   background: #fff;
   resize: vertical;
 }
@@ -766,7 +1034,7 @@ onMounted(() => {
   justify-content: space-between;
   gap: 12px;
   align-items: center;
-  margin-top: 24px;
+  margin-top: 16px;
 }
 
 .sectionTitle {
@@ -775,8 +1043,8 @@ onMounted(() => {
 }
 
 .nodeCard {
-  padding: 16px;
-  border-radius: 18px;
+  padding: 12px;
+  border-radius: 16px;
   background: rgba(237, 244, 255, 0.72);
   border: 1px solid rgba(9, 29, 46, 0.08);
 }
@@ -786,7 +1054,7 @@ onMounted(() => {
   flex-wrap: wrap;
   gap: 10px;
   align-items: center;
-  margin-top: 14px;
+  margin-top: 12px;
 }
 
 .switchItem {
@@ -803,6 +1071,11 @@ onMounted(() => {
 
   .sidePanel {
     position: static;
+  }
+
+  .statusBar {
+    flex-direction: column;
+    align-items: stretch;
   }
 
   .panelSubHead {
