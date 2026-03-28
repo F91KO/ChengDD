@@ -14,6 +14,9 @@ public record OrderAfterSaleReturnRequest(
         @JsonProperty("user_id")
         @NotNull(message = "用户ID不能为空")
         Long userId,
+        @JsonProperty("operator_id")
+        @NotNull(message = "操作人ID不能为空")
+        Long operatorId,
         @JsonProperty("return_company")
         @NotBlank(message = "退货物流公司不能为空")
         String returnCompany,

@@ -864,9 +864,9 @@ public class OrderApplicationService {
                 order.orderStatus(),
                 order.orderStatus(),
                 "after_sale_return_submit",
-                request.userId(),
-                "用户" + request.userId(),
-                "提交退货物流",
+                request.operatorId(),
+                buildMerchantOperatorName(request.operatorId()),
+                "商家已代录退货物流",
                 now));
         AfterSaleRecord latestAfterSale = requireAfterSale(afterSaleNo);
         return toAfterSaleLifecycleResponse(latestAfterSale, order.orderNo(), order.payStatus());
@@ -942,8 +942,8 @@ public class OrderApplicationService {
                 order.orderStatus(),
                 ORDER_STATUS_SHIPPED,
                 "ship_order",
-                request.userId(),
-                "用户" + request.userId(),
+                request.operatorId(),
+                buildMerchantOperatorName(request.operatorId()),
                 StringUtils.hasText(request.shipRemark())
                         ? request.shipRemark().trim()
                         : "订单已发货，物流公司：" + logisticsName + "，运单号：" + trackingNo,
@@ -1081,13 +1081,13 @@ public class OrderApplicationService {
 
         if (detail.returnedAt() != null) {
             String returnSummary = StringUtils.hasText(detail.returnCompany()) || StringUtils.hasText(detail.returnLogisticsNo())
-                    ? "用户已提交退货物流：" + defaultText(detail.returnCompany(), "-") + " / " + defaultText(detail.returnLogisticsNo(), "-")
-                    : "用户已提交退货物流";
+                    ? "商家已代录退货物流：" + defaultText(detail.returnCompany(), "-") + " / " + defaultText(detail.returnLogisticsNo(), "-")
+                    : "商家已代录退货物流";
             events.add(new AfterSaleTimelineEvent(
                     "return_submit",
                     detail.afterSaleStatus(),
-                    detail.userId(),
-                    "用户" + detail.userId(),
+                    detail.handledBy(),
+                    buildMerchantOperatorName(detail.handledBy()),
                     returnSummary,
                     detail.returnedAt()));
         }
@@ -1522,6 +1522,19 @@ public class OrderApplicationService {
         if (!StringUtils.hasText(raw)) {
             return null;
         }
+        List<String> statuses = Arrays.stream(raw.split(","))
+                .map(String::trim)
+                .filter(StringUtils::hasText)
+                .map(this::normalizeSingleAfterSaleStatus)
+                .distinct()
+                .toList();
+        if (statuses.isEmpty()) {
+            return null;
+        }
+        return String.join(",", statuses);
+    }
+
+    private String normalizeSingleAfterSaleStatus(String raw) {
         String normalized = normalize(raw);
         return switch (normalized) {
             case AFTER_SALE_STATUS_PENDING_MERCHANT,

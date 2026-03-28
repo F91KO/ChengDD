@@ -1604,8 +1604,20 @@ public class JdbcOrderRepository implements OrderRepository {
         args.add(merchantId);
         args.add(storeId);
         if (StringUtils.hasText(afterSaleStatus)) {
-            whereClause.append(" AND a.after_sale_status = ?");
-            args.add(afterSaleStatus.trim().toLowerCase());
+            List<String> statuses = Arrays.stream(afterSaleStatus.split(","))
+                    .map(String::trim)
+                    .filter(StringUtils::hasText)
+                    .map(String::toLowerCase)
+                    .distinct()
+                    .toList();
+            if (statuses.size() == 1) {
+                whereClause.append(" AND a.after_sale_status = ?");
+                args.add(statuses.get(0));
+            } else if (!statuses.isEmpty()) {
+                String placeholders = String.join(",", Collections.nCopies(statuses.size(), "?"));
+                whereClause.append(" AND a.after_sale_status IN (").append(placeholders).append(')');
+                args.addAll(statuses);
+            }
         }
         return new AfterSaleListQuery(whereClause.toString(), List.copyOf(args));
     }

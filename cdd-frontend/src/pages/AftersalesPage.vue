@@ -2,7 +2,7 @@
   <WorkspaceLayout
     eyebrow="After-sales"
     title="售后处理"
-    description="按状态查看售后单，联动详情、审核和退货物流录入，让日常处理动作尽量在一个页面内完成。"
+    description="按状态查看售后单，联动详情、审核和退货物流代录，让日常处理动作尽量在一个页面内完成。"
   >
     <section :class="$style.tabs">
       <button
@@ -69,13 +69,20 @@
             <div :class="$style.updated">商家 {{ record.merchantId }} / 门店 {{ record.storeId }}</div>
             <div :class="$style.actions">
               <UiButton variant="secondary" @click="handleViewDetail(record)">查看详情</UiButton>
-              <UiButton v-if="record.tabStatus === '待处理'" @click="handleApprove(record)">快速同意</UiButton>
+              <UiButton
+                v-if="record.tabStatus === '待处理'"
+                :disabled="submitting"
+                @click="submitQuickReview(record, 'agree')"
+              >
+                {{ submitting ? '正在提交...' : '快速同意' }}
+              </UiButton>
               <UiButton
                 v-if="record.tabStatus === '待处理'"
                 variant="secondary"
-                @click="handleReject(record)"
+                :disabled="submitting"
+                @click="submitQuickReview(record, 'reject')"
               >
-                快速驳回
+                {{ submitting ? '正在提交...' : '快速驳回' }}
               </UiButton>
             </div>
           </div>
@@ -230,14 +237,14 @@
       </section>
 
       <section v-if="detailRecord.after_sale_status === 'waiting_return'" :class="$style.detailBlock">
-        <div :class="$style.sectionTitle">退货物流录入</div>
+        <div :class="$style.sectionTitle">退货物流代录</div>
         <div :class="$style.detailGrid">
           <label :class="$style.field">
             <span :class="$style.metaLabel">物流公司</span>
             <input
               v-model="returnCompany"
               :class="$style.input"
-              placeholder="请输入物流公司"
+              placeholder="请输入用户退回的物流公司"
             />
           </label>
           <label :class="$style.field">
@@ -245,14 +252,14 @@
             <input
               v-model="returnLogisticsNo"
               :class="$style.input"
-              placeholder="请输入物流单号"
+              placeholder="请输入用户退回的物流单号"
             />
           </label>
         </div>
         <div :class="$style.actions">
           <UiButton variant="secondary" @click="resetReturnForm">清空物流信息</UiButton>
           <UiButton :disabled="submitting" @click="submitReturnLogistics">
-            {{ submitting ? '正在提交...' : '提交退货物流' }}
+            {{ submitting ? '正在提交...' : '提交代录物流' }}
           </UiButton>
         </div>
       </section>
@@ -457,11 +464,20 @@ function formatLogType(type: string | null | undefined): string {
   if (normalized.includes('merchant_reject')) {
     return '商家驳回';
   }
+  if (normalized.includes('refund_success')) {
+    return '退款成功';
+  }
+  if (normalized.includes('refund_failed')) {
+    return '退款失败';
+  }
   if (normalized.includes('return')) {
-    return '填写退货物流';
+    return '代录退货物流';
   }
   if (normalized.includes('refund')) {
     return '退款处理';
+  }
+  if (normalized.includes('complete')) {
+    return '售后完成';
   }
   if (normalized.includes('close')) {
     return '售后关闭';
@@ -498,7 +514,7 @@ function mapTabToStatus(tab: string): string | undefined {
     case '待处理':
       return 'pending_merchant';
     case '已同意':
-      return 'agreed';
+      return 'agreed,refunding';
     case '已驳回':
       return 'rejected';
     case '待退货':
@@ -528,14 +544,37 @@ async function handleViewDetail(record: AfterSaleCardRecord) {
   }
 }
 
-async function handleApprove(record: AfterSaleCardRecord) {
-  approveRemark.value = '同意售后申请，请按流程继续处理。';
-  await handleViewDetail(record);
-}
+async function submitQuickReview(record: AfterSaleCardRecord, reviewAction: 'agree' | 'reject') {
+  try {
+    const operatorId = authStore.userIdForQuery;
+    if (!operatorId) {
+      throw new Error('当前上下文缺少操作人 ID。');
+    }
 
-async function handleReject(record: AfterSaleCardRecord) {
-  approveRemark.value = '驳回售后申请，请补充凭证后重新提交。';
-  await handleViewDetail(record);
+    submitting.value = true;
+    const merchantResult = reviewAction === 'agree'
+      ? '同意售后申请，请按流程继续处理。'
+      : '驳回售后申请，请补充凭证后重新提交。';
+    const lifecycle = await reviewAfterSale({
+      afterSaleNo: record.serviceNo,
+      merchantId: record.merchantId,
+      storeId: record.storeId,
+      operatorId,
+      reviewAction,
+      merchantResult,
+    });
+    await loadAfterSales();
+    if (detailRecord.value?.after_sale_no === record.serviceNo) {
+      closeDetailPanel();
+    }
+    setActionMessage(
+      `售后单 ${record.serviceNo} 已${reviewAction === 'agree' ? '同意' : '驳回'}，当前状态为 ${resolveStatus(lifecycle.after_sale_status).label}。`,
+    );
+  } catch (error) {
+    setActionMessage(error instanceof Error ? error.message : '快速审核售后失败。', 'error');
+  } finally {
+    submitting.value = false;
+  }
 }
 
 async function submitReview(reviewAction: 'agree' | 'reject') {
@@ -549,7 +588,7 @@ async function submitReview(reviewAction: 'agree' | 'reject') {
     }
 
     submitting.value = true;
-    await reviewAfterSale({
+    const lifecycle = await reviewAfterSale({
       afterSaleNo: detailRecord.value.after_sale_no,
       merchantId: detailRecord.value.merchant_id,
       storeId: detailRecord.value.store_id,
@@ -559,7 +598,7 @@ async function submitReview(reviewAction: 'agree' | 'reject') {
     });
     await loadAfterSales();
     setActionMessage(
-      `售后单 ${detailRecord.value.after_sale_no} 已${reviewAction === 'agree' ? '同意' : '驳回'}。`,
+      `售后单 ${detailRecord.value.after_sale_no} 已${reviewAction === 'agree' ? '同意' : '驳回'}，当前状态为 ${resolveStatus(lifecycle.after_sale_status).label}。`,
     );
     closeDetailPanel();
   } catch (error) {
@@ -574,8 +613,12 @@ async function submitReturnLogistics() {
     if (!detailRecord.value) {
       throw new Error('请先选择售后单。');
     }
+    const operatorId = authStore.userIdForQuery;
+    if (!operatorId) {
+      throw new Error('当前上下文缺少操作人 ID。');
+    }
     if (!returnCompany.value.trim() || !returnLogisticsNo.value.trim()) {
-      throw new Error('请完整填写退货物流公司和单号。');
+      throw new Error('请完整填写用户退货物流公司和单号。');
     }
 
     submitting.value = true;
@@ -584,14 +627,15 @@ async function submitReturnLogistics() {
       merchantId: detailRecord.value.merchant_id,
       storeId: detailRecord.value.store_id,
       userId: detailRecord.value.user_id,
+      operatorId,
       returnCompany: returnCompany.value.trim(),
       returnLogisticsNo: returnLogisticsNo.value.trim(),
     });
     await loadAfterSales();
-    setActionMessage(`售后单 ${detailRecord.value.after_sale_no} 已提交退货物流。`);
+    setActionMessage(`售后单 ${detailRecord.value.after_sale_no} 已代录退货物流。`);
     closeDetailPanel();
   } catch (error) {
-    setActionMessage(error instanceof Error ? error.message : '提交退货物流失败。', 'error');
+    setActionMessage(error instanceof Error ? error.message : '代录退货物流失败。', 'error');
   } finally {
     submitting.value = false;
   }
@@ -601,10 +645,13 @@ async function loadAfterSales() {
   afterSalesLoading.value = true;
   await authStore.ensureCurrentContext();
 
-  const merchantId = authStore.merchantIdForQuery ?? 1001;
-  const storeId = authStore.storeIdForQuery ?? 1001;
+  const merchantId = authStore.merchantIdForQuery;
+  const storeId = authStore.storeIdForQuery;
 
   try {
+    if (!merchantId || !storeId) {
+      throw new Error('当前账号缺少商家或店铺上下文，无法加载售后数据。');
+    }
     const initialResponse = await fetchAfterSaleList({
       merchantId,
       storeId,

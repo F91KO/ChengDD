@@ -14,6 +14,9 @@ public record OrderShipRequest(
         @JsonProperty("user_id")
         @NotNull(message = "用户ID不能为空")
         Long userId,
+        @JsonProperty("operator_id")
+        @NotNull(message = "操作人ID不能为空")
+        Long operatorId,
         @JsonProperty("logistics_company_code")
         @NotBlank(message = "物流公司编码不能为空")
         String logisticsCompanyCode,

@@ -52,6 +52,7 @@ export async function shipOrder(payload: {
   merchantId: number;
   storeId: number;
   userId: number;
+  operatorId: number;
   logisticsCompanyCode: string;
   logisticsCompanyName: string;
   trackingNo: string;
@@ -64,6 +65,7 @@ export async function shipOrder(payload: {
       merchant_id: payload.merchantId,
       store_id: payload.storeId,
       user_id: payload.userId,
+      operator_id: payload.operatorId,
       logistics_company_code: payload.logisticsCompanyCode,
       logistics_company_name: payload.logisticsCompanyName,
       tracking_no: payload.trackingNo,
@@ -124,8 +126,8 @@ export async function reviewAfterSale(payload: {
   operatorId: number;
   reviewAction: string;
   merchantResult?: string;
-}) {
-  return requestApi({
+}): Promise<OrderAfterSaleLifecycleResponseRaw> {
+  return requestApi<OrderAfterSaleLifecycleResponseRaw>({
     method: 'POST',
     url: `/order/after-sales/${payload.afterSaleNo}/review`,
     data: {
@@ -143,6 +145,7 @@ export async function submitAfterSaleReturn(payload: {
   merchantId: number;
   storeId: number;
   userId: number;
+  operatorId: number;
   returnCompany: string;
   returnLogisticsNo: string;
 }): Promise<OrderAfterSaleLifecycleResponseRaw> {
@@ -153,6 +156,7 @@ export async function submitAfterSaleReturn(payload: {
       merchant_id: payload.merchantId,
       store_id: payload.storeId,
       user_id: payload.userId,
+      operator_id: payload.operatorId,
       return_company: payload.returnCompany,
       return_logistics_no: payload.returnLogisticsNo,
     },

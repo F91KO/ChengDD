@@ -335,6 +335,7 @@ import UiStatePanel from '@/components/base/UiStatePanel.vue';
 import UiTag from '@/components/base/UiTag.vue';
 import WorkspaceLayout from '@/components/layout/WorkspaceLayout.vue';
 import { exportOrdersCsv, fetchOrderDetail, shipOrder } from '@/services/order';
+import { useAuthStore } from '@/stores/auth';
 import {
   filterToOrderStatus,
   loadOrders,
@@ -346,6 +347,7 @@ import {
 } from '@/modules/orders/state';
 import type { OrderDetailResponseRaw } from '@/types/order';
 
+const authStore = useAuthStore();
 const activeFilter = ref('全部');
 const actionMessage = ref('');
 const actionTone = ref<'info' | 'error'>('info');
@@ -415,10 +417,10 @@ function formatOrderStatus(status: string | null | undefined): string {
   if (normalized.includes('pending_pay')) {
     return '待支付';
   }
-  if (normalized.includes('pending_ship')) {
+  if (normalized.includes('pending_ship') || normalized.includes('paid') || normalized.includes('preparing')) {
     return '待发货';
   }
-  if (normalized.includes('pending_receive')) {
+  if (normalized.includes('pending_receive') || normalized.includes('shipped')) {
     return '待收货';
   }
   if (normalized.includes('finished') || normalized.includes('complete')) {
@@ -427,14 +429,17 @@ function formatOrderStatus(status: string | null | undefined): string {
   if (normalized.includes('cancel')) {
     return '已取消';
   }
-  if (normalized.includes('refund') || normalized.includes('after')) {
-    return '售后中';
-  }
   return status || '-';
 }
 
 function formatPayStatus(status: string | null | undefined): string {
   const normalized = (status || '').toLowerCase();
+  if (normalized === 'unpaid' || normalized.includes('unpaid')) {
+    return '待支付';
+  }
+  if (normalized === 'paying' || normalized.includes('paying')) {
+    return '支付中';
+  }
   if (normalized.includes('paid') || normalized.includes('success')) {
     return '已支付';
   }
@@ -492,7 +497,7 @@ function formatOperateType(type: string | null | undefined): string {
 
 function getDeliveryAction(order: Pick<OrderCard, 'statusRaw' | 'deliveryStatusRaw'>): DeliveryAction | null {
   const orderStatus = (order.statusRaw || '').toLowerCase();
-  if (orderStatus.includes('pending_ship')) {
+  if (orderStatus.includes('pending_ship') || orderStatus.includes('paid') || orderStatus.includes('preparing')) {
     return {
       buttonLabel: '确认发货',
       panelLabel: '物流发货',
@@ -535,6 +540,15 @@ async function refreshOrders() {
   await loadOrders(true, filterToOrderStatus(activeFilter.value), orderPagination.page, orderPagination.pageSize);
 }
 
+async function loadOrderDetailOrThrow(order: OrderCard): Promise<OrderDetailResponseRaw> {
+  return fetchOrderDetail({
+    orderNo: order.orderNo,
+    merchantId: order.merchantId,
+    storeId: order.storeId,
+    userId: order.userId,
+  });
+}
+
 function handlePageChange(page: number) {
   void loadOrders(true, filterToOrderStatus(activeFilter.value), page, orderPagination.pageSize);
 }
@@ -545,12 +559,7 @@ function handlePageSizeChange(pageSize: number) {
 
 async function handleViewDetail(order: OrderCard) {
   try {
-    selectedOrderDetail.value = await fetchOrderDetail({
-      orderNo: order.orderNo,
-      merchantId: order.merchantId,
-      storeId: order.storeId,
-      userId: order.userId,
-    });
+    selectedOrderDetail.value = await loadOrderDetailOrThrow(order);
     deliveryTarget.value = null;
     scrollDetailIntoView();
   } catch (error) {
@@ -560,7 +569,7 @@ async function handleViewDetail(order: OrderCard) {
 
 async function openDeliveryPanel(order: OrderCard) {
   try {
-    await handleViewDetail(order);
+    selectedOrderDetail.value = await loadOrderDetailOrThrow(order);
     deliveryTarget.value = order;
     shipForm.logisticsCompanyCode = selectedOrderDetail.value?.logistics_company_code ?? '';
     shipForm.logisticsCompanyName = selectedOrderDetail.value?.logistics_company_name ?? '';
@@ -568,6 +577,7 @@ async function openDeliveryPanel(order: OrderCard) {
     shipForm.shipRemark = '';
     scrollDetailIntoView();
   } catch (error) {
+    deliveryTarget.value = null;
     setActionMessage(error instanceof Error ? error.message : '发货面板打开失败。', 'error');
   }
 }
@@ -581,11 +591,16 @@ async function submitDelivery() {
     submitting.value = true;
     const action = deliveryAction.value;
     const orderNo = deliveryTarget.value.orderNo;
+    const operatorId = authStore.userIdForQuery;
+    if (!operatorId) {
+      throw new Error('当前上下文缺少操作人 ID。');
+    }
     await shipOrder({
       orderNo,
       merchantId: deliveryTarget.value.merchantId,
       storeId: deliveryTarget.value.storeId,
       userId: deliveryTarget.value.userId,
+      operatorId,
       logisticsCompanyCode: shipForm.logisticsCompanyCode.trim(),
       logisticsCompanyName: shipForm.logisticsCompanyName.trim(),
       trackingNo: shipForm.trackingNo.trim(),
@@ -615,15 +630,17 @@ function openDeliveryPanelFromList() {
 
 async function handleExportOrders() {
   try {
-    const firstOrder = orders[0];
-    if (!firstOrder) {
-      throw new Error('当前没有可导出的订单。');
+    await authStore.ensureCurrentContext();
+    const merchantId = authStore.merchantIdForQuery;
+    const storeId = authStore.storeIdForQuery;
+    if (!merchantId || !storeId) {
+      throw new Error('当前缺少商家或店铺上下文，无法导出订单。');
     }
 
     const blob = await exportOrdersCsv({
-      merchantId: firstOrder.merchantId,
-      storeId: firstOrder.storeId,
-      userId: firstOrder.userId,
+      merchantId,
+      storeId,
+      userId: authStore.userIdForQuery,
       orderStatus: filterToOrderStatus(activeFilter.value),
     });
     const url = URL.createObjectURL(blob);

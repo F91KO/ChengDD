@@ -235,3 +235,30 @@ databaseChangeLog:
             relativeToChangelogFile: true
             splitStatements: true
             stripComments: false
+  - changeSet:
+      id: V27__local_demo_order_shipping_patch
+      author: codex
+      changes:
+        - sqlFile:
+            path: ../../db/migration/V27__local_demo_order_shipping_patch.sql
+            relativeToChangelogFile: true
+            splitStatements: true
+            stripComments: false
+  - changeSet:
+      id: V28__local_demo_after_sale_refunding_patch
+      author: codex
+      changes:
+        - sqlFile:
+            path: ../../db/migration/V28__local_demo_after_sale_refunding_patch.sql
+            relativeToChangelogFile: true
+            splitStatements: true
+            stripComments: false
+  - changeSet:
+      id: V29__local_demo_after_sale_item_refund_status_patch
+      author: codex
+      changes:
+        - sqlFile:
+            path: ../../db/migration/V29__local_demo_after_sale_item_refund_status_patch.sql
+            relativeToChangelogFile: true
+            splitStatements: true
+            stripComments: false

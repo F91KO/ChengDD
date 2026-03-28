@@ -98,16 +98,13 @@ function normalizeStatus(item: OrderSummaryResponseRaw): {
   if (status.includes('cancel')) {
     return { text: '已取消', tone: 'danger' };
   }
-  if (status.includes('after') || status.includes('refund')) {
-    return { text: '售后中', tone: 'danger' };
-  }
   if (status.includes('complete') || status.includes('finished')) {
     return { text: '已完成', tone: 'success' };
   }
-  if (status.includes('pending_receive')) {
+  if (status.includes('pending_receive') || status.includes('shipped')) {
     return { text: '待收货', tone: 'info' };
   }
-  if (status.includes('pending_ship')) {
+  if (status.includes('pending_ship') || status.includes('paid') || status.includes('preparing')) {
     return { text: '待发货', tone: 'primary' };
   }
   return { text: '待支付', tone: 'info' };

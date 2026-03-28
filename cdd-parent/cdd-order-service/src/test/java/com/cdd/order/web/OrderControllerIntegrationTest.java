@@ -210,6 +210,7 @@ class OrderControllerIntegrationTest {
                                 "merchant_id", merchantId,
                                 "store_id", storeId,
                                 "user_id", userId,
+                                "operator_id", 90015L,
                                 "logistics_company_code", "SF",
                                 "logistics_company_name", "顺丰速运",
                                 "tracking_no", "SF1234567890",
@@ -475,6 +476,7 @@ class OrderControllerIntegrationTest {
                                 "merchant_id", merchantId,
                                 "store_id", storeId,
                                 "user_id", userId,
+                                "operator_id", 90002L,
                                 "return_company", "SF",
                                 "return_logistics_no", "SF10001"))))
                 .andExpect(status().isOk())
@@ -522,7 +524,7 @@ class OrderControllerIntegrationTest {
         JsonNode secondItem = orderDetail.path("items").get(1);
         long firstItemId = firstItem.path("id").asLong();
         long secondItemId = secondItem.path("id").asLong();
-        String pendingAfterSaleNo = readData(mockMvc.perform(post("/api/order/orders/{order_no}/after-sales", orderNo)
+        String refundingAfterSaleNo = readData(mockMvc.perform(post("/api/order/orders/{order_no}/after-sales", orderNo)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(writeJson(Map.of(
                                 "merchant_id", merchantId,
@@ -537,6 +539,17 @@ class OrderControllerIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.after_sale_status").value("pending_merchant"))
                 .andReturn()).path("after_sale_no").asText();
+
+        mockMvc.perform(post("/api/order/after-sales/{after_sale_no}/review", refundingAfterSaleNo)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(writeJson(Map.of(
+                                "merchant_id", merchantId,
+                                "store_id", storeId,
+                                "operator_id", 90002L,
+                                "review_action", "agree",
+                                "merchant_result", "同意退款"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.after_sale_status").value("refunding"));
 
         String waitingReturnAfterSaleNo = readData(mockMvc.perform(post("/api/order/orders/{order_no}/after-sales", orderNo)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -575,8 +588,8 @@ class OrderControllerIntegrationTest {
                 .andExpect(jsonPath("$.data.list[0].product_name").isNotEmpty())
                 .andExpect(jsonPath("$.data.list[0].sku_name").isNotEmpty())
                 .andExpect(jsonPath("$.data.list[0].refund_amount").value(28.00))
-                .andExpect(jsonPath("$.data.list[1].after_sale_no").value(pendingAfterSaleNo))
-                .andExpect(jsonPath("$.data.list[1].after_sale_status").value("pending_merchant"));
+                .andExpect(jsonPath("$.data.list[1].after_sale_no").value(refundingAfterSaleNo))
+                .andExpect(jsonPath("$.data.list[1].after_sale_status").value("refunding"));
 
         mockMvc.perform(get("/api/order/after-sales")
                         .param("merchant_id", String.valueOf(merchantId))
@@ -587,6 +600,16 @@ class OrderControllerIntegrationTest {
                 .andExpect(jsonPath("$.data.list.length()").value(1))
                 .andExpect(jsonPath("$.data.list[0].after_sale_no").value(waitingReturnAfterSaleNo))
                 .andExpect(jsonPath("$.data.list[0].after_sale_status").value("waiting_return"));
+
+        mockMvc.perform(get("/api/order/after-sales")
+                        .param("merchant_id", String.valueOf(merchantId))
+                        .param("store_id", String.valueOf(storeId))
+                        .param("after_sale_status", "agreed,refunding"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.list.length()").value(1))
+                .andExpect(jsonPath("$.data.list[0].after_sale_no").value(refundingAfterSaleNo))
+                .andExpect(jsonPath("$.data.list[0].after_sale_status").value("refunding"));
     }
 
     @Test
@@ -688,6 +711,7 @@ class OrderControllerIntegrationTest {
                                 "merchant_id", merchantId,
                                 "store_id", storeId,
                                 "user_id", userId,
+                                "operator_id", 90014L,
                                 "return_company", "SF",
                                 "return_logistics_no", "SF3014"))))
                 .andExpect(status().isOk())
