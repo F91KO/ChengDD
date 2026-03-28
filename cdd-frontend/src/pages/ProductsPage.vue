@@ -186,17 +186,11 @@
                 {{ submitting ? '正在提交...' : '提交库存调整' }}
               </UiButton>
               <UiButton
-                :variant="selectedProduct?.status === '已下架' ? 'primary' : 'ghost'"
+                :variant="publishActionVariant(selectedProduct?.statusRaw)"
                 :disabled="submitting || !selectedProduct"
                 @click="selectedProduct && handleTogglePublish(selectedProduct)"
               >
-                {{
-                  submitting
-                    ? '正在处理...'
-                    : selectedProduct?.status === '已下架'
-                      ? '上架当前商品'
-                      : '下架当前商品'
-                }}
+                {{ submitting ? '正在处理...' : publishActionLabel(selectedProduct?.statusRaw, true) }}
               </UiButton>
             </div>
           </template>
@@ -232,10 +226,10 @@
               <UiButton variant="secondary" @click="openDetailPanel(product)">编辑商品</UiButton>
               <UiButton variant="secondary" @click="openStockPanel(product)">库存调整</UiButton>
               <UiButton
-                :variant="product.status === '已下架' ? 'primary' : 'ghost'"
+                :variant="publishActionVariant(product.statusRaw)"
                 @click="handleTogglePublish(product)"
               >
-                {{ product.status === '已下架' ? '上架销售' : '下架商品' }}
+                {{ publishActionLabel(product.statusRaw) }}
               </UiButton>
             </div>
           </div>
@@ -276,7 +270,7 @@ import WorkspaceLayout from '@/components/layout/WorkspaceLayout.vue';
 import {
   adjustProductStock,
   createProduct,
-  fetchCategoryList,
+  fetchAllCategoryList,
   fetchProductDetail,
   publishProduct,
   unpublishProduct,
@@ -321,8 +315,8 @@ const createForm = reactive({
   productSubTitle: '',
   skuName: '',
   skuCode: '',
-  salePrice: '99.00',
-  availableStock: '100',
+  salePrice: '',
+  availableStock: '',
 });
 
 const editForm = reactive({
@@ -344,7 +338,22 @@ function setActionMessage(message: string, tone: 'info' | 'error' = 'info') {
 }
 
 function resolveCategoryName(categoryId: number): string {
-  return categories.value.find((item) => item.id === categoryId)?.category_name ?? `分类 ${categoryId}`;
+  return categories.value.find((item) => item.id === categoryId)?.category_name ?? '分类缺失';
+}
+
+function canPublishStatus(status: string | undefined): boolean {
+  return status === 'draft' || status === 'off_shelf' || status === '已下架' || status === '待发布';
+}
+
+function publishActionLabel(status: string | undefined, inPanel = false): string {
+  if (canPublishStatus(status)) {
+    return inPanel ? '上架当前商品' : '上架销售';
+  }
+  return inPanel ? '下架当前商品' : '下架商品';
+}
+
+function publishActionVariant(status: string | undefined): 'primary' | 'ghost' {
+  return canPublishStatus(status) ? 'primary' : 'ghost';
 }
 
 function getRequiredScope() {
@@ -375,8 +384,8 @@ function resetCreateForm() {
   createForm.productSubTitle = '';
   createForm.skuName = '';
   createForm.skuCode = '';
-  createForm.salePrice = '99.00';
-  createForm.availableStock = '100';
+  createForm.salePrice = '';
+  createForm.availableStock = '';
 }
 
 function buildEditableSku(detailSku?: ProductDetailResponseRaw['skus'][number], index = 0): EditableSkuForm {
@@ -384,8 +393,8 @@ function buildEditableSku(detailSku?: ProductDetailResponseRaw['skus'][number], 
     clientId: detailSku ? `sku-${detailSku.id}` : `new-${Date.now()}-${index}`,
     skuCode: detailSku?.sku_code ?? '',
     skuName: detailSku?.sku_name ?? '',
-    salePrice: detailSku ? String(detailSku.sale_price) : '99.00',
-    availableStock: detailSku ? String(detailSku.available_stock) : '100',
+    salePrice: detailSku ? String(detailSku.sale_price) : '',
+    availableStock: detailSku ? String(detailSku.available_stock) : '',
   };
 }
 
@@ -422,8 +431,7 @@ async function ensureCategories() {
     return;
   }
   const { merchantId, storeId } = getRequiredScope();
-  const categoryPage = await fetchCategoryList({ merchantId, storeId, page: 1, pageSize: 200 });
-  categories.value = categoryPage.list;
+  categories.value = await fetchAllCategoryList({ merchantId, storeId, pageSize: 200 });
 }
 
 async function refreshProducts() {
@@ -636,7 +644,7 @@ async function handleAdjustStock() {
 async function handleTogglePublish(product: ProductCard) {
   try {
     submitting.value = true;
-    if (product.status === '已下架') {
+    if (canPublishStatus(product.statusRaw)) {
       await publishProduct(product.id);
       setActionMessage(`商品“${product.name}”已上架。`);
     } else {

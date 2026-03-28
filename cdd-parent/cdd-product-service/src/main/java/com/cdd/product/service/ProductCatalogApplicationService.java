@@ -181,7 +181,7 @@ public class ProductCatalogApplicationService {
             throw new BusinessException(ProductErrorCode.CATEGORY_UPDATE_EMPTY);
         }
         if (categoryName != null) {
-            boolean duplicate = store.listCategories(request.merchantId(), request.storeId()).stream()
+            boolean duplicate = store.listCategories(request.merchantId(), request.storeId(), null).stream()
                     .anyMatch(current -> current.id() != categoryId
                             && current.parentId() == category.parentId()
                             && current.categoryName().equals(categoryName));
@@ -205,13 +205,20 @@ public class ProductCatalogApplicationService {
     }
 
     public List<CategoryResponse> listCategories(long merchantId, long storeId) {
-        return pageCategories(merchantId, storeId, new PageQuery(1, Integer.MAX_VALUE)).getList();
+        return listCategories(merchantId, storeId, null);
     }
 
-    public PageResponse<CategoryResponse> pageCategories(long merchantId, long storeId, PageQuery pageQuery) {
-        List<CategoryResponse> categories = flattenCategoryTree(store.listCategories(merchantId, storeId).stream()
+    public List<CategoryResponse> listCategories(long merchantId, long storeId, String keyword) {
+        return pageCategories(merchantId, storeId, keyword, new PageQuery(1, Integer.MAX_VALUE)).getList();
+    }
+
+    public PageResponse<CategoryResponse> pageCategories(long merchantId, long storeId, String keyword, PageQuery pageQuery) {
+        List<CategoryResponse> categories = store.listCategories(merchantId, storeId, trimToNull(keyword)).stream()
                 .map(this::toCategoryResponse)
-                .toList());
+                .toList();
+        if (!StringUtils.hasText(keyword)) {
+            categories = flattenCategoryTree(categories);
+        }
         return pageList(categories, pageQuery);
     }
 

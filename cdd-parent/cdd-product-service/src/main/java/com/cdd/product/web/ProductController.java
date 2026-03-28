@@ -77,11 +77,13 @@ public class ProductController {
     public ApiResponse<PageResponse<CategoryResponse>> listCategories(
             @RequestParam(name = "merchant_id") @NotNull(message = "商家ID不能为空") Long merchantId,
             @RequestParam(name = "store_id") @NotNull(message = "门店ID不能为空") Long storeId,
+            @RequestParam(name = "keyword", required = false) String keyword,
             @RequestParam(name = "page", required = false, defaultValue = "1") Integer page,
             @RequestParam(name = "page_size", required = false, defaultValue = "20") Integer pageSize) {
         return ApiResponses.success(productCatalogApplicationService.pageCategories(
                 merchantId,
                 storeId,
+                keyword,
                 new PageQuery(page, pageSize)));
     }
 

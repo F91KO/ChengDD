@@ -35,7 +35,7 @@
             </div>
             <div :class="$style.panelActions">
               <UiButton variant="secondary" @click="loadPage">刷新数据</UiButton>
-              <UiButton variant="secondary" :disabled="!selectedTemplate" @click="openCreateCategory(0)">
+              <UiButton variant="secondary" @click="openCreateCategory(0)">
                 新增一级分类
               </UiButton>
               <UiButton :disabled="submitting === 'init' || !selectedTemplate" @click="handleInitialize">
@@ -91,7 +91,7 @@
             <div :class="$style.treeMeta">
               <span>共 {{ categoryPagination.total }} 项</span>
               <span>当前页 {{ categoryRows.length }} 项</span>
-              <span>当前页匹配 {{ filteredCategoryRows.length }} 项</span>
+              <span>{{ searchKeyword ? '搜索结果' : '当前页结果' }} {{ filteredCategoryRows.length }} 项</span>
             </div>
           </div>
 
@@ -109,17 +109,8 @@
                 v-model.trim="searchKeyword"
                 :class="$style.searchInput"
                 type="search"
-                placeholder="搜索当前页分类名称..."
+                placeholder="搜索分类名称..."
               />
-            </div>
-
-            <div v-if="searchKeyword && filteredCategoryRows.length" :class="$style.batchHint">
-              <div :class="$style.batchHintText">
-                已匹配到 {{ filteredCategoryRows.length }} 个相关分类，勾选后可进行批量操作
-              </div>
-              <button type="button" :class="$style.batchLink" @click="toggleSelectAllFiltered">
-                {{ allFilteredSelected ? '取消全选' : '全选结果' }}
-              </button>
             </div>
 
             <UiStatePanel
@@ -138,16 +129,8 @@
                   selectedCategory?.id === row.id ? $style.categoryRowActive : '',
                   isCategoryMatched(row) ? $style.categoryRowMatched : '',
                 ]"
-                @click="selectCategory(row.id)"
+                @click="openEditCategory(row.id)"
               >
-                <label :class="$style.selectBox" @click.stop>
-                  <input
-                    :checked="selectedRowIds.includes(row.id)"
-                    type="checkbox"
-                    @change="toggleRowSelection(row.id)"
-                  />
-                </label>
-
                 <div :class="$style.categoryMain" :style="{ paddingInlineStart: `${row.depth * 24}px` }">
                   <div :class="$style.categoryNameLine">
                     <span :class="$style.foldIcon">{{ row.depth > 0 ? '└' : '▸' }}</span>
@@ -185,11 +168,6 @@
               @update:page="handleCategoryPageChange"
               @update:page-size="handleCategoryPageSizeChange"
             />
-
-            <div v-if="selectedRowIds.length" :class="$style.selectionBar">
-              <span>已选择 {{ selectedRowIds.length }} 个分类</span>
-              <UiButton variant="secondary" @click="clearSelectedRows">清空选择</UiButton>
-            </div>
           </template>
         </UiCard>
       </div>
@@ -262,7 +240,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import UiButton from '@/components/base/UiButton.vue';
 import UiCard from '@/components/base/UiCard.vue';
 import UiInput from '@/components/base/UiInput.vue';
@@ -272,6 +250,7 @@ import UiTag from '@/components/base/UiTag.vue';
 import WorkspaceLayout from '@/components/layout/WorkspaceLayout.vue';
 import {
   createCategory,
+  fetchAllCategoryList,
   fetchCategoryList,
   fetchCategoryTemplateList,
   initializeCategoryTree,
@@ -296,11 +275,12 @@ const actionMessage = ref('');
 const actionTone = ref<'info' | 'error'>('info');
 const templates = ref<ProductCategoryTemplateResponseRaw[]>([]);
 const categories = ref<ProductCategoryResponseRaw[]>([]);
+const currentPageCategories = ref<ProductCategoryResponseRaw[]>([]);
 const selectedCategoryId = ref<number | null>(null);
 const selectedTemplateValue = ref('');
 const formMode = ref<FormMode>('create');
 const searchKeyword = ref('');
-const selectedRowIds = ref<number[]>([]);
+let searchTimer: ReturnType<typeof setTimeout> | null = null;
 const categoryPagination = reactive({
   page: 1,
   pageSize: 20,
@@ -335,10 +315,10 @@ const selectedTemplate = computed(() =>
 );
 
 const stats = computed(() => [
-  { label: '分类总数', value: String(categoryPagination.total) },
-  { label: '当前页启用', value: String(categories.value.filter((item) => item.is_enabled).length) },
-  { label: '当前页展示', value: String(categories.value.filter((item) => item.is_visible).length) },
-  { label: '当前页模板同步', value: String(categories.value.filter((item) => item.template_id).length) },
+  { label: '分类总数', value: String(categories.value.length) },
+  { label: '已启用', value: String(categories.value.filter((item) => item.is_enabled).length) },
+  { label: '前台展示', value: String(categories.value.filter((item) => item.is_visible).length) },
+  { label: '模板同步', value: String(categories.value.filter((item) => item.template_id).length) },
 ]);
 
 const parentOptions = computed(() =>
@@ -346,7 +326,7 @@ const parentOptions = computed(() =>
 );
 
 const categoryRows = computed<CategoryRowView[]>(() =>
-  categories.value.map((item) => ({
+  currentPageCategories.value.map((item) => ({
     ...item,
     depth: Math.max(0, item.category_level - 1),
     parentName: parentCategoryName(item.parent_id),
@@ -354,21 +334,10 @@ const categoryRows = computed<CategoryRowView[]>(() =>
 );
 
 const filteredCategoryRows = computed(() => {
-  const keyword = searchKeyword.value.trim().toLowerCase();
-  if (!keyword) {
-    return categoryRows.value;
-  }
-  return categoryRows.value.filter((row) => row.category_name.toLowerCase().includes(keyword));
+  return categoryRows.value;
 });
 
 const pagedCategoryRows = computed(() => filteredCategoryRows.value);
-
-const allFilteredSelected = computed(() => {
-  if (!filteredCategoryRows.value.length) {
-    return false;
-  }
-  return filteredCategoryRows.value.every((row) => selectedRowIds.value.includes(row.id));
-});
 
 const selectedTemplateRows = computed(() => flattenTemplateNodes(selectedTemplate.value?.categories ?? []));
 
@@ -458,11 +427,7 @@ function parentCategoryName(parentId: number) {
   if (parentId === 0) {
     return '顶级分类';
   }
-  return categories.value.find((item) => item.id === parentId)?.category_name ?? `分类 ${parentId}`;
-}
-
-function selectCategory(categoryId: number) {
-  selectedCategoryId.value = categoryId;
+  return categories.value.find((item) => item.id === parentId)?.category_name ?? '父级分类缺失';
 }
 
 function isCategoryMatched(row: CategoryRowView) {
@@ -471,29 +436,6 @@ function isCategoryMatched(row: CategoryRowView) {
     return false;
   }
   return row.category_name.toLowerCase().includes(keyword);
-}
-
-function toggleRowSelection(categoryId: number) {
-  if (selectedRowIds.value.includes(categoryId)) {
-    selectedRowIds.value = selectedRowIds.value.filter((id) => id !== categoryId);
-    return;
-  }
-  selectedRowIds.value = [...selectedRowIds.value, categoryId];
-}
-
-function toggleSelectAllFiltered() {
-  if (allFilteredSelected.value) {
-    const filteredSet = new Set(filteredCategoryRows.value.map((item) => item.id));
-    selectedRowIds.value = selectedRowIds.value.filter((id) => !filteredSet.has(id));
-    return;
-  }
-  const merged = new Set(selectedRowIds.value);
-  filteredCategoryRows.value.forEach((row) => merged.add(row.id));
-  selectedRowIds.value = Array.from(merged);
-}
-
-function clearSelectedRows() {
-  selectedRowIds.value = [];
 }
 
 function handleCategoryPageChange(page: number) {
@@ -544,28 +486,33 @@ async function loadPage() {
   try {
     await authStore.ensureCurrentContext();
     const { merchantId, storeId } = getRequiredScope();
-    const [templatePage, categoryPage] = await Promise.all([
+    const [templatePage, categoryPage, allCategoryRows] = await Promise.all([
       fetchCategoryTemplateList({ page: 1, pageSize: 200 }),
       fetchCategoryList({
         merchantId,
         storeId,
+        keyword: searchKeyword.value.trim() || undefined,
         page: categoryPagination.page,
         pageSize: categoryPagination.pageSize,
       }),
+      fetchAllCategoryList({
+        merchantId,
+        storeId,
+        pageSize: 200,
+      }),
     ]);
     templates.value = templatePage.list;
-    categories.value = categoryPage.list;
+    currentPageCategories.value = categoryPage.list;
+    categories.value = allCategoryRows;
     categoryPagination.page = categoryPage.page;
     categoryPagination.pageSize = categoryPage.page_size;
     categoryPagination.total = categoryPage.total;
     if (!selectedTemplateValue.value || !templatePage.list.some((item) => String(item.id) === selectedTemplateValue.value)) {
       selectedTemplateValue.value = templatePage.list[0] ? String(templatePage.list[0].id) : '';
     }
-    if (!selectedCategoryId.value || !categoryPage.list.some((item) => item.id === selectedCategoryId.value)) {
+    if (!selectedCategoryId.value || !allCategoryRows.some((item) => item.id === selectedCategoryId.value)) {
       selectedCategoryId.value = categoryPage.list[0]?.id ?? null;
     }
-    const validIds = new Set(categoryPage.list.map((item) => item.id));
-    selectedRowIds.value = selectedRowIds.value.filter((id) => validIds.has(id));
   } catch (error) {
     setActionMessage(error instanceof Error ? error.message : '加载分类页面失败。', 'error');
   } finally {
@@ -637,6 +584,22 @@ async function handleSubmit() {
 
 onMounted(() => {
   void loadPage();
+});
+
+watch(searchKeyword, () => {
+  if (searchTimer) {
+    clearTimeout(searchTimer);
+  }
+  searchTimer = setTimeout(() => {
+    categoryPagination.page = 1;
+    void loadPage();
+  }, 300);
+});
+
+onBeforeUnmount(() => {
+  if (searchTimer) {
+    clearTimeout(searchTimer);
+  }
 });
 </script>
 

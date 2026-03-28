@@ -40,14 +40,6 @@ const routes = [
     },
   },
   {
-    path: '/category-templates',
-    name: 'category-templates',
-    component: () => import('@/pages/CategoryTemplatesPage.vue'),
-    meta: {
-      title: '分类模板',
-    },
-  },
-  {
     path: '/orders',
     name: 'orders',
     component: () => import('@/pages/OrdersPage.vue'),

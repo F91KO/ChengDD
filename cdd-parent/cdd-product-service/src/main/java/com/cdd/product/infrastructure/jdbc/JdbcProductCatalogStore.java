@@ -13,6 +13,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
@@ -233,16 +234,28 @@ public class JdbcProductCatalogStore implements ProductCatalogStore {
     }
 
     @Override
-    public List<CategoryRecord> listCategories(long merchantId, long storeId) {
-        return jdbcTemplate.query("""
+    public List<CategoryRecord> listCategories(long merchantId, long storeId, String keyword) {
+        StringBuilder sql = new StringBuilder("""
                 SELECT id, merchant_id, store_id, template_id, parent_id, category_name, category_level,
                        sort_order, is_enabled, is_visible
                 FROM cdd_product_category
                 WHERE merchant_id = ?
                   AND store_id = ?
                   AND deleted = 0
+                """);
+        List<Object> args = new ArrayList<>();
+        args.add(merchantId);
+        args.add(storeId);
+        if (StringUtils.hasText(keyword)) {
+            sql.append("""
+                      AND LOWER(category_name) LIKE ?
+                    """);
+            args.add("%" + keyword.trim().toLowerCase(Locale.ROOT) + "%");
+        }
+        sql.append("""
                 ORDER BY category_level ASC, sort_order ASC, id ASC
-                """, CATEGORY_ROW_MAPPER, merchantId, storeId).stream()
+                """);
+        return jdbcTemplate.query(sql.toString(), CATEGORY_ROW_MAPPER, args.toArray()).stream()
                 .map(this::toCategoryRecord)
                 .toList();
     }
@@ -512,23 +525,63 @@ public class JdbcProductCatalogStore implements ProductCatalogStore {
                   AND deleted <> 0
                 """,
                 productId);
-        jdbcTemplate.update("""
-                UPDATE cdd_product_stock
-                SET deleted = 1, updated_at = CURRENT_TIMESTAMP
-                WHERE product_id = ?
-                  AND deleted = 0
-                """,
-                productId);
-        jdbcTemplate.update("""
-                UPDATE cdd_product_sku
-                SET deleted = 1, updated_at = CURRENT_TIMESTAMP
-                WHERE product_id = ?
-                  AND deleted = 0
-                """,
-                productId);
-
+        Map<String, SkuRecord> existingSkuByCode = new HashMap<>();
+        for (SkuRecord sku : listSkusByProductId(productId)) {
+            existingSkuByCode.put(normalizeSkuCode(sku.skuCode()), sku);
+        }
         List<Long> skuIds = new ArrayList<>(skuDrafts.size());
         for (SkuDraft draft : skuDrafts) {
+            SkuRecord existingSku = existingSkuByCode.remove(normalizeSkuCode(draft.skuCode()));
+            if (existingSku != null) {
+                long skuId = existingSku.id();
+                skuIds.add(skuId);
+                jdbcTemplate.update("""
+                        UPDATE cdd_product_sku
+                        SET sku_name = ?, sale_price = ?, status = ?, updated_by = ?, updated_at = CURRENT_TIMESTAMP
+                        WHERE id = ?
+                          AND deleted = 0
+                        """,
+                        draft.skuName(),
+                        draft.salePrice(),
+                        "enabled",
+                        existing.merchantId(),
+                        skuId);
+                int updatedStockRows = jdbcTemplate.update("""
+                        UPDATE cdd_product_stock
+                        SET available_stock = ?, stock_status = ?, updated_reason = ?, updated_by = ?, updated_at = CURRENT_TIMESTAMP
+                        WHERE sku_id = ?
+                          AND deleted = 0
+                        """,
+                        draft.availableStock(),
+                        toStockStatus(draft.availableStock()),
+                        "商品编辑更新库存",
+                        existing.merchantId(),
+                        skuId);
+                if (updatedStockRows == 0) {
+                    long stockId = stockIdGenerator.incrementAndGet();
+                    jdbcTemplate.update("""
+                            INSERT INTO cdd_product_stock (
+                              id, merchant_id, store_id, product_id, sku_id, available_stock, locked_stock, stock_status,
+                              updated_reason, created_by, updated_by, deleted, version
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            """,
+                            stockId,
+                            existing.merchantId(),
+                            existing.storeId(),
+                            productId,
+                            skuId,
+                            draft.availableStock(),
+                            0,
+                            toStockStatus(draft.availableStock()),
+                            "商品编辑补建库存",
+                            existing.merchantId(),
+                            existing.merchantId(),
+                            0,
+                            0L);
+                }
+                continue;
+            }
+
             long skuId = skuIdGenerator.incrementAndGet();
             long stockId = stockIdGenerator.incrementAndGet();
             skuIds.add(skuId);
@@ -569,6 +622,22 @@ public class JdbcProductCatalogStore implements ProductCatalogStore {
                     existing.merchantId(),
                     0,
                     0L);
+        }
+        for (SkuRecord removedSku : existingSkuByCode.values()) {
+            jdbcTemplate.update("""
+                    UPDATE cdd_product_stock
+                    SET deleted = 1, updated_at = CURRENT_TIMESTAMP
+                    WHERE sku_id = ?
+                      AND deleted = 0
+                    """,
+                    removedSku.id());
+            jdbcTemplate.update("""
+                    UPDATE cdd_product_sku
+                    SET deleted = 1, updated_at = CURRENT_TIMESTAMP
+                    WHERE id = ?
+                      AND deleted = 0
+                    """,
+                    removedSku.id());
         }
         return Optional.of(new ProductRecord(
                 existing.id(),
@@ -773,6 +842,10 @@ public class JdbcProductCatalogStore implements ProductCatalogStore {
     private long maxId(String tableName) {
         Long value = jdbcTemplate.queryForObject("SELECT COALESCE(MAX(id), 0) FROM " + tableName, Long.class);
         return value == null ? 0L : value;
+    }
+
+    private static String normalizeSkuCode(String skuCode) {
+        return skuCode == null ? "" : skuCode.trim().toLowerCase(Locale.ROOT);
     }
 
     private CategoryRecord toCategoryRecord(CategoryRow row) {

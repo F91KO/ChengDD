@@ -37,7 +37,11 @@ public interface ProductCatalogStore {
 
     Optional<CategoryRecord> findCategory(long categoryId);
 
-    List<CategoryRecord> listCategories(long merchantId, long storeId);
+    default List<CategoryRecord> listCategories(long merchantId, long storeId) {
+        return listCategories(merchantId, storeId, null);
+    }
+
+    List<CategoryRecord> listCategories(long merchantId, long storeId, String keyword);
 
     boolean categoryNameExists(long merchantId, long storeId, long parentId, String categoryName);
 

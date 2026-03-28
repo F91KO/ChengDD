@@ -48,6 +48,7 @@ corepack pnpm build
 - `/login` 登录页
 - `/dashboard` 工作台
 - `/products` 商品管理
+- `/categories` 商品分类
 - `/orders` 订单管理
 - `/aftersales` 售后处理
 - `/config` 配置中心

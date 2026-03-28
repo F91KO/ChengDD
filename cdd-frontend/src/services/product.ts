@@ -142,6 +142,7 @@ export async function adjustProductStock(payload: {
 export async function fetchCategoryList(params: {
   merchantId: number;
   storeId: number;
+  keyword?: string;
   page?: number;
   pageSize?: number;
 }): Promise<PageResponseRaw<ProductCategoryResponseRaw>> {
@@ -151,10 +152,39 @@ export async function fetchCategoryList(params: {
     params: {
       merchant_id: params.merchantId,
       store_id: params.storeId,
+      keyword: params.keyword,
       page: params.page,
       page_size: params.pageSize,
     },
   });
+}
+
+export async function fetchAllCategoryList(params: {
+  merchantId: number;
+  storeId: number;
+  pageSize?: number;
+}): Promise<ProductCategoryResponseRaw[]> {
+  const pageSize = Math.max(1, params.pageSize ?? 200);
+  const allRows: ProductCategoryResponseRaw[] = [];
+  let page = 1;
+  let total = 0;
+
+  do {
+    const response = await fetchCategoryList({
+      merchantId: params.merchantId,
+      storeId: params.storeId,
+      page,
+      pageSize,
+    });
+    allRows.push(...response.list);
+    total = response.total;
+    if (response.list.length === 0) {
+      break;
+    }
+    page += 1;
+  } while (allRows.length < total);
+
+  return allRows;
 }
 
 export async function fetchCategoryTemplateList(params?: {

@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -182,9 +183,12 @@ public class InMemoryProductCatalogStore implements ProductCatalogStore {
     }
 
     @Override
-    public List<CategoryRecord> listCategories(long merchantId, long storeId) {
+    public List<CategoryRecord> listCategories(long merchantId, long storeId, String keyword) {
         return categories.values().stream()
                 .filter(category -> category.merchantId() == merchantId && category.storeId() == storeId)
+                .filter(category -> keyword == null
+                        || keyword.isBlank()
+                        || category.categoryName().toLowerCase(Locale.ROOT).contains(keyword.trim().toLowerCase(Locale.ROOT)))
                 .sorted(Comparator.comparingInt(CategoryRecord::categoryLevel)
                         .thenComparingInt(CategoryRecord::sortOrder)
                         .thenComparingLong(CategoryRecord::id))
@@ -491,7 +495,7 @@ public class InMemoryProductCatalogStore implements ProductCatalogStore {
         long merchantId = 1001L;
         long storeId = 1001L;
         initializeCategoryTree(merchantId, storeId, 2_000_001L);
-        List<CategoryRecord> defaultCategories = listCategories(merchantId, storeId);
+        List<CategoryRecord> defaultCategories = listCategories(merchantId, storeId, null);
         long fruitCategoryId = defaultCategories.stream()
                 .filter(category -> category.categoryLevel() == 2 && "水果".equals(category.categoryName()))
                 .findFirst()

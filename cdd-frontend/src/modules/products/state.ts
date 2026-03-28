@@ -1,9 +1,7 @@
 import { reactive } from 'vue';
-import { fetchCategoryList, fetchProductList } from '@/services/product';
-import { fetchProductDailyList } from '@/services/report';
+import { fetchAllCategoryList, fetchProductList } from '@/services/product';
 import { useAuthStore } from '@/stores/auth';
 import type { ProductCategoryResponseRaw, ProductSummaryResponseRaw } from '@/types/product';
-import type { ReportProductDailyResponseRaw } from '@/types/report';
 
 export type ProductCard = {
   id: number;
@@ -114,21 +112,17 @@ function buildInventoryLabel(item: ProductSummaryResponseRaw): string {
   return locked > 0 ? `${available} 可售 / ${locked} 锁定` : `${available} 可售`;
 }
 
-function buildSalesLabel(item: ProductSummaryResponseRaw, rows: ReportProductDailyResponseRaw[] | undefined): string {
+function buildSalesLabel(item: ProductSummaryResponseRaw): string {
   const totalFromSummary = Number(item.sales_summary?.total_sales_quantity);
-  if (Number.isFinite(totalFromSummary) && totalFromSummary > 0) {
+  if (Number.isFinite(totalFromSummary)) {
     return `${totalFromSummary} 件`;
   }
-  if (!rows?.length) {
-    return '近日报表暂无销量';
-  }
-  return `${rows.reduce((sum, row) => sum + Number(row.sale_count || 0), 0)} 件`;
+  return '0 件';
 }
 
 function mapRemoteProduct(
   item: ProductSummaryResponseRaw,
   categories: Map<number, ProductCategoryResponseRaw>,
-  reportRows: ReportProductDailyResponseRaw[] = [],
 ): ProductCard {
   const mappedStatus = statusToCard(item.status);
   return {
@@ -136,11 +130,11 @@ function mapRemoteProduct(
     merchantId: item.merchant_id,
     storeId: item.store_id,
     categoryId: item.category_id,
-    categoryName: categories.get(item.category_id)?.category_name ?? `分类 ${item.category_id}`,
+    categoryName: categories.get(item.category_id)?.category_name ?? '分类缺失',
     name: item.product_name,
     sku: item.product_code || `SPU-${item.id}`,
     price: buildPriceLabel(item),
-    sales: buildSalesLabel(item, reportRows),
+    sales: buildSalesLabel(item),
     inventory: buildInventoryLabel(item),
     status: mappedStatus.text,
     statusRaw: item.status,
@@ -155,16 +149,6 @@ function buildStats(onShelfTotal: number, draftTotal: number, offShelfTotal: num
     { label: '待发布', value: String(draftTotal), tone: 'info' },
     { label: '已下架', value: String(offShelfTotal), tone: 'danger' },
   ];
-}
-
-function buildReportMap(rows: ReportProductDailyResponseRaw[]): Map<number, ReportProductDailyResponseRaw[]> {
-  const reportMap = new Map<number, ReportProductDailyResponseRaw[]>();
-  rows.forEach((row) => {
-    const current = reportMap.get(row.product_id) ?? [];
-    current.push(row);
-    reportMap.set(row.product_id, current);
-  });
-  return reportMap;
 }
 
 export async function loadProducts(force = false, status?: string, keyword?: string, page = productPagination.page, pageSize = productPagination.pageSize): Promise<void> {
@@ -212,7 +196,7 @@ export async function loadProducts(force = false, status?: string, keyword?: str
     }
 
     try {
-      const [initialPage, categoryPage, reportRows, onShelfPage, draftPage, offShelfPage] = await Promise.all([
+      const [initialPage, allCategories, onShelfPage, draftPage, offShelfPage] = await Promise.all([
         fetchProductList({
           merchantId,
           storeId,
@@ -221,13 +205,7 @@ export async function loadProducts(force = false, status?: string, keyword?: str
           page: normalizedPage,
           pageSize: normalizedPageSize,
         }),
-        fetchCategoryList({ merchantId, storeId, page: 1, pageSize: 200 }).catch(() => ({
-          list: [],
-          page: 1,
-          page_size: 200,
-          total: 0,
-        })),
-        fetchProductDailyList({ merchantId, storeId }).catch(() => []),
+        fetchAllCategoryList({ merchantId, storeId, pageSize: 200 }),
         fetchProductList({ merchantId, storeId, status: 'on_shelf', keyword: normalizedKeyword || undefined, page: 1, pageSize: 1 }),
         fetchProductList({ merchantId, storeId, status: 'draft', keyword: normalizedKeyword || undefined, page: 1, pageSize: 1 }),
         fetchProductList({ merchantId, storeId, status: 'off_shelf', keyword: normalizedKeyword || undefined, page: 1, pageSize: 1 }),
@@ -246,11 +224,10 @@ export async function loadProducts(force = false, status?: string, keyword?: str
         })
         : initialPage;
 
-      const categoryMap = new Map(categoryPage.list.map((item) => [item.id, item]));
-      const reportMap = buildReportMap(reportRows);
+      const categoryMap = new Map(allCategories.map((item) => [item.id, item]));
 
       replaceProductData(
-        remotePage.list.map((item) => mapRemoteProduct(item, categoryMap, reportMap.get(item.id))),
+        remotePage.list.map((item) => mapRemoteProduct(item, categoryMap)),
         buildStats(onShelfPage.total, draftPage.total, offShelfPage.total),
         remotePage.page,
         remotePage.page_size,

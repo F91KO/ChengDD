@@ -188,4 +188,19 @@ class ProductCatalogApplicationServiceTest {
         assertEquals(0, repeat.initializedCategoryCount());
         assertEquals("商家分类树已存在，无需重复初始化", repeat.message());
     }
+
+    @Test
+    void shouldSearchCategoriesByKeyword() {
+        service.initializeCategoryTree(new InitializeCategoryTreeRequest(
+                MERCHANT_ID,
+                STORE_ID,
+                PREMIUM_FRESH_TEMPLATE_ID));
+
+        var categories = service.listCategories(MERCHANT_ID, STORE_ID, "水果");
+
+        assertTrue(categories.size() >= 2);
+        assertTrue(categories.stream().allMatch(category -> category.categoryName().contains("水果")));
+        assertTrue(categories.stream().anyMatch(category -> "水果鲜切".equals(category.categoryName())));
+        assertTrue(categories.stream().anyMatch(category -> "应季水果".equals(category.categoryName())));
+    }
 }
