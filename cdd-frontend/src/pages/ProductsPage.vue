@@ -70,6 +70,13 @@
               <h3 :class="$style.panelTitle">
                 {{ panelMode === 'create' ? '新增商品' : detail?.product_name || selectedProduct?.name || '编辑商品' }}
               </h3>
+              <div v-if="detail && selectedProduct" :class="$style.panelMetaRow">
+                <UiTag :tone="selectedProduct.statusTone as 'default' | 'primary' | 'info'">
+                  {{ selectedProduct.status }}
+                </UiTag>
+                <span>SKU {{ detail.skus.length }} 个</span>
+                <span>{{ resolveCategoryPath(detail.category_id) }}</span>
+              </div>
             </div>
             <UiButton variant="secondary" size="sm" @click="closePanel">收起面板</UiButton>
           </div>
@@ -229,55 +236,83 @@
                 <div :class="$style.sectionTitle">SKU 编辑</div>
                 <UiButton variant="secondary" size="sm" @click="addEditSku">新增 SKU</UiButton>
               </div>
-              <article v-for="sku in editForm.skus" :key="sku.clientId" :class="$style.skuEditorCard">
+              <article v-for="(sku, index) in editForm.skus" :key="sku.clientId" :class="$style.skuEditorCard">
+                <div :class="$style.skuEditorHead">
+                  <div :class="$style.skuEditorIndex">SKU {{ index + 1 }}</div>
+                  <div :class="$style.panelActions">
+                    <UiButton
+                      variant="secondary"
+                      size="sm"
+                      :disabled="editForm.skus.length <= 1"
+                      @click="removeEditSku(sku.clientId)"
+                    >
+                      删除 SKU
+                    </UiButton>
+                  </div>
+                </div>
                 <div :class="$style.skuEditorGrid">
                   <UiInput v-model="sku.skuName" label="SKU 名称" placeholder="例如 标准装" />
                   <UiInput v-model="sku.salePrice" label="销售价" placeholder="例如 99.00" />
                   <UiInput v-model="sku.availableStock" label="可售库存" placeholder="例如 100" />
                 </div>
-                <div :class="$style.panelActions">
-                  <UiButton
-                    variant="secondary"
-                    size="sm"
-                    :disabled="editForm.skus.length <= 1"
-                    @click="removeEditSku(sku.clientId)"
-                  >
-                    删除 SKU
-                  </UiButton>
-                </div>
               </article>
             </div>
 
             <div v-else-if="editorSection === 'stock'" :class="$style.formSection">
-              <div :class="$style.sectionTitle">库存调整</div>
+              <div :class="$style.sectionHeader">
+                <div :class="$style.sectionTitle">库存调整</div>
+              </div>
               <UiStatePanel
                 v-if="!detail.skus.length"
                 tone="empty"
                 title="当前商品没有可调整的 SKU"
                 description="请先补充至少一个 SKU，再进行库存补货、扣减或盘点修正。"
               />
-              <div v-else :class="$style.formGrid">
-                <label :class="$style.field">
-                  <span :class="$style.fieldLabel">目标 SKU</span>
-                  <select v-model="stockForm.skuId" :class="$style.select">
-                    <option value="">请选择 SKU</option>
-                    <option v-for="sku in detail.skus" :key="sku.id" :value="String(sku.id)">
-                      {{ sku.sku_name }}（可售 {{ sku.available_stock }} / 锁定 {{ sku.locked_stock }}）
-                    </option>
-                  </select>
-                </label>
-                <UiInput v-model="stockForm.deltaStock" label="调整数量" placeholder="正数补货，负数扣减" />
-                <label :class="$style.fieldWide">
-                  <span :class="$style.fieldLabel">调整原因</span>
-                  <textarea
-                    v-model="stockForm.reason"
-                    :class="$style.textarea"
-                    placeholder="请输入库存调整原因"
-                  />
-                </label>
-              </div>
+              <template v-else>
+                <div :class="$style.summaryNote">
+                  正数表示补货，负数表示扣减；提交前请确认目标 SKU 与调整原因。
+                </div>
+                <div v-if="selectedStockSku" :class="$style.stockMetaCard">
+                  <div>
+                    <div :class="$style.summaryLabel">当前 SKU</div>
+                    <div :class="$style.stockMetaValue">{{ selectedStockSku.sku_name }}</div>
+                  </div>
+                  <div>
+                    <div :class="$style.summaryLabel">当前售价</div>
+                    <div :class="$style.stockMetaValue">{{ formatCurrency(selectedStockSku.sale_price) }}</div>
+                  </div>
+                  <div>
+                    <div :class="$style.summaryLabel">可售库存</div>
+                    <div :class="$style.stockMetaValue">{{ selectedStockSku.available_stock }}</div>
+                  </div>
+                  <div>
+                    <div :class="$style.summaryLabel">锁定库存</div>
+                    <div :class="$style.stockMetaValue">{{ selectedStockSku.locked_stock }}</div>
+                  </div>
+                </div>
+                <div :class="$style.formGrid">
+                  <label :class="$style.field">
+                    <span :class="$style.fieldLabel">目标 SKU</span>
+                    <select v-model="stockForm.skuId" :class="$style.select">
+                      <option value="">请选择 SKU</option>
+                      <option v-for="sku in detail.skus" :key="sku.id" :value="String(sku.id)">
+                        {{ sku.sku_name }}（可售 {{ sku.available_stock }} / 锁定 {{ sku.locked_stock }}）
+                      </option>
+                    </select>
+                  </label>
+                  <UiInput v-model="stockForm.deltaStock" label="调整数量" placeholder="正数补货，负数扣减" />
+                  <label :class="$style.fieldWide">
+                    <span :class="$style.fieldLabel">调整原因</span>
+                    <textarea
+                      v-model="stockForm.reason"
+                      :class="$style.textarea"
+                      placeholder="请输入库存调整原因"
+                    />
+                  </label>
+                </div>
+              </template>
               <div v-if="detail.skus.length" :class="$style.sectionActions">
-                <UiButton variant="secondary" size="sm" :disabled="submitting || !canAdjustStock" @click="handleAdjustStock">
+                <UiButton size="sm" :disabled="submitting || !canAdjustStock" @click="handleAdjustStock">
                   {{ submitting ? '正在提交...' : '提交库存调整' }}
                 </UiButton>
               </div>
@@ -533,6 +568,9 @@ const stockForm = reactive({
   deltaStock: '',
   reason: '',
 });
+const selectedStockSku = computed(() =>
+  detail.value?.skus.find((sku) => String(sku.id) === stockForm.skuId) ?? null,
+);
 
 function setActionMessage(message: string, tone: 'info' | 'error' = 'info') {
   actionMessage.value = message;
@@ -1385,6 +1423,17 @@ onBeforeUnmount(() => {
   letter-spacing: -0.04em;
 }
 
+.panelMetaRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: center;
+  margin-top: 12px;
+  color: var(--cdd-text-faint);
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .formGrid {
   display: grid;
   gap: 12px;
@@ -1517,6 +1566,23 @@ onBeforeUnmount(() => {
   line-height: 1.7;
 }
 
+.stockMetaCard {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  padding: 12px;
+  border-radius: 16px;
+  background: rgba(237, 244, 255, 0.72);
+}
+
+.stockMetaValue {
+  margin-top: 8px;
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1.5;
+  word-break: break-word;
+}
+
 .skuSection {
   display: grid;
   gap: 12px;
@@ -1576,13 +1642,26 @@ onBeforeUnmount(() => {
 }
 
 .skuEditorCard {
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
+  display: grid;
+  gap: 10px;
   padding: 12px 14px;
   border-radius: 16px;
   background: rgba(237, 244, 255, 0.72);
-  align-items: flex-end;
+}
+
+.skuEditorHead {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.skuEditorIndex {
+  color: var(--cdd-text-faint);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .skuEditorGrid {
@@ -1603,6 +1682,7 @@ onBeforeUnmount(() => {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  justify-content: flex-end;
 }
 
 .actionFooter {
@@ -1620,6 +1700,7 @@ onBeforeUnmount(() => {
   .filterBar,
   .detailSummary,
   .metricGrid,
+  .stockMetaCard,
   .skuEditorGrid {
     grid-template-columns: 1fr;
   }
@@ -1652,6 +1733,7 @@ onBeforeUnmount(() => {
   .actionFooter,
   .sectionTabs,
   .skuSectionHead,
+  .skuEditorHead,
   .skuEditorCard,
   .skuSnapshotHead {
     flex-direction: column;
