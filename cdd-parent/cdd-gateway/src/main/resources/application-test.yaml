@@ -1,6 +1,20 @@
 cdd:
   runtime:
     env: test
+  gateway:
+    routes:
+      auth:
+        base-url: http://auth-service.test
+      report:
+        base-url: http://report-service.test
+      config:
+        base-url: http://config-service.test
+      product:
+        base-url: http://product-service.test
+      order:
+        base-url: http://order-service.test
+      release:
+        base-url: http://release-service.test
   security:
     permit-all: false
     jwt:

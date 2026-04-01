@@ -14,8 +14,6 @@ export async function createReleaseTask(payload: {
     method: 'POST',
     url: '/release/tasks',
     data: {
-      merchant_id: payload.merchantId,
-      store_id: payload.storeId,
       mini_program_id: payload.miniProgramId,
       template_version_id: payload.templateVersionId,
       release_type: payload.releaseType,

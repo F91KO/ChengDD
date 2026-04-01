@@ -17,8 +17,6 @@ export async function fetchAfterSaleList(params: {
     method: 'GET',
     url: '/order/after-sales',
     params: {
-      merchant_id: params.merchantId,
-      store_id: params.storeId,
       after_sale_status: params.afterSaleStatus,
       page: params.page,
       page_size: params.pageSize,
@@ -34,10 +32,6 @@ export async function fetchAfterSaleDetail(params: {
   return requestApi<OrderAfterSaleDetailResponseRaw>({
     method: 'GET',
     url: `/order/after-sales/${params.afterSaleNo}`,
-    params: {
-      merchant_id: params.merchantId,
-      store_id: params.storeId,
-    },
   });
 }
 
@@ -49,9 +43,5 @@ export async function fetchAfterSaleLogs(params: {
   return requestApi<OrderAfterSaleLogResponseRaw[]>({
     method: 'GET',
     url: `/order/after-sales/${params.afterSaleNo}/logs`,
-    params: {
-      merchant_id: params.merchantId,
-      store_id: params.storeId,
-    },
   });
 }

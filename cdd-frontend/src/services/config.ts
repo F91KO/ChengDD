@@ -9,9 +9,6 @@ export async function fetchMerchantFeatureSwitches(merchantId: string): Promise<
   return requestApi<FeatureSwitchValueResponseRaw[]>({
     method: 'GET',
     url: '/config/merchant/feature-switches',
-    params: {
-      merchant_id: merchantId,
-    },
   });
 }
 
@@ -24,7 +21,6 @@ export async function fetchEffectiveConfig(params: {
     method: 'GET',
     url: '/config/platform/kv/effective',
     params: {
-      merchant_id: params.merchantId ?? undefined,
       config_group: params.configGroup,
       config_key: params.configKey,
     },
@@ -59,7 +55,6 @@ export async function upsertMerchantConfigOverride(payload: {
     method: 'POST',
     url: '/config/platform/kv/merchant-overrides',
     data: {
-      merchant_id: payload.merchantId,
       config_group: payload.configGroup,
       config_key: payload.configKey,
       config_value: payload.configValue,
@@ -78,9 +73,6 @@ export async function getMerchantFeatureSwitch(switchCode: string, merchantId: s
   return requestApi<FeatureSwitchValueResponseRaw>({
     method: 'GET',
     url: `/config/merchant/feature-switches/${switchCode}`,
-    params: {
-      merchant_id: merchantId,
-    },
   });
 }
 
@@ -133,7 +125,6 @@ export async function changeMerchantFeatureSwitch(payload: {
     method: 'POST',
     url: `/config/merchant/feature-switches/${payload.switchCode}/change`,
     data: {
-      merchant_id: payload.merchantId,
       switch_value: payload.switchValue,
     },
   });
@@ -146,10 +137,6 @@ export async function fetchPublishRecords(params: {
   return requestApi<ConfigPublishRecordResponseRaw[]>({
     method: 'GET',
     url: '/config/publish-records',
-    params: {
-      merchant_id: params.merchantId,
-      store_id: params.storeId,
-    },
   });
 }
 
@@ -170,8 +157,6 @@ export async function createPublishRecord(payload: {
     method: 'POST',
     url: '/config/publish-records',
     data: {
-      merchant_id: payload.merchantId,
-      store_id: payload.storeId,
       operator_name: payload.operatorName,
       publish_note: payload.publishNote,
     },

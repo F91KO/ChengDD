@@ -448,7 +448,7 @@ const effectiveConfigSummary = computed(() => {
   return {
     timeZone: effectiveConfig.value.config_value,
     configSource: effectiveConfig.value.source,
-    merchantId: effectiveConfig.value.merchant_id || authStore.context?.merchantId || 'merchant_1001',
+    merchantId: effectiveConfig.value.merchant_id || authStore.context?.merchantId || '-',
   };
 });
 

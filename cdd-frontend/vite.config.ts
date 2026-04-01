@@ -1,5 +1,5 @@
 import { fileURLToPath, URL } from 'node:url';
-import { defineConfig } from 'vite';
+import { defineConfig } from 'vitest/config';
 import vue from '@vitejs/plugin-vue';
 
 export default defineConfig({
@@ -8,6 +8,11 @@ export default defineConfig({
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
+  },
+  test: {
+    environment: 'happy-dom',
+    include: ['src/**/*.{test,spec}.ts'],
+    globals: true,
   },
   build: {
     rollupOptions: {
@@ -34,34 +39,13 @@ export default defineConfig({
     port: 5173,
     host: '0.0.0.0',
     proxy: {
-      '/api/auth': {
-        target: 'http://127.0.0.1:8081',
-        changeOrigin: true,
-      },
-      '/api/product': {
-        target: 'http://127.0.0.1:8084',
-        changeOrigin: true,
-      },
-      '/api/order': {
-        target: 'http://127.0.0.1:8085',
-        changeOrigin: true,
-      },
-      '/api/report': {
-        target: 'http://127.0.0.1:8088',
-        changeOrigin: true,
-      },
-      '/api/config': {
-        target: 'http://127.0.0.1:8089',
-        changeOrigin: true,
-      },
-      '/api/release': {
-        target: 'http://127.0.0.1:8087',
+      '/api': {
+        target: 'http://127.0.0.1:8080',
         changeOrigin: true,
       },
       '/actuator/report': {
-        target: 'http://127.0.0.1:8088',
+        target: 'http://127.0.0.1:8080',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/actuator\/report/, '/actuator'),
       },
     },
   },

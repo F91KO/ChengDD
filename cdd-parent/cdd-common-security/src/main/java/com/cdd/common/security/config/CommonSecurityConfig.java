@@ -48,8 +48,9 @@ public class CommonSecurityConfig {
     @Bean
     @ConditionalOnMissingBean
     public AuthContextFilter authContextFilter(JwtTokenService jwtTokenService,
-                                               AuthenticationEntryPoint authenticationEntryPoint) {
-        return new AuthContextFilter(jwtTokenService, authenticationEntryPoint);
+                                               AuthenticationEntryPoint authenticationEntryPoint,
+                                               CddSecurityProperties securityProperties) {
+        return new AuthContextFilter(jwtTokenService, authenticationEntryPoint, securityProperties.getPermitPaths());
     }
 
     @Bean

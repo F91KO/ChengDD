@@ -7,11 +7,28 @@ spring:
 cdd:
   runtime:
     config-mode: ${CDD_CONFIG_MODE:file}
+  gateway:
+    routes:
+      auth:
+        base-url: ${CDD_GATEWAY_AUTH_BASE_URL:http://127.0.0.1:8081}
+      report:
+        base-url: ${CDD_GATEWAY_REPORT_BASE_URL:http://127.0.0.1:8088}
+      config:
+        base-url: ${CDD_GATEWAY_CONFIG_BASE_URL:http://127.0.0.1:8089}
+      product:
+        base-url: ${CDD_GATEWAY_PRODUCT_BASE_URL:http://127.0.0.1:8084}
+      order:
+        base-url: ${CDD_GATEWAY_ORDER_BASE_URL:http://127.0.0.1:8085}
+      release:
+        base-url: ${CDD_GATEWAY_RELEASE_BASE_URL:http://127.0.0.1:8087}
   security:
     permit-all: false
     permit-paths:
       - /actuator/health
       - /actuator/info
+      - /api/auth/merchant/login
+      - /api/auth/platform/login
+      - /api/auth/token/refresh
     jwt:
       issuer: cdd-auth-service
       secret: chengdd-jwt-secret-change-me-20260321-123456

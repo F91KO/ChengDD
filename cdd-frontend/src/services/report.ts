@@ -13,11 +13,7 @@ export async function fetchMerchantDashboardSnapshot(params: {
 }): Promise<MerchantDashboardSnapshotResponseRaw> {
   return requestApi<MerchantDashboardSnapshotResponseRaw>({
     method: 'GET',
-    url: '/report/merchant-dashboard/latest',
-    params: {
-      merchant_id: params.merchantId,
-      store_id: params.storeId,
-    },
+    url: '/merchant/dashboard/latest',
   });
 }
 
@@ -29,10 +25,8 @@ export async function fetchOrderDailyList(params: {
 }): Promise<ReportOrderDailyResponseRaw[]> {
   return requestApi<ReportOrderDailyResponseRaw[]>({
     method: 'GET',
-    url: '/report/orders/daily',
+    url: '/merchant/dashboard/orders/daily',
     params: {
-      merchant_id: params.merchantId,
-      store_id: params.storeId,
       start_date: params.startDate,
       end_date: params.endDate,
     },
@@ -47,10 +41,8 @@ export async function fetchHomeEventDailyList(params: {
 }): Promise<ReportHomeEventDailyResponseRaw[]> {
   return requestApi<ReportHomeEventDailyResponseRaw[]>({
     method: 'GET',
-    url: '/report/home-events/daily',
+    url: '/merchant/dashboard/home-events/daily',
     params: {
-      merchant_id: params.merchantId,
-      store_id: params.storeId,
       start_date: params.startDate,
       end_date: params.endDate,
     },
@@ -68,8 +60,6 @@ export async function fetchProductDailyList(params: {
     method: 'GET',
     url: '/report/products/daily',
     params: {
-      merchant_id: params.merchantId,
-      store_id: params.storeId,
       product_id: params.productId,
       start_date: params.startDate,
       end_date: params.endDate,
@@ -83,10 +73,6 @@ export async function fetchReportHealth(params: {
 }): Promise<ReportHealthResponseRaw> {
   return requestApi<ReportHealthResponseRaw>({
     method: 'GET',
-    url: '/report/health',
-    params: {
-      merchant_id: params.merchantId,
-      store_id: params.storeId,
-    },
+    url: '/merchant/dashboard/health',
   });
 }

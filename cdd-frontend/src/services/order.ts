@@ -20,8 +20,6 @@ export async function fetchOrderList(params: {
     method: 'GET',
     url: '/order/orders',
     params: {
-      merchant_id: params.merchantId,
-      store_id: params.storeId,
       user_id: params.userId ?? undefined,
       order_status: params.orderStatus,
       page: params.page,
@@ -40,8 +38,6 @@ export async function fetchOrderDetail(params: {
     method: 'GET',
     url: `/order/orders/${params.orderNo}`,
     params: {
-      merchant_id: params.merchantId,
-      store_id: params.storeId,
       user_id: params.userId,
     },
   });
@@ -62,8 +58,6 @@ export async function shipOrder(payload: {
     method: 'POST',
     url: `/order/orders/${payload.orderNo}/ship`,
     data: {
-      merchant_id: payload.merchantId,
-      store_id: payload.storeId,
       user_id: payload.userId,
       operator_id: payload.operatorId,
       logistics_company_code: payload.logisticsCompanyCode,
@@ -80,10 +74,7 @@ export async function exportOrdersCsv(params: {
   userId?: number | null;
   orderStatus?: string;
 }): Promise<Blob> {
-  const query = new URLSearchParams({
-    merchant_id: String(params.merchantId),
-    store_id: String(params.storeId),
-  });
+  const query = new URLSearchParams();
   if (params.userId != null) {
     query.set('user_id', String(params.userId));
   }
@@ -112,8 +103,6 @@ export async function fetchOrderStatusLogs(params: {
     method: 'GET',
     url: `/order/orders/${params.orderNo}/status-logs`,
     params: {
-      merchant_id: params.merchantId,
-      store_id: params.storeId,
       user_id: params.userId,
     },
   });
@@ -131,8 +120,6 @@ export async function reviewAfterSale(payload: {
     method: 'POST',
     url: `/order/after-sales/${payload.afterSaleNo}/review`,
     data: {
-      merchant_id: payload.merchantId,
-      store_id: payload.storeId,
       operator_id: payload.operatorId,
       review_action: payload.reviewAction,
       merchant_result: payload.merchantResult ?? '',
@@ -153,8 +140,6 @@ export async function submitAfterSaleReturn(payload: {
     method: 'POST',
     url: `/order/after-sales/${payload.afterSaleNo}/return`,
     data: {
-      merchant_id: payload.merchantId,
-      store_id: payload.storeId,
       user_id: payload.userId,
       operator_id: payload.operatorId,
       return_company: payload.returnCompany,

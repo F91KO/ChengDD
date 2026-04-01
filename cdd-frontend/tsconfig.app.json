@@ -20,6 +20,7 @@
       "DOM.Iterable"
     ],
     "skipLibCheck": true,
+    "types": ["vitest/globals"],
     "paths": {
       "@/*": [
         "./src/*"

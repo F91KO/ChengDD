@@ -20,6 +20,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.AuthenticationEntryPoint;
+import org.springframework.util.AntPathMatcher;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -27,10 +28,21 @@ public class AuthContextFilter extends OncePerRequestFilter {
 
     private final JwtTokenService jwtTokenService;
     private final AuthenticationEntryPoint authenticationEntryPoint;
+    private final List<String> permitPaths;
+    private final AntPathMatcher pathMatcher = new AntPathMatcher();
 
-    public AuthContextFilter(JwtTokenService jwtTokenService, AuthenticationEntryPoint authenticationEntryPoint) {
+    public AuthContextFilter(JwtTokenService jwtTokenService,
+                             AuthenticationEntryPoint authenticationEntryPoint,
+                             List<String> permitPaths) {
         this.jwtTokenService = jwtTokenService;
         this.authenticationEntryPoint = authenticationEntryPoint;
+        this.permitPaths = permitPaths == null ? List.of() : List.copyOf(permitPaths);
+    }
+
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        String servletPath = request.getServletPath();
+        return permitPaths.stream().anyMatch(pattern -> pathMatcher.match(pattern, servletPath));
     }
 
     @Override

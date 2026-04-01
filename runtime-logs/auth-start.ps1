@@ -1,0 +1,8 @@
+﻿Set-Location 'F:\clauseWork\ChengDD'
+& 'F:\clauseWork\ChengDD\runtime-logs\set-config-mode.ps1'
+$env:CDD_LOCAL_MYSQL_ROOT_PASSWORD='root'
+$env:CDD_LOCAL_MYSQL_USERNAME='root'
+$env:CDD_AUTH_DB_USERNAME='root'
+$env:CDD_AUTH_DB_PASSWORD='root'
+$env:CDD_AUTH_SQL_INIT_MODE='never'
+& 'D:\workSoft\IntelliJ IDEA 2024.2.0.1\jbr\bin\java.exe' -jar 'F:\clauseWork\ChengDD\cdd-parent\cdd-auth-service\target\cdd-auth-service-0.1.0-SNAPSHOT.jar'

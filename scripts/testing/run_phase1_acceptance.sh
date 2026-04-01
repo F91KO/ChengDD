@@ -5,7 +5,7 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$repo_root"
 parent_root="$repo_root/cdd-parent"
 
-default_modules="cdd-common-security,cdd-auth-service,cdd-gateway,cdd-merchant-service,cdd-product-service,cdd-order-service,cdd-release-service,cdd-config-service"
+default_modules="cdd-common-core,cdd-common-security,cdd-auth-service,cdd-gateway,cdd-merchant-service,cdd-product-service,cdd-order-service,cdd-release-service,cdd-config-service,cdd-agent-core,cdd-decoration-service,cdd-marketing-service,cdd-report-service"
 modules_csv="${CDD_PHASE1_TEST_MODULES:-$default_modules}"
 report_file="${CDD_PHASE1_REPORT_FILE:-$repo_root/docs/05-delivery/reports/phase1-acceptance-latest.md}"
 run_skeleton=1

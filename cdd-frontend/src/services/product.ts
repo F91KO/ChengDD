@@ -21,8 +21,6 @@ export async function fetchProductList(params: {
     method: 'GET',
     url: '/product/spu',
     params: {
-      merchant_id: params.merchantId,
-      store_id: params.storeId,
       status: params.status,
       keyword: params.keyword,
       page: params.page,
@@ -53,8 +51,6 @@ export async function createProduct(payload: {
     method: 'POST',
     url: '/product/spu',
     data: {
-      merchant_id: payload.merchantId,
-      store_id: payload.storeId,
       category_id: payload.categoryId,
       product_name: payload.productName,
       product_sub_title: payload.productSubTitle ?? '',
@@ -88,8 +84,6 @@ export async function updateProduct(payload: {
     method: 'PUT',
     url: `/product/spu/${payload.productId}`,
     data: {
-      merchant_id: payload.merchantId,
-      store_id: payload.storeId,
       category_id: payload.categoryId,
       product_name: payload.productName,
       product_sub_title: payload.productSubTitle ?? '',
@@ -129,8 +123,6 @@ export async function adjustProductStock(payload: {
     method: 'POST',
     url: '/product/stock/adjust',
     data: {
-      merchant_id: payload.merchantId,
-      store_id: payload.storeId,
       product_id: payload.productId,
       sku_id: payload.skuId,
       delta_stock: payload.deltaStock,
@@ -150,8 +142,6 @@ export async function fetchCategoryList(params: {
     method: 'GET',
     url: '/product/categories',
     params: {
-      merchant_id: params.merchantId,
-      store_id: params.storeId,
       keyword: params.keyword,
       page: params.page,
       page_size: params.pageSize,
@@ -210,8 +200,6 @@ export async function initializeCategoryTree(payload: {
     method: 'POST',
     url: '/product/categories/init',
     data: {
-      merchant_id: payload.merchantId,
-      store_id: payload.storeId,
       template_id: payload.templateId,
     },
   });
@@ -230,8 +218,6 @@ export async function createCategory(payload: {
     method: 'POST',
     url: '/product/categories',
     data: {
-      merchant_id: payload.merchantId,
-      store_id: payload.storeId,
       parent_id: payload.parentId ?? 0,
       category_name: payload.categoryName,
       sort_order: payload.sortOrder ?? 0,
@@ -254,8 +240,6 @@ export async function updateCategory(payload: {
     method: 'PUT',
     url: `/product/categories/${payload.categoryId}`,
     data: {
-      merchant_id: payload.merchantId,
-      store_id: payload.storeId,
       category_name: payload.categoryName,
       sort_order: payload.sortOrder,
       is_enabled: payload.enabled,
