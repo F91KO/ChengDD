@@ -39,7 +39,7 @@
         <div :class="$style.panelHead">
           <div>
             <div :class="$style.eyebrow">子账号列表</div>
-            <h3 :class="$style.title">当前商家账号</h3>
+            <h3 :class="$style.title">当前商家子账号</h3>
           </div>
         </div>
 

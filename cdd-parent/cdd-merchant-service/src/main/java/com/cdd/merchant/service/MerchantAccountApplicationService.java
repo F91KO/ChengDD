@@ -91,7 +91,7 @@ public class MerchantAccountApplicationService {
         AuthContext authContext = requiredAuthContext();
         long merchantId = requiredMerchantNumericId(authContext);
         long operatorId = parseNumericTail(authContext.getUserId());
-        requireStoredAccount(merchantId, accountId);
+        StoredMerchantSubAccount existing = requireStoredAccount(merchantId, accountId);
         List<String> scopeIds = normalizedScopeIds(request.dataScopeType(), request.dataScopeIds());
         validateScopeIds(merchantId, request.dataScopeType(), scopeIds);
         StoredMerchantSubAccount subAccount = new StoredMerchantSubAccount(
@@ -101,8 +101,8 @@ public class MerchantAccountApplicationService {
                 request.displayName().trim(),
                 request.mobile().trim(),
                 trimToNull(request.remark()),
-                "enabled",
-                "商家子账号",
+                existing.status(),
+                existing.roleLabel(),
                 normalizeList(request.permissionModules()),
                 normalizeList(request.actionPermissions()),
                 normalize(request.dataScopeType()),

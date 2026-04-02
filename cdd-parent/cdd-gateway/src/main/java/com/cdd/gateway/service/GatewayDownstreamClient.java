@@ -199,9 +199,19 @@ public class GatewayDownstreamClient {
     }
 
     private void putIfHasText(HttpHeaders headers, String name, String value) {
-        if (StringUtils.hasText(value)) {
+        if (StringUtils.hasText(value) && isSafeHeaderValue(value)) {
             headers.set(name, value);
         }
+    }
+
+    private boolean isSafeHeaderValue(String value) {
+        for (int index = 0; index < value.length(); index += 1) {
+            char current = value.charAt(index);
+            if (current < 0x20 || current > 0x7e) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private String resolveRequestPath(HttpServletRequest request) {
