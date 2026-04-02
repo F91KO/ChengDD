@@ -51,6 +51,8 @@ function normalizeContext(raw: CurrentAuthContextRaw): AuthContext {
     storeId: raw.store_id,
     miniProgramId: raw.mini_program_id,
     roleCodes: raw.role_codes,
+    permissionModules: raw.permission_modules,
+    actionPermissions: raw.action_permissions,
     tokenVersion: raw.token_version,
   };
 }
@@ -80,6 +82,10 @@ export const useAuthStore = defineStore('auth', () => {
   const user = computed<AuthDisplayUser>(() => session.value?.user ?? buildUser(null));
   const authMode = computed<'remote' | 'anonymous'>(() => (session.value?.authMode === 'remote' ? 'remote' : 'anonymous'));
   const context = computed<AuthContext | null>(() => session.value?.context ?? null);
+  const roleCodes = computed(() => context.value?.roleCodes ?? []);
+  const permissionModules = computed(() => context.value?.permissionModules ?? []);
+  const actionPermissions = computed(() => context.value?.actionPermissions ?? []);
+  const isMerchantOwner = computed(() => hasValue(roleCodes.value, 'merchant_owner'));
 
   const businessScope = computed(() => {
     const contextValue = context.value;
@@ -98,6 +104,45 @@ export const useAuthStore = defineStore('auth', () => {
   const merchantIdForQuery = computed<number | null>(() => businessScope.value.merchantId);
   const storeIdForQuery = computed<number | null>(() => businessScope.value.storeId);
   const userIdForQuery = computed<number | null>(() => businessScope.value.userId);
+
+  function hasValue(values: string[], expected: string) {
+    const normalizedExpected = expected.trim().toLowerCase();
+    return values.some((value) => value.trim().toLowerCase() === normalizedExpected);
+  }
+
+  function hasModule(moduleCode?: string | null) {
+    if (!moduleCode) {
+      return true;
+    }
+    if (isMerchantOwner.value) {
+      return true;
+    }
+    return hasValue(permissionModules.value, moduleCode);
+  }
+
+  function hasAction(actionCode?: string | null) {
+    if (!actionCode) {
+      return true;
+    }
+    if (isMerchantOwner.value) {
+      return true;
+    }
+    return hasValue(actionPermissions.value, actionCode);
+  }
+
+  function canAccess(requirement?: {
+    requiredModule?: string;
+    requiredAction?: string;
+    ownerOnly?: boolean;
+  } | null) {
+    if (!requirement) {
+      return true;
+    }
+    if (requirement.ownerOnly) {
+      return isMerchantOwner.value;
+    }
+    return hasModule(requirement.requiredModule) && hasAction(requirement.requiredAction);
+  }
 
   function setSession(nextSession: AuthSession | null, notice?: string) {
     session.value = nextSession;
@@ -222,9 +267,16 @@ export const useAuthStore = defineStore('auth', () => {
     authMode,
     authNotice,
     businessScope,
+    roleCodes,
+    permissionModules,
+    actionPermissions,
+    isMerchantOwner,
     merchantIdForQuery,
     storeIdForQuery,
     userIdForQuery,
+    hasModule,
+    hasAction,
+    canAccess,
     hydrate,
     login,
     refreshCurrentContext,

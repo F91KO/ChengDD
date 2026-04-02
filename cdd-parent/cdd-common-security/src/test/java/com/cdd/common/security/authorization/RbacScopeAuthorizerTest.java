@@ -97,6 +97,8 @@ class RbacScopeAuthorizerTest {
                 storeId,
                 null,
                 roleCodes,
+                List.of(),
+                List.of(),
                 0L);
     }
 

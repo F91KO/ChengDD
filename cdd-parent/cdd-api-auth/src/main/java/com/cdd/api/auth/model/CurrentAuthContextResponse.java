@@ -20,6 +20,10 @@ public record CurrentAuthContextResponse(
         String miniProgramId,
         @JsonProperty("role_codes")
         List<String> roleCodes,
+        @JsonProperty("permission_modules")
+        List<String> permissionModules,
+        @JsonProperty("action_permissions")
+        List<String> actionPermissions,
         @JsonProperty("token_version")
         long tokenVersion) {
 }

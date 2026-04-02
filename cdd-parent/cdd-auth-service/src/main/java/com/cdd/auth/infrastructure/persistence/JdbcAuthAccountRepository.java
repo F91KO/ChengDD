@@ -1,11 +1,14 @@
 package com.cdd.auth.infrastructure.persistence;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
@@ -14,11 +17,15 @@ import org.springframework.stereotype.Repository;
 public class JdbcAuthAccountRepository implements AuthAccountRepository {
 
     private static final RowMapper<AccountRow> ACCOUNT_ROW_MAPPER = JdbcAuthAccountRepository::mapAccountRow;
+    private static final TypeReference<List<String>> STRING_LIST_TYPE = new TypeReference<>() {
+    };
 
     private final JdbcTemplate jdbcTemplate;
+    private final ObjectMapper objectMapper;
 
-    public JdbcAuthAccountRepository(JdbcTemplate jdbcTemplate) {
+    public JdbcAuthAccountRepository(JdbcTemplate jdbcTemplate, ObjectMapper objectMapper) {
         this.jdbcTemplate = jdbcTemplate;
+        this.objectMapper = objectMapper;
     }
 
     @Override
@@ -79,6 +86,7 @@ public class JdbcAuthAccountRepository implements AuthAccountRepository {
     }
 
     private StoredAccount toStoredAccount(AccountRow row) {
+        List<String> roleCodes = loadRoleCodes(row.accountId());
         return new StoredAccount(
                 row.accountId(),
                 row.userId(),
@@ -88,7 +96,9 @@ public class JdbcAuthAccountRepository implements AuthAccountRepository {
                 row.merchantId(),
                 row.storeId(),
                 row.miniProgramId(),
-                loadRoleCodes(row.accountId()),
+                roleCodes,
+                loadPermissionModules(row.accountId(), roleCodes),
+                loadActionPermissions(row.accountId(), roleCodes),
                 row.tokenVersion(),
                 row.passwordHash());
     }
@@ -104,6 +114,50 @@ public class JdbcAuthAccountRepository implements AuthAccountRepository {
                   AND r.status = 'enabled'
                 ORDER BY r.id ASC
                 """, String.class, accountId);
+    }
+
+    private List<String> loadPermissionModules(long accountId, List<String> roleCodes) {
+        if (!requiresMerchantSubAccountPermissions(roleCodes)) {
+            return List.of();
+        }
+        return loadPermissionsJson(accountId, "permission_modules_json");
+    }
+
+    private List<String> loadActionPermissions(long accountId, List<String> roleCodes) {
+        if (!requiresMerchantSubAccountPermissions(roleCodes)) {
+            return List.of();
+        }
+        return loadPermissionsJson(accountId, "action_permissions_json");
+    }
+
+    private boolean requiresMerchantSubAccountPermissions(List<String> roleCodes) {
+        boolean owner = roleCodes.stream().anyMatch(role -> "merchant_owner".equalsIgnoreCase(role));
+        boolean admin = roleCodes.stream().anyMatch(role -> "merchant_admin".equalsIgnoreCase(role));
+        return admin && !owner;
+    }
+
+    private List<String> loadPermissionsJson(long accountId, String columnName) {
+        try {
+            List<String> jsonValues = jdbcTemplate.query("""
+                    SELECT %s
+                    FROM cdd_merchant_sub_account
+                    WHERE id = ?
+                      AND deleted = 0
+                    LIMIT 1
+                    """.formatted(columnName), (rs, rowNum) -> rs.getString(columnName), accountId);
+            if (jsonValues.isEmpty()) {
+                return List.of();
+            }
+            String raw = jsonValues.get(0);
+            if (raw == null || raw.isBlank()) {
+                return List.of();
+            }
+            return objectMapper.readValue(raw, STRING_LIST_TYPE);
+        } catch (DataAccessException ex) {
+            return List.of();
+        } catch (Exception ex) {
+            return List.of();
+        }
     }
 
     private static AccountRow mapAccountRow(ResultSet rs, int rowNum) throws SQLException {

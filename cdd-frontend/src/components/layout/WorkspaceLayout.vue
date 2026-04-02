@@ -87,7 +87,7 @@ const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
 const subjectValue = computed(() => props.subjectValue || authStore.user.merchantName);
-const navItems = computed(() => props.navItems);
+const navItems = computed(() => props.navItems.filter((item) => authStore.canAccess(item)));
 const brandMeta = computed(() => props.brandMeta);
 const subjectLabel = computed(() => props.subjectLabel);
 

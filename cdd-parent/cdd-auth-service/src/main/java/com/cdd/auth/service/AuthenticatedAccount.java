@@ -13,6 +13,8 @@ public record AuthenticatedAccount(
         String storeId,
         String miniProgramId,
         List<String> roleCodes,
+        List<String> permissionModules,
+        List<String> actionPermissions,
         long tokenVersion) {
 
     public AuthContext toAuthContext() {
@@ -26,6 +28,8 @@ public record AuthenticatedAccount(
                 storeId,
                 miniProgramId,
                 roleCodes,
+                permissionModules,
+                actionPermissions,
                 tokenVersion);
     }
 }

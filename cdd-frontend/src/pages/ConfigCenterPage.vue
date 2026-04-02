@@ -17,7 +17,7 @@
       </div>
       <div :class="$style.toolbarActions">
         <UiButton variant="secondary" size="sm" @click="loadConfigCenter">刷新配置</UiButton>
-        <UiButton @click="handleCreatePublish">发起发布</UiButton>
+        <UiButton :disabled="!canPublishConfig" @click="handleCreatePublish">发起发布</UiButton>
       </div>
     </section>
 
@@ -68,7 +68,7 @@
               <UiTag :tone="item.statusTone as 'default' | 'primary' | 'success'">
                 {{ item.status }}
               </UiTag>
-              <UiButton variant="secondary" size="sm" @click="handleToggleSwitch(item)">
+              <UiButton variant="secondary" size="sm" :disabled="!canEditConfig" @click="handleToggleSwitch(item)">
                 {{ item.effectiveValue === 'on' ? '关闭' : '开启' }}
               </UiButton>
             </div>
@@ -117,7 +117,7 @@
             />
           </label>
           <div :class="$style.inlineActions">
-            <UiButton variant="secondary" size="sm" @click="handleUpdatePlatformTimeZone">更新平台默认值</UiButton>
+            <UiButton variant="secondary" size="sm" :disabled="!canEditConfig" @click="handleUpdatePlatformTimeZone">更新平台默认值</UiButton>
           </div>
 
           <label :class="$style.fieldBlock">
@@ -129,7 +129,7 @@
             />
           </label>
           <div :class="$style.inlineActions">
-            <UiButton variant="secondary" size="sm" @click="handleUpdateMerchantTimeZone">保存商家覆盖</UiButton>
+            <UiButton variant="secondary" size="sm" :disabled="!canEditConfig" @click="handleUpdateMerchantTimeZone">保存商家覆盖</UiButton>
           </div>
         </div>
 
@@ -193,7 +193,7 @@
               <div :class="$style.eyebrow">发布记录</div>
               <h3 :class="$style.title">配置发布与回滚</h3>
             </div>
-            <UiButton @click="handleCreatePublish">发起发布</UiButton>
+            <UiButton :disabled="!canPublishConfig" @click="handleCreatePublish">发起发布</UiButton>
           </div>
 
           <div :class="$style.publishFormGrid">
@@ -216,7 +216,7 @@
           </div>
 
           <div :class="$style.inlineActions">
-            <UiButton variant="secondary" size="sm" :disabled="!publishRecords.length" @click="handleRollbackLatest">
+            <UiButton variant="secondary" size="sm" :disabled="!publishRecords.length || !canPublishConfig" @click="handleRollbackLatest">
               回滚最新记录
             </UiButton>
           </div>
@@ -419,6 +419,8 @@ const rollbackReason = ref('配置回滚');
 const platformTimeZoneInput = ref('Asia/Shanghai');
 const merchantOverrideTimeZoneInput = ref('Asia/Shanghai');
 const publishDetailAnchor = ref<HTMLElement | null>(null);
+const canEditConfig = computed(() => authStore.hasAction('edit'));
+const canPublishConfig = computed(() => authStore.hasAction('publish'));
 
 const reportHealthSummary = computed(() => {
   if (!reportHealth.value) {
@@ -583,6 +585,9 @@ async function loadConfigCenter() {
 
 async function handleToggleSwitch(item: ConfigGroupItem) {
   try {
+    if (!canEditConfig.value) {
+      throw new Error('当前账号没有修改配置的权限。');
+    }
     const merchantId = resolveMerchantId();
     const switchValue = item.effectiveValue === 'on' ? 'off' : 'on';
     await changeMerchantFeatureSwitch({
@@ -599,6 +604,9 @@ async function handleToggleSwitch(item: ConfigGroupItem) {
 
 async function handleCreatePublish() {
   try {
+    if (!canPublishConfig.value) {
+      throw new Error('当前账号没有发起发布的权限。');
+    }
     const merchantId = resolveMerchantId();
     const storeId = authStore.context?.storeId || `store_${authStore.storeIdForQuery ?? 1001}`;
     const record = await createPublishRecord({
@@ -617,6 +625,9 @@ async function handleCreatePublish() {
 
 async function handleRollbackLatest() {
   try {
+    if (!canPublishConfig.value) {
+      throw new Error('当前账号没有回滚发布的权限。');
+    }
     const latest = publishRecords.value[0];
     if (!latest) {
       throw new Error('当前没有可回滚的发布记录。');
@@ -651,6 +662,9 @@ async function handleSelectPublishRecord(taskNo: string, shouldScroll = true) {
 
 async function handleUpdatePlatformTimeZone() {
   try {
+    if (!canEditConfig.value) {
+      throw new Error('当前账号没有修改配置的权限。');
+    }
     const nextValue = platformTimeZoneInput.value.trim();
     if (!nextValue) {
       throw new Error('平台默认时区不能为空。');
@@ -671,6 +685,9 @@ async function handleUpdatePlatformTimeZone() {
 
 async function handleUpdateMerchantTimeZone() {
   try {
+    if (!canEditConfig.value) {
+      throw new Error('当前账号没有修改配置的权限。');
+    }
     const nextValue = merchantOverrideTimeZoneInput.value.trim();
     if (!nextValue) {
       throw new Error('商家时区覆盖不能为空。');

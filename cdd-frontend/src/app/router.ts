@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router';
+import { appMenuItems } from '@/app/menu';
 import { useAuthStore } from '@/stores/auth';
 
 const routes = [
@@ -21,6 +22,8 @@ const routes = [
     component: () => import('@/pages/DashboardPage.vue'),
     meta: {
       title: '工作台',
+      requiredModule: 'store',
+      requiredAction: 'view',
     },
   },
   {
@@ -29,6 +32,8 @@ const routes = [
     component: () => import('@/pages/ProductsPage.vue'),
     meta: {
       title: '商品管理',
+      requiredModule: 'product',
+      requiredAction: 'view',
     },
   },
   {
@@ -37,6 +42,8 @@ const routes = [
     component: () => import('@/pages/CategoryManagementPage.vue'),
     meta: {
       title: '商品分类',
+      requiredModule: 'product',
+      requiredAction: 'view',
     },
   },
   {
@@ -45,6 +52,7 @@ const routes = [
     component: () => import('@/pages/PermissionManagementPage.vue'),
     meta: {
       title: '权限配置',
+      ownerOnly: true,
     },
   },
   {
@@ -62,6 +70,8 @@ const routes = [
     component: () => import('@/pages/OrdersPage.vue'),
     meta: {
       title: '订单管理',
+      requiredModule: 'order',
+      requiredAction: 'view',
     },
   },
   {
@@ -70,6 +80,8 @@ const routes = [
     component: () => import('@/pages/AftersalesPage.vue'),
     meta: {
       title: '售后处理',
+      requiredModule: 'order',
+      requiredAction: 'view',
     },
   },
   {
@@ -78,6 +90,8 @@ const routes = [
     component: () => import('@/pages/ConfigCenterPage.vue'),
     meta: {
       title: '配置中心',
+      requiredModule: 'config',
+      requiredAction: 'view',
     },
   },
   {
@@ -86,6 +100,8 @@ const routes = [
     component: () => import('@/pages/ReleaseGovernancePage.vue'),
     meta: {
       title: '发布治理',
+      requiredModule: 'release',
+      requiredAction: 'view',
     },
   },
 ];
@@ -112,6 +128,11 @@ router.beforeEach((to) => {
 
   if (!authStore.isAuthenticated && !authStore.authenticating) {
     return '/login';
+  }
+
+  if (!authStore.canAccess(to.meta)) {
+    const fallbackPath = appMenuItems.find((item) => authStore.canAccess(item))?.path || '/login';
+    return to.path === fallbackPath ? '/login' : fallbackPath;
   }
 
   void authStore.ensureCurrentContext();

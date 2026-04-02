@@ -23,7 +23,7 @@ class NimbusJwtTokenServiceTest {
 
     private AuthContext sampleContext() {
         return new AuthContext(null, "user-1", "admin", "管理员", "MERCHANT",
-                "M001", "S001", "MP001", List.of("ROLE_ADMIN"), 1L);
+                "M001", "S001", "MP001", List.of("ROLE_ADMIN"), List.of("product"), List.of("view"), 1L);
     }
 
     @Test
@@ -37,6 +37,8 @@ class NimbusJwtTokenServiceTest {
         assertEquals("admin", parsed.authContext().getAccountName());
         assertEquals("M001", parsed.authContext().getMerchantId());
         assertEquals(List.of("ROLE_ADMIN"), parsed.authContext().getRoleCodes());
+        assertEquals(List.of("product"), parsed.authContext().getPermissionModules());
+        assertEquals(List.of("view"), parsed.authContext().getActionPermissions());
     }
 
     @Test

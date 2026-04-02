@@ -98,6 +98,8 @@ public class AuthContextFilter extends OncePerRequestFilter {
                 request.getHeader(RequestHeaders.STORE_ID),
                 request.getHeader(RequestHeaders.MINI_PROGRAM_ID),
                 splitRoleCodes(request.getHeader(RequestHeaders.ROLE_CODES)),
+                splitValues(request.getHeader(RequestHeaders.PERMISSION_MODULES)),
+                splitValues(request.getHeader(RequestHeaders.ACTION_PERMISSIONS)),
                 parseTokenVersion(request.getHeader(RequestHeaders.TOKEN_VERSION)));
     }
 
@@ -109,6 +111,10 @@ public class AuthContextFilter extends OncePerRequestFilter {
     }
 
     private List<String> splitRoleCodes(String raw) {
+        return splitValues(raw);
+    }
+
+    private List<String> splitValues(String raw) {
         if (!StringUtils.hasText(raw)) {
             return List.of();
         }

@@ -13,6 +13,8 @@ public final class RequestHeaders {
     public static final String STORE_ID = "X-Store-Id";
     public static final String MINI_PROGRAM_ID = "X-Mini-Program-Id";
     public static final String ROLE_CODES = "X-Role-Codes";
+    public static final String PERMISSION_MODULES = "X-Permission-Modules";
+    public static final String ACTION_PERMISSIONS = "X-Action-Permissions";
     public static final String TOKEN_VERSION = "X-Token-Version";
 
     private RequestHeaders() {

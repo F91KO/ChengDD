@@ -9,6 +9,8 @@ public final class JwtClaims {
     public static final String STORE_ID = "store_id";
     public static final String MINI_PROGRAM_ID = "mini_program_id";
     public static final String ROLE_CODES = "role_codes";
+    public static final String PERMISSION_MODULES = "permission_modules";
+    public static final String ACTION_PERMISSIONS = "action_permissions";
     public static final String TOKEN_VERSION = "token_version";
     public static final String TOKEN_TYPE = "token_type";
 

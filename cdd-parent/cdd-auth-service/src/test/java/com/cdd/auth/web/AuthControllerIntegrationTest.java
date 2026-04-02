@@ -41,7 +41,9 @@ class AuthControllerIntegrationTest {
                 .andExpect(jsonPath("$.code").value(0))
                 .andExpect(jsonPath("$.data.user_id").value("p_1001"))
                 .andExpect(jsonPath("$.data.account_type").value("platform"))
-                .andExpect(jsonPath("$.data.role_codes[0]").value("platform_admin"));
+                .andExpect(jsonPath("$.data.role_codes[0]").value("platform_admin"))
+                .andExpect(jsonPath("$.data.permission_modules").isArray())
+                .andExpect(jsonPath("$.data.action_permissions").isArray());
 
         JsonNode refreshData = refresh(refreshToken);
         String rotatedRefreshToken = refreshData.path("refresh_token").asText();
@@ -74,7 +76,9 @@ class AuthControllerIntegrationTest {
                 .andExpect(jsonPath("$.data.account_type").value("merchant"))
                 .andExpect(jsonPath("$.data.merchant_id").value("merchant_1001"))
                 .andExpect(jsonPath("$.data.store_id").value("store_1001"))
-                .andExpect(jsonPath("$.data.role_codes[0]").value("merchant_owner"));
+                .andExpect(jsonPath("$.data.role_codes[0]").value("merchant_owner"))
+                .andExpect(jsonPath("$.data.permission_modules").isArray())
+                .andExpect(jsonPath("$.data.action_permissions").isArray());
     }
 
     private JsonNode login(String accountName, String password) throws Exception {

@@ -67,6 +67,8 @@ public class NimbusJwtTokenService implements JwtTokenService {
                 .claim(JwtClaims.STORE_ID, authContext.getStoreId())
                 .claim(JwtClaims.MINI_PROGRAM_ID, authContext.getMiniProgramId())
                 .claim(JwtClaims.ROLE_CODES, authContext.getRoleCodes())
+                .claim(JwtClaims.PERMISSION_MODULES, authContext.getPermissionModules())
+                .claim(JwtClaims.ACTION_PERMISSIONS, authContext.getActionPermissions())
                 .claim(JwtClaims.TOKEN_VERSION, authContext.getTokenVersion())
                 .build();
 
@@ -113,6 +115,8 @@ public class NimbusJwtTokenService implements JwtTokenService {
                     claimsSet.getStringClaim(JwtClaims.STORE_ID),
                     claimsSet.getStringClaim(JwtClaims.MINI_PROGRAM_ID),
                     readRoleCodes(claimsSet),
+                    readPermissionModules(claimsSet),
+                    readActionPermissions(claimsSet),
                     readTokenVersion(claimsSet));
 
             return new JwtParsedToken(
@@ -134,5 +138,15 @@ public class NimbusJwtTokenService implements JwtTokenService {
     private long readTokenVersion(JWTClaimsSet claimsSet) throws ParseException {
         Number tokenVersion = claimsSet.getLongClaim(JwtClaims.TOKEN_VERSION);
         return tokenVersion == null ? 0L : tokenVersion.longValue();
+    }
+
+    private List<String> readPermissionModules(JWTClaimsSet claimsSet) throws ParseException {
+        List<String> permissionModules = claimsSet.getStringListClaim(JwtClaims.PERMISSION_MODULES);
+        return permissionModules == null ? List.of() : List.copyOf(permissionModules);
+    }
+
+    private List<String> readActionPermissions(JWTClaimsSet claimsSet) throws ParseException {
+        List<String> actionPermissions = claimsSet.getStringListClaim(JwtClaims.ACTION_PERMISSIONS);
+        return actionPermissions == null ? List.of() : List.copyOf(actionPermissions);
     }
 }

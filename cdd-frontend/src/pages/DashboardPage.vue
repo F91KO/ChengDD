@@ -12,12 +12,12 @@
           <span>商家：{{ authStore.user.merchantName }}</span>
           <span>状态：{{ dashboardMode === 'remote' ? '数据正常' : '异常待排查' }}</span>
           <span>待办：{{ taskItems.length }} 项</span>
-          <span>快捷动作：{{ quickActions.length }} 项</span>
+          <span>快捷动作：{{ visibleQuickActions.length }} 项</span>
         </div>
       </div>
       <div :class="$style.toolbarActions">
-        <UiButton variant="secondary" size="md" @click="void router.push('/orders')">查看订单</UiButton>
-        <UiButton size="md" @click="void router.push('/products')">新增商品</UiButton>
+        <UiButton v-if="canViewOrders" variant="secondary" size="md" @click="void router.push('/orders')">查看订单</UiButton>
+        <UiButton v-if="canCreateProduct" size="md" @click="void router.push('/products')">新增商品</UiButton>
       </div>
     </section>
 
@@ -63,8 +63,8 @@
           </UiTag>
         </div>
         <div :class="$style.heroActions">
-          <UiButton size="md" leading="+" @click="void router.push('/products')">新增商品</UiButton>
-          <UiButton variant="secondary" size="md" @click="void router.push('/config')">配置中心</UiButton>
+          <UiButton v-if="canCreateProduct" size="md" leading="+" @click="void router.push('/products')">新增商品</UiButton>
+          <UiButton v-if="canViewConfig" variant="secondary" size="md" @click="void router.push('/config')">配置中心</UiButton>
         </div>
       </UiCard>
 
@@ -129,7 +129,7 @@
         </div>
         <div :class="$style.actionGrid">
           <button
-            v-for="action in quickActions"
+            v-for="action in visibleQuickActions"
             :key="action"
             :class="$style.actionButton"
             :disabled="quickActionPending === action"
@@ -179,6 +179,27 @@ const trendOption = ref<EChartsOption>(buildDashboardTrendOption([], []));
 const quickActionNotice = ref('');
 const quickActionTone = ref<'info' | 'error'>('info');
 const quickActionPending = ref('');
+const canViewOrders = computed(() => authStore.canAccess({ requiredModule: 'order', requiredAction: 'view' }));
+const canCreateProduct = computed(() => authStore.canAccess({ requiredModule: 'product', requiredAction: 'edit' }));
+const canViewConfig = computed(() => authStore.canAccess({ requiredModule: 'config', requiredAction: 'view' }));
+const canExportOrders = computed(() => authStore.canAccess({ requiredModule: 'order', requiredAction: 'export' }));
+const canOpenRelease = computed(() => authStore.canAccess({ requiredModule: 'release', requiredAction: 'view' }));
+const canPublishConfig = computed(() => authStore.canAccess({ requiredModule: 'config', requiredAction: 'publish' }));
+const visibleQuickActions = computed(() => quickActions.filter((action) => {
+  if (action === '新增商品') {
+    return canCreateProduct.value;
+  }
+  if (action === '进入发布治理') {
+    return canOpenRelease.value;
+  }
+  if (action === '导出订单') {
+    return canExportOrders.value;
+  }
+  if (action === '同步配置') {
+    return canPublishConfig.value;
+  }
+  return false;
+}));
 
 const dashboardSummaryCards = computed(() => [
   {
@@ -201,8 +222,8 @@ const dashboardSummaryCards = computed(() => [
   },
   {
     label: '快捷动作',
-    value: String(quickActions.length),
-    meta: quickActionPending.value ? `${quickActionPending.value}执行中` : '支持商品、订单、配置与发布治理入口',
+    value: String(visibleQuickActions.value.length),
+    meta: quickActionPending.value ? `${quickActionPending.value}执行中` : '支持当前账号可访问的快捷入口',
     tone: quickActionPending.value ? 'primary' : 'default',
   },
 ]);
@@ -349,6 +370,10 @@ function describeQuickAction(action: string): string {
   return '执行当前快捷操作。';
 }
 
+function canUseQuickAction(action: string): boolean {
+  return visibleQuickActions.value.includes(action);
+}
+
 function parseNumericTail(raw: string | null | undefined): number | null {
   if (!raw) {
     return null;
@@ -420,6 +445,9 @@ async function openReleaseGovernanceFromDashboard() {
 
 async function handleQuickAction(action: string) {
   try {
+    if (!canUseQuickAction(action)) {
+      throw new Error('当前账号没有执行该快捷动作的权限。');
+    }
     quickActionPending.value = action;
     if (action === '新增商品') {
       await router.push('/products');

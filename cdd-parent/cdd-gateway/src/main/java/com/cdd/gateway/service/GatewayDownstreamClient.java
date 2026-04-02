@@ -181,6 +181,12 @@ public class GatewayDownstreamClient {
         if (!authContext.getRoleCodes().isEmpty()) {
             headers.set(RequestHeaders.ROLE_CODES, String.join(",", authContext.getRoleCodes()));
         }
+        if (!authContext.getPermissionModules().isEmpty()) {
+            headers.set(RequestHeaders.PERMISSION_MODULES, String.join(",", authContext.getPermissionModules()));
+        }
+        if (!authContext.getActionPermissions().isEmpty()) {
+            headers.set(RequestHeaders.ACTION_PERMISSIONS, String.join(",", authContext.getActionPermissions()));
+        }
         headers.set(RequestHeaders.TOKEN_VERSION, Long.toString(authContext.getTokenVersion()));
     }
 

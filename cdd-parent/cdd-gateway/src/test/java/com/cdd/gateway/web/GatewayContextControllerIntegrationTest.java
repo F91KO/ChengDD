@@ -37,6 +37,8 @@ class GatewayContextControllerIntegrationTest {
                 "store_1001",
                 null,
                 List.of("merchant_admin"),
+                List.of("order"),
+                List.of("view", "export"),
                 2L));
 
         mockMvc.perform(get("/api/gateway/context")
@@ -47,7 +49,9 @@ class GatewayContextControllerIntegrationTest {
                 .andExpect(jsonPath("$.data.account_name").value("merchant_admin"))
                 .andExpect(jsonPath("$.data.account_type").value("merchant"))
                 .andExpect(jsonPath("$.data.token_version").value(2))
-                .andExpect(jsonPath("$.data.role_codes[0]").value("merchant_admin"));
+                .andExpect(jsonPath("$.data.role_codes[0]").value("merchant_admin"))
+                .andExpect(jsonPath("$.data.permission_modules[0]").value("order"))
+                .andExpect(jsonPath("$.data.action_permissions[1]").value("export"));
     }
 
     @Test

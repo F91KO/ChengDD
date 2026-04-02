@@ -88,7 +88,7 @@
 
         <div :class="$style.actions">
           <UiButton variant="secondary" size="sm" @click="resetCreateForm">重置表单</UiButton>
-          <UiButton :disabled="submitting === 'create' || !canCreateTask" @click="handleCreateTask">
+          <UiButton :disabled="submitting === 'create' || !canCreateTask || !canPublishRelease" @click="handleCreateTask">
             {{ submitting === 'create' ? '正在创建...' : '创建发布任务' }}
           </UiButton>
         </div>
@@ -144,7 +144,7 @@
             <UiButton
               variant="secondary"
               size="sm"
-              :disabled="submitting === 'rollback' || !canRollbackTask"
+              :disabled="submitting === 'rollback' || !canRollbackTask || !canPublishRelease"
               @click="handleRollbackTask"
             >
               {{ submitting === 'rollback' ? '正在回滚...' : '发起回滚任务' }}
@@ -345,6 +345,7 @@ const triggerSourceOptions = [
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
+const canPublishRelease = computed(() => authStore.hasAction('publish'));
 
 const loading = ref(false);
 const submitting = ref<'create' | 'query' | 'rollback' | ''>('');
@@ -584,6 +585,9 @@ async function handleFetchTask() {
 
 async function handleCreateTask() {
   try {
+    if (!canPublishRelease.value) {
+      throw new Error('当前账号没有创建发布任务的权限。');
+    }
     const merchantId = authStore.merchantIdForQuery;
     const storeId = authStore.storeIdForQuery;
     const miniProgramId = Number(createForm.miniProgramId);
@@ -628,6 +632,9 @@ async function handleCreateTask() {
 
 async function handleRollbackTask() {
   try {
+    if (!canPublishRelease.value) {
+      throw new Error('当前账号没有发起回滚的权限。');
+    }
     if (!releaseTask.value) {
       throw new Error('请先加载要回滚的发布任务。');
     }

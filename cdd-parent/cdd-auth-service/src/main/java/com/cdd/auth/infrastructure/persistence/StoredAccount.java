@@ -13,6 +13,8 @@ public record StoredAccount(
         String storeId,
         String miniProgramId,
         List<String> roleCodes,
+        List<String> permissionModules,
+        List<String> actionPermissions,
         long tokenVersion,
         String passwordHash) {
 
@@ -27,6 +29,8 @@ public record StoredAccount(
                 storeId,
                 miniProgramId,
                 roleCodes,
+                permissionModules,
+                actionPermissions,
                 tokenVersion);
     }
 }

@@ -18,6 +18,8 @@ export interface CurrentAuthContextRaw {
   store_id: string | null;
   mini_program_id: string | null;
   role_codes: string[];
+  permission_modules: string[];
+  action_permissions: string[];
   token_version: number;
 }
 
@@ -30,6 +32,8 @@ export interface AuthContext {
   storeId: string | null;
   miniProgramId: string | null;
   roleCodes: string[];
+  permissionModules: string[];
+  actionPermissions: string[];
   tokenVersion: number;
 }
 

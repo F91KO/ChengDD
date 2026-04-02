@@ -36,6 +36,8 @@ public class GatewayContextController {
                 authContext.getStoreId(),
                 authContext.getMiniProgramId(),
                 authContext.getRoleCodes(),
+                authContext.getPermissionModules(),
+                authContext.getActionPermissions(),
                 authContext.getTokenVersion()));
     }
 }

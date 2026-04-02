@@ -9,6 +9,7 @@ import com.cdd.common.security.context.AuthContext;
 import com.cdd.common.security.context.AuthContextHolder;
 import com.cdd.gateway.config.GatewayRouteProperties;
 import com.cdd.gateway.service.GatewayDownstreamClient;
+import com.cdd.gateway.service.MerchantPermissionAuthorizer;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -22,11 +23,14 @@ public class GatewayDashboardController {
 
     private final GatewayDownstreamClient gatewayDownstreamClient;
     private final GatewayRouteProperties gatewayRouteProperties;
+    private final MerchantPermissionAuthorizer merchantPermissionAuthorizer;
 
     public GatewayDashboardController(GatewayDownstreamClient gatewayDownstreamClient,
-                                      GatewayRouteProperties gatewayRouteProperties) {
+                                      GatewayRouteProperties gatewayRouteProperties,
+                                      MerchantPermissionAuthorizer merchantPermissionAuthorizer) {
         this.gatewayDownstreamClient = gatewayDownstreamClient;
         this.gatewayRouteProperties = gatewayRouteProperties;
+        this.merchantPermissionAuthorizer = merchantPermissionAuthorizer;
     }
 
     @GetMapping("/merchant/dashboard/latest")
@@ -34,6 +38,7 @@ public class GatewayDashboardController {
     @RequireRoles(anyOf = {"merchant_owner", "merchant_admin"})
     @RequireScope(requireMerchant = true, requireStore = true)
     public ResponseEntity<byte[]> getMerchantDashboardLatest(HttpServletRequest request) {
+        merchantPermissionAuthorizer.authorize(request);
         MerchantScope scope = resolveMerchantScope();
         return gatewayDownstreamClient.get(
                 gatewayRouteProperties.getReport().getBaseUrl(),
@@ -58,6 +63,7 @@ public class GatewayDashboardController {
     public ResponseEntity<byte[]> getMerchantDashboardOrderDaily(@org.springframework.web.bind.annotation.RequestParam(value = "start_date", required = false) String startDate,
                                                                  @org.springframework.web.bind.annotation.RequestParam(value = "end_date", required = false) String endDate,
                                                                  HttpServletRequest request) {
+        merchantPermissionAuthorizer.authorize(request);
         MerchantScope scope = resolveMerchantScope();
         return gatewayDownstreamClient.get(
                 gatewayRouteProperties.getReport().getBaseUrl(),
@@ -72,6 +78,7 @@ public class GatewayDashboardController {
     public ResponseEntity<byte[]> getMerchantDashboardHomeEvents(@org.springframework.web.bind.annotation.RequestParam(value = "start_date", required = false) String startDate,
                                                                  @org.springframework.web.bind.annotation.RequestParam(value = "end_date", required = false) String endDate,
                                                                  HttpServletRequest request) {
+        merchantPermissionAuthorizer.authorize(request);
         MerchantScope scope = resolveMerchantScope();
         return gatewayDownstreamClient.get(
                 gatewayRouteProperties.getReport().getBaseUrl(),
@@ -84,6 +91,7 @@ public class GatewayDashboardController {
     @RequireRoles(anyOf = {"merchant_owner", "merchant_admin"})
     @RequireScope(requireMerchant = true, requireStore = true)
     public ResponseEntity<byte[]> getMerchantDashboardHealth(HttpServletRequest request) {
+        merchantPermissionAuthorizer.authorize(request);
         MerchantScope scope = resolveMerchantScope();
         return gatewayDownstreamClient.get(
                 gatewayRouteProperties.getReport().getBaseUrl(),

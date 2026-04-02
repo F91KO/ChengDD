@@ -65,6 +65,8 @@ class GatewayProxyIntegrationTest {
                 .andExpect(header(RequestHeaders.USER_ID, "m_1001"))
                 .andExpect(header(RequestHeaders.MERCHANT_ID, "merchant_1001"))
                 .andExpect(header(RequestHeaders.STORE_ID, "store_1001"))
+                .andExpect(header(RequestHeaders.PERMISSION_MODULES, "store,product,order,release,config"))
+                .andExpect(header(RequestHeaders.ACTION_PERMISSIONS, "view,edit,publish,export"))
                 .andRespond(withSuccess("""
                         {"code":0,"message":"success","data":{"merchant_id":1001,"store_id":1001,"snapshot_time":"2026-03-31 09:00:00"}}
                         """, MediaType.APPLICATION_JSON));
@@ -263,6 +265,8 @@ class GatewayProxyIntegrationTest {
                                 "store_1001",
                                 null,
                                 List.of("merchant_viewer"),
+                                List.of(),
+                                List.of(),
                                 1L))))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value(40301));
@@ -281,6 +285,8 @@ class GatewayProxyIntegrationTest {
                                 "store_1001",
                                 null,
                                 List.of("merchant_admin"),
+                                List.of("product"),
+                                List.of("view"),
                                 1L))))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value(40301));
@@ -299,6 +305,8 @@ class GatewayProxyIntegrationTest {
                                 null,
                                 null,
                                 List.of("merchant_admin"),
+                                List.of("order"),
+                                List.of("view"),
                                 1L))))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value(40301));
@@ -317,9 +325,53 @@ class GatewayProxyIntegrationTest {
                                 "store_1001",
                                 null,
                                 List.of("platform_admin"),
+                                List.of(),
+                                List.of(),
                                 1L))))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value(40301));
+    }
+
+    @Test
+    void shouldRejectMerchantAdminWhenModulePermissionIsMissing() throws Exception {
+        mockMvc.perform(get("/api/product/spu")
+                        .header(HttpHeaders.AUTHORIZATION, bearerToken(new AuthContext(
+                                null,
+                                "ms_2001",
+                                "sub_product_viewer",
+                                "sub product viewer",
+                                "merchant",
+                                "merchant_1001",
+                                "store_1001",
+                                null,
+                                List.of("merchant_admin"),
+                                List.of("order"),
+                                List.of("view"),
+                                1L))))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value(40301))
+                .andExpect(jsonPath("$.message").value("无权限访问：缺少模块权限 product"));
+    }
+
+    @Test
+    void shouldRejectMerchantAdminWhenActionPermissionIsMissing() throws Exception {
+        mockMvc.perform(get("/api/order/orders/export")
+                        .header(HttpHeaders.AUTHORIZATION, bearerToken(new AuthContext(
+                                null,
+                                "ms_2002",
+                                "sub_order_viewer",
+                                "sub order viewer",
+                                "merchant",
+                                "merchant_1001",
+                                "store_1001",
+                                null,
+                                List.of("merchant_admin"),
+                                List.of("order"),
+                                List.of("view"),
+                                1L))))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value(40301))
+                .andExpect(jsonPath("$.message").value("无权限访问：缺少动作权限 export"));
     }
 
     @Test
@@ -403,6 +455,8 @@ class GatewayProxyIntegrationTest {
                 "store_1001",
                 null,
                 List.of("merchant_admin"),
+                List.of("store", "product", "order", "release", "config"),
+                List.of("view", "edit", "publish", "export"),
                 2L));
     }
 

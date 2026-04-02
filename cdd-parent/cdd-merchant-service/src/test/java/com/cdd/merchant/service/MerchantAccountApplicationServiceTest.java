@@ -41,6 +41,8 @@ class MerchantAccountApplicationServiceTest {
                 "store_1001",
                 null,
                 List.of("merchant_owner"),
+                List.of(),
+                List.of(),
                 0L));
     }
 

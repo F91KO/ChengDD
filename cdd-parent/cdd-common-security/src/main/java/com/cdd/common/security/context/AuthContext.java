@@ -14,6 +14,8 @@ public class AuthContext {
     private final String storeId;
     private final String miniProgramId;
     private final List<String> roleCodes;
+    private final List<String> permissionModules;
+    private final List<String> actionPermissions;
     private final long tokenVersion;
 
     public AuthContext(String authorization,
@@ -25,6 +27,8 @@ public class AuthContext {
                        String storeId,
                        String miniProgramId,
                        List<String> roleCodes,
+                       List<String> permissionModules,
+                       List<String> actionPermissions,
                        long tokenVersion) {
         this.authorization = authorization;
         this.userId = userId;
@@ -35,6 +39,8 @@ public class AuthContext {
         this.storeId = storeId;
         this.miniProgramId = miniProgramId;
         this.roleCodes = roleCodes == null ? List.of() : List.copyOf(new ArrayList<>(roleCodes));
+        this.permissionModules = permissionModules == null ? List.of() : List.copyOf(new ArrayList<>(permissionModules));
+        this.actionPermissions = actionPermissions == null ? List.of() : List.copyOf(new ArrayList<>(actionPermissions));
         this.tokenVersion = tokenVersion;
     }
 
@@ -49,6 +55,8 @@ public class AuthContext {
                 storeId,
                 miniProgramId,
                 roleCodes,
+                permissionModules,
+                actionPermissions,
                 tokenVersion);
     }
 
@@ -63,6 +71,8 @@ public class AuthContext {
                 hasText(storeId) ? storeId : this.storeId,
                 hasText(miniProgramId) ? miniProgramId : this.miniProgramId,
                 roleCodes,
+                permissionModules,
+                actionPermissions,
                 tokenVersion);
     }
 
@@ -104,6 +114,14 @@ public class AuthContext {
 
     public List<String> getRoleCodes() {
         return roleCodes;
+    }
+
+    public List<String> getPermissionModules() {
+        return permissionModules;
+    }
+
+    public List<String> getActionPermissions() {
+        return actionPermissions;
     }
 
     public long getTokenVersion() {

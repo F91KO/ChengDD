@@ -75,6 +75,8 @@ public class AuthApplicationService {
                 authContext.getStoreId(),
                 authContext.getMiniProgramId(),
                 authContext.getRoleCodes(),
+                authContext.getPermissionModules(),
+                authContext.getActionPermissions(),
                 authContext.getTokenVersion());
     }
 
