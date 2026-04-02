@@ -11,11 +11,11 @@
 ## 2026-03-23 增量验证
 - 测试库准备：`bash scripts/testing/prepare_mysql_test_db.sh`
 - 配置服务 MySQL 集成测试：
-  `mvn -q -s /tmp/chengdd-mvn-settings.xml -Dmaven.repo.local=/Volumes/workspace/ChengDD/.m2/repository -Dsurefire.failIfNoSpecifiedTests=false -pl cdd-config-service -am -Dtest=ConfigControllerIntegrationTest test`
+  `mvn -q -s /tmp/chengdd-mvn-settings.xml -Dmaven.repo.local=~/.m2/repository -Dsurefire.failIfNoSpecifiedTests=false -pl cdd-config-service -am -Dtest=ConfigControllerIntegrationTest test`
 - 报表服务 MySQL 集成测试：
-  `mvn -q -s /tmp/chengdd-mvn-settings.xml -Dmaven.repo.local=/Volumes/workspace/ChengDD/.m2/repository -Dsurefire.failIfNoSpecifiedTests=false -pl cdd-report-service -am -Dtest=ReportControllerIntegrationTest,ReportApplicationServiceTest test`
+  `mvn -q -s /tmp/chengdd-mvn-settings.xml -Dmaven.repo.local=~/.m2/repository -Dsurefire.failIfNoSpecifiedTests=false -pl cdd-report-service -am -Dtest=ReportControllerIntegrationTest,ReportApplicationServiceTest test`
 - 商品服务 MySQL 集成测试：
-  `mvn -q -s /tmp/chengdd-mvn-settings.xml -Dmaven.repo.local=/Volumes/workspace/ChengDD/.m2/repository -Dsurefire.failIfNoSpecifiedTests=false -pl cdd-product-service -am -Dtest=ProductControllerIntegrationTest test`
+  `mvn -q -s /tmp/chengdd-mvn-settings.xml -Dmaven.repo.local=~/.m2/repository -Dsurefire.failIfNoSpecifiedTests=false -pl cdd-product-service -am -Dtest=ProductControllerIntegrationTest test`
 - 结果：
   - `cdd-config-service` 通过，发布记录创建/详情/回滚链路已验证。
   - `cdd-report-service` 通过，`data-health` 与商家维度 `health` 链路已验证。
@@ -27,7 +27,7 @@
 ## 执行命令
 - `bash scripts/validation/validate_backend_skeleton.sh`
 - `source scripts/testing/prepare_mysql_test_db.sh`
-- `MAVEN_OPTS=' -Djdk.attach.allowAttachSelf=true' mvn -q -s /var/folders/_f/dpr5gr191p5d564mykw_lpr80000gn/T//chengdd-mvn-settings.CQjNuB -Dmaven.repo.local=/Volumes/workspace/ChengDD/.m2/repository -f cdd-parent/pom.xml -pl cdd-common-security,cdd-auth-service,cdd-gateway,cdd-merchant-service,cdd-product-service,cdd-order-service,cdd-release-service,cdd-config-service -am test`
+- `MAVEN_OPTS=' -Djdk.attach.allowAttachSelf=true' mvn -q -s /var/folders/_f/dpr5gr191p5d564mykw_lpr80000gn/T//chengdd-mvn-settings.CQjNuB -Dmaven.repo.local=~/.m2/repository -f cdd-parent/pom.xml -pl cdd-common-security,cdd-auth-service,cdd-gateway,cdd-merchant-service,cdd-product-service,cdd-order-service,cdd-release-service,cdd-config-service -am test`
 
 ## 通过项
 - cdd-common-security: tests=8 failures=0 errors=0 skipped=0
