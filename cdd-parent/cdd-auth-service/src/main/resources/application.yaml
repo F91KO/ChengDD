@@ -6,7 +6,10 @@ spring:
 
 cdd:
   runtime:
-    config-mode: ${CDD_CONFIG_MODE:file}
+    config-mode: ${CDD_CONFIG_MODE:nacos}
+  nacos:
+    server-addr: ${CDD_NACOS_SERVER_ADDR:http://127.0.0.1:${CDD_LOCAL_NACOS_PORT:8848}}
+    group: ${CDD_NACOS_GROUP:CHENGDD}
   security:
     permit-all: true
     permit-paths:

@@ -14,7 +14,7 @@
 <script setup lang="ts">
 const props = withDefaults(
   defineProps<{
-    tone?: 'loading' | 'empty' | 'error' | 'info';
+    tone?: 'loading' | 'empty' | 'error' | 'info' | 'success';
     title: string;
     description: string;
   }>(),
@@ -28,6 +28,7 @@ const iconMap = {
   empty: '空',
   error: '警',
   info: '知',
+  success: '成',
 } as const;
 
 const tone = props.tone;
@@ -121,6 +122,17 @@ const tone = props.tone;
 .info .icon {
   color: var(--cdd-info);
   background: rgba(0, 98, 161, 0.12);
+}
+
+.success {
+  background:
+    linear-gradient(135deg, rgba(223, 247, 230, 0.92), rgba(255, 255, 255, 0.96)),
+    var(--cdd-success-soft);
+}
+
+.success .icon {
+  color: var(--cdd-success);
+  background: rgba(52, 168, 83, 0.12);
 }
 
 @media (max-width: 640px) {

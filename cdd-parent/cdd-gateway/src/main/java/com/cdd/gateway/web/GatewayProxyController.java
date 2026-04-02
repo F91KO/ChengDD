@@ -44,6 +44,24 @@ public class GatewayProxyController {
         return proxyTo(request, body, gatewayRouteProperties.getAuth().getBaseUrl());
     }
 
+    @RequestMapping("/api/merchant/**")
+    @RequireAccountTypes({"merchant"})
+    @RequireRoles(anyOf = {"merchant_owner", "merchant_admin"})
+    @RequireScope(requireMerchant = true)
+    public ResponseEntity<byte[]> proxyMerchant(HttpServletRequest request,
+                                                @RequestBody(required = false) byte[] body) {
+        return proxyTo(request, body, gatewayRouteProperties.getMerchant().getBaseUrl());
+    }
+
+    @RequestMapping("/api/decoration/**")
+    @RequireAccountTypes({"merchant"})
+    @RequireRoles(anyOf = {"merchant_owner", "merchant_admin"})
+    @RequireScope(requireMerchant = true, requireStore = true)
+    public ResponseEntity<byte[]> proxyDecoration(HttpServletRequest request,
+                                                  @RequestBody(required = false) byte[] body) {
+        return proxyTo(request, body, gatewayRouteProperties.getDecoration().getBaseUrl());
+    }
+
     @RequestMapping("/api/report/**")
     @RequireAccountTypes({"merchant"})
     @RequireRoles(anyOf = {"merchant_owner", "merchant_admin"})
@@ -78,6 +96,15 @@ public class GatewayProxyController {
     public ResponseEntity<byte[]> proxyOrder(HttpServletRequest request,
                                              @RequestBody(required = false) byte[] body) {
         return proxyTo(request, body, gatewayRouteProperties.getOrder().getBaseUrl());
+    }
+
+    @RequestMapping("/api/marketing/**")
+    @RequireAccountTypes({"merchant"})
+    @RequireRoles(anyOf = {"merchant_owner", "merchant_admin"})
+    @RequireScope(requireMerchant = true, requireStore = true)
+    public ResponseEntity<byte[]> proxyMarketing(HttpServletRequest request,
+                                                 @RequestBody(required = false) byte[] body) {
+        return proxyTo(request, body, gatewayRouteProperties.getMarketing().getBaseUrl());
     }
 
     @RequestMapping("/api/release/**")

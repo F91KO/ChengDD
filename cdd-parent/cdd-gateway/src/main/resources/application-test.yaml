@@ -1,10 +1,15 @@
 cdd:
   runtime:
     env: test
+    config-mode: file
   gateway:
     routes:
       auth:
         base-url: http://auth-service.test
+      merchant:
+        base-url: http://merchant-service.test
+      decoration:
+        base-url: http://decoration-service.test
       report:
         base-url: http://report-service.test
       config:
@@ -13,6 +18,8 @@ cdd:
         base-url: http://product-service.test
       order:
         base-url: http://order-service.test
+      marketing:
+        base-url: http://marketing-service.test
       release:
         base-url: http://release-service.test
   security:

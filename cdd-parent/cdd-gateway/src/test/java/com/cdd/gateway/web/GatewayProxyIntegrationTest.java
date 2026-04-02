@@ -159,6 +159,31 @@ class GatewayProxyIntegrationTest {
     }
 
     @Test
+    void shouldProxyMerchantSubAccountRequestThroughGateway() throws Exception {
+        String bearerToken = bearerToken();
+        mockRestServiceServer.expect(ExpectedCount.once(),
+                        requestTo("http://merchant-service.test/api/merchant/accounts/sub-accounts?page=1&page_size=20"))
+                .andExpect(method(HttpMethod.GET))
+                .andExpect(header(HttpHeaders.AUTHORIZATION, bearerToken))
+                .andExpect(header(RequestHeaders.USER_ID, "m_1001"))
+                .andExpect(header(RequestHeaders.MERCHANT_ID, "merchant_1001"))
+                .andRespond(withSuccess("""
+                        {"code":0,"message":"success","data":{"list":[],"page":1,"page_size":20,"total":0}}
+                        """, MediaType.APPLICATION_JSON));
+
+        mockMvc.perform(get("/api/merchant/accounts/sub-accounts")
+                        .queryParam("page", "1")
+                        .queryParam("page_size", "20")
+                        .header(HttpHeaders.AUTHORIZATION, bearerToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.page").value(1))
+                .andExpect(jsonPath("$.data.total").value(0));
+
+        mockRestServiceServer.verify();
+    }
+
+    @Test
     void shouldProxyAuthenticatedCurrentAuthRequestThroughGateway() throws Exception {
         String bearerToken = bearerToken();
         mockRestServiceServer.expect(ExpectedCount.once(),

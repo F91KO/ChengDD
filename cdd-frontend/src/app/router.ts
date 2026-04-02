@@ -40,6 +40,14 @@ const routes = [
     },
   },
   {
+    path: '/permissions',
+    name: 'permissions',
+    component: () => import('@/pages/PermissionManagementPage.vue'),
+    meta: {
+      title: '权限配置',
+    },
+  },
+  {
     path: '/platform/category-templates',
     name: 'platform-category-templates',
     component: () => import('@/pages/CategoryTemplatesPage.vue'),

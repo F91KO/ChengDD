@@ -6,11 +6,18 @@ spring:
 
 cdd:
   runtime:
-    config-mode: ${CDD_CONFIG_MODE:file}
+    config-mode: ${CDD_CONFIG_MODE:nacos}
+  nacos:
+    server-addr: ${CDD_NACOS_SERVER_ADDR:127.0.0.1:8848}
+    group: ${CDD_NACOS_GROUP:CHENGDD}
   gateway:
     routes:
       auth:
         base-url: ${CDD_GATEWAY_AUTH_BASE_URL:http://127.0.0.1:8081}
+      merchant:
+        base-url: ${CDD_GATEWAY_MERCHANT_BASE_URL:http://127.0.0.1:8082}
+      decoration:
+        base-url: ${CDD_GATEWAY_DECORATION_BASE_URL:http://127.0.0.1:8083}
       report:
         base-url: ${CDD_GATEWAY_REPORT_BASE_URL:http://127.0.0.1:8088}
       config:
@@ -19,6 +26,8 @@ cdd:
         base-url: ${CDD_GATEWAY_PRODUCT_BASE_URL:http://127.0.0.1:8084}
       order:
         base-url: ${CDD_GATEWAY_ORDER_BASE_URL:http://127.0.0.1:8085}
+      marketing:
+        base-url: ${CDD_GATEWAY_MARKETING_BASE_URL:http://127.0.0.1:8086}
       release:
         base-url: ${CDD_GATEWAY_RELEASE_BASE_URL:http://127.0.0.1:8087}
   security:
@@ -29,6 +38,7 @@ cdd:
       - /api/auth/merchant/login
       - /api/auth/platform/login
       - /api/auth/token/refresh
+      - /api/auth/logout
     jwt:
       issuer: cdd-auth-service
       secret: chengdd-jwt-secret-change-me-20260321-123456

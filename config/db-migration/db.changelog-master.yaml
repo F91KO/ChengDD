@@ -262,3 +262,12 @@ databaseChangeLog:
             relativeToChangelogFile: true
             splitStatements: true
             stripComments: false
+  - changeSet:
+      id: V30__merchant_account_permissions_and_roles
+      author: codex
+      changes:
+        - sqlFile:
+            path: ../../db/migration/V30__merchant_account_permissions_and_roles.sql
+            relativeToChangelogFile: true
+            splitStatements: true
+            stripComments: false

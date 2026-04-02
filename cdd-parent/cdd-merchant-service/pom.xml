@@ -35,6 +35,11 @@
         </dependency>
         <dependency>
             <groupId>com.cdd</groupId>
+            <artifactId>cdd-common-security</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.cdd</groupId>
             <artifactId>cdd-api-merchant</artifactId>
             <version>${project.version}</version>
         </dependency>

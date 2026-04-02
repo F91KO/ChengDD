@@ -9,14 +9,25 @@ import org.springframework.validation.annotation.Validated;
 public class GatewayRouteProperties {
 
     private final ServiceRoute auth = new ServiceRoute();
+    private final ServiceRoute merchant = new ServiceRoute();
+    private final ServiceRoute decoration = new ServiceRoute();
     private final ServiceRoute report = new ServiceRoute();
     private final ServiceRoute config = new ServiceRoute();
     private final ServiceRoute product = new ServiceRoute();
     private final ServiceRoute order = new ServiceRoute();
+    private final ServiceRoute marketing = new ServiceRoute();
     private final ServiceRoute release = new ServiceRoute();
 
     public ServiceRoute getAuth() {
         return auth;
+    }
+
+    public ServiceRoute getMerchant() {
+        return merchant;
+    }
+
+    public ServiceRoute getDecoration() {
+        return decoration;
     }
 
     public ServiceRoute getReport() {
@@ -33,6 +44,10 @@ public class GatewayRouteProperties {
 
     public ServiceRoute getOrder() {
         return order;
+    }
+
+    public ServiceRoute getMarketing() {
+        return marketing;
     }
 
     public ServiceRoute getRelease() {

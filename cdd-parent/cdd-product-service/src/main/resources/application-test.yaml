@@ -11,6 +11,7 @@ spring:
 cdd:
   runtime:
     env: test
+    config-mode: file
 
 server:
   port: 8084
