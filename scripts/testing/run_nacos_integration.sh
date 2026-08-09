@@ -6,16 +6,16 @@ compose_file="$repo_root/infrastructure/local/docker-compose.yml"
 nacos_addr="${CDD_NACOS_SERVER_ADDR:-127.0.0.1:8848}"
 nacos_console_addr="${CDD_NACOS_CONSOLE_ADDR:-127.0.0.1:${CDD_LOCAL_NACOS_CONSOLE_PORT:-8080}}"
 nacos_group="${CDD_NACOS_GROUP:-CHENGDD}"
-nacos_namespace="${CDD_NACOS_NAMESPACE:-}"
+project_namespace="${CDD_NACOS_NAMESPACE:-}"
 nacos_username="${CDD_NACOS_USERNAME:-}"
 nacos_password="${CDD_NACOS_PASSWORD:-}"
 connect_timeout="${CDD_NACOS_CONNECT_TIMEOUT_SECONDS:-2}"
 request_timeout="${CDD_NACOS_REQUEST_TIMEOUT_SECONDS:-5}"
 shared_data_id="cdd-common-local.yaml"
 service_data_id="cdd-nacos-contract-test-local.yaml"
-missing_data_id="cdd-nacos-missing-contract-test-local.yaml"
-published_shared=0
-published_service=0
+generated_namespace="cdd-nacos-it-$(python3 -c 'import uuid; print(uuid.uuid4().hex)')"
+nacos_namespace="${CDD_NACOS_TEST_NAMESPACE_ID:-$generated_namespace}"
+namespace_cleanup_required=0
 nacos_auth_args=()
 
 [[ "$connect_timeout" =~ ^[1-9][0-9]*$ ]] || {
@@ -26,11 +26,25 @@ nacos_auth_args=()
   echo "CDD_NACOS_REQUEST_TIMEOUT_SECONDS must be a positive integer." >&2
   exit 1
 }
+[[ "$nacos_namespace" =~ ^cdd-nacos-it-[A-Za-z0-9-]+$ ]] || {
+  echo "CDD_NACOS_TEST_NAMESPACE_ID must start with cdd-nacos-it- and contain only letters, digits, and hyphens." >&2
+  exit 1
+}
+if [[ -n "$project_namespace" && "$nacos_namespace" == "$project_namespace" ]]; then
+  echo "The integration namespace must differ from CDD_NACOS_NAMESPACE." >&2
+  exit 1
+fi
 
 nacos_curl() {
   local url="$1"
   shift
   curl --connect-timeout "$connect_timeout" --max-time "$request_timeout" "$@" "$url"
+}
+
+nacos_console_curl() {
+  local path="$1"
+  shift
+  nacos_curl "http://${nacos_console_addr}${path}" "$@"
 }
 
 authenticate() {
@@ -73,9 +87,7 @@ config_request() {
     --data-urlencode "dataId=${data_id}"
     --data-urlencode "group=${nacos_group}"
   )
-  if [[ -n "$nacos_namespace" ]]; then
-    args+=(--data-urlencode "tenant=${nacos_namespace}")
-  fi
+  args+=(--data-urlencode "tenant=${nacos_namespace}")
   if [[ ${#nacos_auth_args[@]} -gt 0 ]]; then
     args+=("${nacos_auth_args[@]}")
   fi
@@ -104,24 +116,125 @@ publish_config() {
     --data-urlencode "content=${content}"
 }
 
-delete_config() {
-  local data_id="$1"
-  config_request DELETE "$data_id"
+namespace_exists() {
+  local args=(
+    --silent
+    --show-error
+    --fail
+    --get
+    --data-urlencode "customNamespaceId=${nacos_namespace}"
+  )
+  if [[ ${#nacos_auth_args[@]} -gt 0 ]]; then
+    args+=("${nacos_auth_args[@]}")
+  fi
+
+  local response
+  response="$(nacos_console_curl "/v3/console/core/namespace/exist" "${args[@]}")"
+  printf '%s' "$response" | python3 -c '
+import json
+import sys
+
+payload = json.load(sys.stdin)
+if payload.get("code") != 0 or not isinstance(payload.get("data"), bool):
+    raise SystemExit("invalid Nacos namespace existence response")
+print("true" if payload["data"] else "false")
+'
+}
+
+create_test_namespace() {
+  local exists
+  exists="$(namespace_exists)"
+  if [[ "$exists" != "false" ]]; then
+    echo "Refusing to reuse existing Nacos integration namespace: ${nacos_namespace}" >&2
+    return 1
+  fi
+
+  namespace_cleanup_required=1
+  local args=(
+    --silent
+    --show-error
+    --fail
+    --request POST
+    --data-urlencode "customNamespaceId=${nacos_namespace}"
+    --data-urlencode "namespaceName=${nacos_namespace}"
+    --data-urlencode "namespaceDesc=ChengDD isolated integration test"
+  )
+  if [[ ${#nacos_auth_args[@]} -gt 0 ]]; then
+    args+=("${nacos_auth_args[@]}")
+  fi
+
+  local response
+  response="$(nacos_console_curl "/v3/console/core/namespace" "${args[@]}")"
+  printf '%s' "$response" | python3 -c '
+import json
+import sys
+
+payload = json.load(sys.stdin)
+if payload.get("code") != 0 or payload.get("data") is not True:
+    raise SystemExit("Nacos rejected integration namespace creation")
+'
+}
+
+delete_test_namespace() {
+  local exists
+  if ! exists="$(namespace_exists)"; then
+    echo "Failed to determine whether integration namespace exists: ${nacos_namespace}" >&2
+    return 1
+  fi
+  if [[ "$exists" == "false" ]]; then
+    return 0
+  fi
+
+  local args=(
+    --silent
+    --show-error
+    --fail
+    --request DELETE
+    --get
+    --data-urlencode "namespaceId=${nacos_namespace}"
+  )
+  if [[ ${#nacos_auth_args[@]} -gt 0 ]]; then
+    args+=("${nacos_auth_args[@]}")
+  fi
+
+  local delete_response=""
+  local delete_status=0
+  delete_response="$(nacos_console_curl "/v3/console/core/namespace" "${args[@]}")" || delete_status=$?
+
+  if ! exists="$(namespace_exists)"; then
+    echo "Failed to verify integration namespace cleanup: ${nacos_namespace}" >&2
+    return 1
+  fi
+  if [[ "$exists" == "false" ]]; then
+    return 0
+  fi
+  if [[ "$delete_status" -ne 0 ]]; then
+    echo "Failed to delete integration namespace ${nacos_namespace}: request exited ${delete_status}." >&2
+    return 1
+  fi
+  if ! printf '%s' "$delete_response" | python3 -c '
+import json
+import sys
+
+payload = json.load(sys.stdin)
+if payload.get("code") != 0 or payload.get("data") is not True:
+    raise SystemExit(1)
+'; then
+    echo "Nacos rejected integration namespace deletion: ${nacos_namespace}" >&2
+    return 1
+  fi
+  echo "Integration namespace still exists after deletion: ${nacos_namespace}" >&2
+  return 1
 }
 
 cleanup() {
   local original_status=$?
   local cleanup_status=0
+  trap - EXIT
   set +e
-  if [[ "$published_service" -eq 1 ]]; then
-    if ! delete_config "$service_data_id" >/dev/null; then
-      echo "Failed to delete contract DataId: ${service_data_id}" >&2
-      cleanup_status=1
-    fi
-  fi
-  if [[ "$published_shared" -eq 1 ]]; then
-    if ! delete_config "$shared_data_id" >/dev/null; then
-      echo "Failed to delete contract DataId: ${shared_data_id}" >&2
+  if [[ "$namespace_cleanup_required" -eq 1 ]]; then
+    if ! delete_test_namespace; then
+      echo "Failed to clean isolated Nacos namespace: ${nacos_namespace}" >&2
       cleanup_status=1
     fi
   fi
@@ -146,14 +259,19 @@ done
 
 authenticate
 
-published_shared=1
+create_test_namespace
+
 publish_config "$shared_data_id" $'cdd:\n  contract:\n    shared-only: from-common\n    precedence: from-common\n'
-published_service=1
 publish_config "$service_data_id" $'cdd:\n  contract:\n    precedence: from-service\n    service-only: from-service\n'
-delete_config "$missing_data_id"
 
 set +e
-CDD_ENV=local mvn -f "$repo_root/cdd-parent/pom.xml" \
+CDD_ENV=local \
+CDD_NACOS_SERVER_ADDR="$nacos_addr" \
+CDD_NACOS_GROUP="$nacos_group" \
+CDD_NACOS_NAMESPACE="$nacos_namespace" \
+CDD_NACOS_USERNAME="$nacos_username" \
+CDD_NACOS_PASSWORD="$nacos_password" \
+mvn -f "$repo_root/cdd-parent/pom.xml" \
   -pl cdd-common-nacos -am -Pnacos-integration verify
 maven_status=$?
 set -e
@@ -166,9 +284,7 @@ instance_args=(
   --data-urlencode "serviceName=cdd-nacos-contract-test"
   --data-urlencode "groupName=${nacos_group}"
 )
-if [[ -n "$nacos_namespace" ]]; then
-  instance_args+=(--data-urlencode "namespaceId=${nacos_namespace}")
-fi
+instance_args+=(--data-urlencode "namespaceId=${nacos_namespace}")
 if [[ ${#nacos_auth_args[@]} -gt 0 ]]; then
   instance_args+=("${nacos_auth_args[@]}")
 fi
