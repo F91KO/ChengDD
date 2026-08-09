@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
 import java.util.Map;
 import java.util.UUID;
+import org.junit.jupiter.api.RepeatedTest;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -29,7 +30,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @ActiveProfiles("test")
 class OrderControllerIntegrationTest {
 
-    private static final long TEST_RUN_ID_OFFSET = Long.parseLong(
+    private final long testRunIdOffset = Long.parseLong(
             UUID.randomUUID().toString().replace("-", "").substring(0, 12), 16) * 10_000L;
 
     @Autowired
@@ -200,7 +201,7 @@ class OrderControllerIntegrationTest {
                 .andExpect(jsonPath("$.data.duplicated").value(false));
     }
 
-    @Test
+    @RepeatedTest(2)
     void shouldSupportMultiOrderStatusFilterForOrderListAndExport() throws Exception {
         long merchantId = runScopedId(3015L);
         long storeId = runScopedId(4015L);
@@ -913,7 +914,7 @@ class OrderControllerIntegrationTest {
     }
 
     private long runScopedId(long seed) {
-        return TEST_RUN_ID_OFFSET + seed;
+        return testRunIdOffset + seed;
     }
 
     private JsonNode readData(MvcResult result) throws Exception {
