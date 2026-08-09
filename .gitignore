@@ -2,6 +2,7 @@
 /.idea/
 /.vscode/
 /.local/
+/.worktrees/
 config/migration/application-migration.local.yml
 **/__pycache__/
 **/target/
