@@ -58,4 +58,16 @@ if ! grep -Fq 'curl -f http://127.0.0.1:8080/v3/console/health/liveness' <<<"$re
   exit 1
 fi
 
+anonymous_compose="$(env -u NACOS_AUTH_CONSOLE_ENABLE docker compose -f "$repo_root/infrastructure/local/docker-compose.yml" config)"
+if ! grep -Fq 'NACOS_AUTH_CONSOLE_ENABLE: "false"' <<<"$anonymous_compose"; then
+  echo "Assertion failed: local Nacos Console API authentication must default to disabled." >&2
+  exit 1
+fi
+
+authenticated_compose="$(NACOS_AUTH_CONSOLE_ENABLE=true docker compose -f "$repo_root/infrastructure/local/docker-compose.yml" config)"
+if ! grep -Fq 'NACOS_AUTH_CONSOLE_ENABLE: "true"' <<<"$authenticated_compose"; then
+  echo "Assertion failed: local Nacos Console API authentication must remain overrideable." >&2
+  exit 1
+fi
+
 echo "local infrastructure Nacos liveness checks passed"

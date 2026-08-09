@@ -54,10 +54,10 @@ for key, values in query.items():
 
 with (state / "requests.log").open("a", encoding="utf-8") as log:
     log.write(json.dumps({"method": method, "url": url, "fields": fields}) + "\n")
+with (state / "events.log").open("a", encoding="utf-8") as events:
+    events.write(f"curl:{method}:{parsed.path}\n")
 
 if parsed.path.endswith("/v3/console/health/liveness"):
-    if parsed.netloc != "127.0.0.1:19080":
-        raise SystemExit(98)
     print("UP", end="")
     raise SystemExit(0)
 
@@ -132,7 +132,53 @@ chmod +x "$fixture_bin/curl"
 cat >"$fixture_bin/docker" <<'SH'
 #!/usr/bin/env bash
 set -euo pipefail
-[[ "$*" == *"compose"* && "$*" == *"up -d nacos"* ]]
+state_root="${CDD_TEST_NACOS_STATE:?}"
+state_file="$state_root/docker-state"
+docker_mode="${CDD_TEST_DOCKER_MODE:-normal}"
+printf 'docker:%s\n' "$*" >>"$state_root/events.log"
+
+if [[ "$1" == "compose" && "$*" == *" ps -a -q nacos"* ]]; then
+  if [[ "$(cat "$state_file")" != "absent" ]]; then
+    printf '%s\n' fixture-nacos-container
+  fi
+  exit 0
+fi
+if [[ "$1" == "compose" && "$*" == *" port nacos 8080"* ]]; then
+  printf '%s\n' '0.0.0.0:19080'
+  exit 0
+fi
+if [[ "$1" == "compose" && "$*" == *" port nacos 8848"* ]]; then
+  printf '%s\n' '0.0.0.0:19848'
+  exit 0
+fi
+if [[ "$1" == "inspect" ]]; then
+  [[ "${*: -1}" == "fixture-nacos-container" ]]
+  if [[ "$(cat "$state_file")" == "running" ]]; then
+    printf '%s\n' true
+  else
+    printf '%s\n' false
+  fi
+  exit 0
+fi
+if [[ "$1" == "compose" && "$*" == *" up -d nacos"* ]]; then
+  printf '%s' running >"$state_file"
+  exit 0
+fi
+if [[ "$1" == "compose" && "$*" == *" stop nacos"* ]]; then
+  if [[ "$docker_mode" == "restore-hard-failure" ]]; then
+    exit 28
+  fi
+  printf '%s' stopped >"$state_file"
+  exit 0
+fi
+if [[ "$1" == "compose" && "$*" == *" rm -f -s nacos"* ]]; then
+  if [[ "$docker_mode" == "restore-hard-failure" ]]; then
+    exit 28
+  fi
+  printf '%s' absent >"$state_file"
+  exit 0
+fi
+exit 88
 SH
 chmod +x "$fixture_bin/docker"
 
@@ -159,6 +205,7 @@ assert_active_configs_unchanged() {
 
 prepare_state() {
   local scenario="$1"
+  local initial_docker_state="${2:-running}"
   local state="$fixture_root/$scenario"
   mkdir -p "$state/active" "$state/before" "$state/namespaces"
   printf 'shared: original\ntrailing-space: value \n' >"$state/active/cdd-common-local.yaml"
@@ -167,6 +214,7 @@ prepare_state() {
   cp "$state/active/cdd-common-local.yaml" "$state/before/cdd-common-local.yaml"
   cp "$state/active/cdd-nacos-contract-test-local.yaml" "$state/before/cdd-nacos-contract-test-local.yaml"
   cp "$state/active/unrelated.yaml" "$state/before/unrelated.yaml"
+  printf '%s' "$initial_docker_state" >"$state/docker-state"
   printf '%s' "$state"
 }
 
@@ -175,18 +223,25 @@ run_harness() {
   local mode="$2"
   local namespace="$3"
   local auth_mode="${4:-auth}"
+  local docker_mode="${5:-normal}"
+  local address_mode="${6:-explicit}"
   local common_env=(
     PATH="$fixture_bin:$PATH"
     CDD_TEST_NACOS_STATE="$state"
     CDD_TEST_NACOS_MODE="$mode"
-    CDD_NACOS_SERVER_ADDR=127.0.0.1:19848
-    CDD_NACOS_CONSOLE_ADDR=127.0.0.1:19080
+    CDD_TEST_DOCKER_MODE="$docker_mode"
     CDD_NACOS_GROUP=CHENGDD_TEST
     CDD_NACOS_NAMESPACE=shared-live
     CDD_NACOS_TEST_NAMESPACE_ID="$namespace"
     CDD_NACOS_CONNECT_TIMEOUT_SECONDS=1
     CDD_NACOS_REQUEST_TIMEOUT_SECONDS=2
   )
+  if [[ "$address_mode" == "explicit" ]]; then
+    common_env+=(
+      CDD_NACOS_SERVER_ADDR=127.0.0.1:19848
+      CDD_NACOS_CONSOLE_ADDR=127.0.0.1:19080
+    )
+  fi
   if [[ "$auth_mode" == "auth" ]]; then
     env "${common_env[@]}" \
       CDD_TEST_NACOS_REQUIRE_AUTH=1 \
@@ -201,15 +256,38 @@ run_harness() {
   fi
 }
 
-success_state="$(prepare_state success)"
+assert_namespace_cleanup_precedes_state_restore() {
+  local state="$1"
+  local restore_pattern="$2"
+  local delete_line
+  local restore_line
+  delete_line="$(grep -n 'curl:DELETE:/v3/console/core/namespace' "$state/events.log" | tail -1 | cut -d: -f1)"
+  restore_line="$(grep -n "$restore_pattern" "$state/events.log" | tail -1 | cut -d: -f1)"
+  [[ -n "$delete_line" && -n "$restore_line" && "$delete_line" -lt "$restore_line" ]]
+}
+
+success_state="$(prepare_state success running)"
 success_namespace="cdd-nacos-it-success-001"
-run_harness "$success_state" cleanup-ambiguous "$success_namespace" >/dev/null
+run_harness "$success_state" cleanup-ambiguous "$success_namespace" auth normal derived >/dev/null
 assert_active_configs_unchanged "$success_state"
 [[ ! -d "$success_state/namespaces/$success_namespace" ]]
 [[ "$(cat "$success_state/maven-namespace")" == "$success_namespace" ]]
 [[ "$(cat "$success_state/queried-namespace")" == "$success_namespace" ]]
+[[ "$(cat "$success_state/docker-state")" == "running" ]]
+if grep -Eq 'docker:.* (up -d|stop|rm -f -s) nacos' "$success_state/events.log"; then
+  echo "Assertion failed: an initially running Nacos must be reused without recreation or teardown." >&2
+  exit 1
+fi
 
-failure_state="$(prepare_state ambiguous-publish)"
+stopped_state="$(prepare_state stopped-success stopped)"
+stopped_namespace="cdd-nacos-it-stopped-success-001"
+run_harness "$stopped_state" success "$stopped_namespace" no-auth >/dev/null
+assert_active_configs_unchanged "$stopped_state"
+[[ ! -d "$stopped_state/namespaces/$stopped_namespace" ]]
+[[ "$(cat "$stopped_state/docker-state")" == "stopped" ]]
+assert_namespace_cleanup_precedes_state_restore "$stopped_state" 'docker:.* stop nacos'
+
+failure_state="$(prepare_state ambiguous-publish absent)"
 failure_namespace="cdd-nacos-it-publish-failure-001"
 if run_harness "$failure_state" publish-ambiguous "$failure_namespace" no-auth >/dev/null 2>&1; then
   echo "Assertion failed: ambiguous publish failure must remain visible." >&2
@@ -217,8 +295,10 @@ if run_harness "$failure_state" publish-ambiguous "$failure_namespace" no-auth >
 fi
 assert_active_configs_unchanged "$failure_state"
 [[ ! -d "$failure_state/namespaces/$failure_namespace" ]]
+[[ "$(cat "$failure_state/docker-state")" == "absent" ]]
+assert_namespace_cleanup_precedes_state_restore "$failure_state" 'docker:.* rm -f -s nacos'
 
-cleanup_failure_state="$(prepare_state cleanup-hard-failure)"
+cleanup_failure_state="$(prepare_state cleanup-hard-failure stopped)"
 cleanup_failure_namespace="cdd-nacos-it-cleanup-failure-001"
 if run_harness "$cleanup_failure_state" cleanup-hard-failure "$cleanup_failure_namespace" >/dev/null 2>&1; then
   echo "Assertion failed: namespace cleanup failure must fail the harness." >&2
@@ -226,5 +306,22 @@ if run_harness "$cleanup_failure_state" cleanup-hard-failure "$cleanup_failure_n
 fi
 assert_active_configs_unchanged "$cleanup_failure_state"
 [[ -d "$cleanup_failure_state/namespaces/$cleanup_failure_namespace" ]]
+[[ "$(cat "$cleanup_failure_state/docker-state")" == "stopped" ]]
+assert_namespace_cleanup_precedes_state_restore "$cleanup_failure_state" 'docker:.* stop nacos'
+
+restore_failure_state="$(prepare_state restore-hard-failure stopped)"
+restore_failure_namespace="cdd-nacos-it-restore-failure-001"
+if restore_failure_output="$(run_harness "$restore_failure_state" success "$restore_failure_namespace" auth restore-hard-failure 2>&1)"; then
+  echo "Assertion failed: Nacos state restoration failure must fail the harness." >&2
+  exit 1
+fi
+assert_active_configs_unchanged "$restore_failure_state"
+[[ ! -d "$restore_failure_state/namespaces/$restore_failure_namespace" ]]
+[[ "$(cat "$restore_failure_state/docker-state")" == "running" ]]
+assert_namespace_cleanup_precedes_state_restore "$restore_failure_state" 'docker:.* stop nacos'
+if [[ "$restore_failure_output" != *"Failed to restore initial Nacos container state"* ]]; then
+  echo "Assertion failed: Nacos state restoration failure must be reported." >&2
+  exit 1
+fi
 
 echo "nacos integration namespace isolation checks passed"

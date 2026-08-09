@@ -3,8 +3,16 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 compose_file="$repo_root/infrastructure/local/docker-compose.yml"
-nacos_addr="${CDD_NACOS_SERVER_ADDR:-127.0.0.1:8848}"
+nacos_addr="${CDD_NACOS_SERVER_ADDR:-127.0.0.1:${CDD_LOCAL_NACOS_PORT:-8848}}"
 nacos_console_addr="${CDD_NACOS_CONSOLE_ADDR:-127.0.0.1:${CDD_LOCAL_NACOS_CONSOLE_PORT:-8080}}"
+nacos_addr_explicit=0
+nacos_console_addr_explicit=0
+if [[ -n "${CDD_NACOS_SERVER_ADDR+x}" || -n "${CDD_LOCAL_NACOS_PORT+x}" ]]; then
+  nacos_addr_explicit=1
+fi
+if [[ -n "${CDD_NACOS_CONSOLE_ADDR+x}" || -n "${CDD_LOCAL_NACOS_CONSOLE_PORT+x}" ]]; then
+  nacos_console_addr_explicit=1
+fi
 nacos_group="${CDD_NACOS_GROUP:-CHENGDD}"
 project_namespace="${CDD_NACOS_NAMESPACE:-}"
 nacos_username="${CDD_NACOS_USERNAME:-}"
@@ -16,6 +24,8 @@ service_data_id="cdd-nacos-contract-test-local.yaml"
 generated_namespace="cdd-nacos-it-$(python3 -c 'import uuid; print(uuid.uuid4().hex)')"
 nacos_namespace="${CDD_NACOS_TEST_NAMESPACE_ID:-$generated_namespace}"
 namespace_cleanup_required=0
+initial_nacos_state=""
+nacos_state_restore_required=0
 nacos_auth_args=()
 
 [[ "$connect_timeout" =~ ^[1-9][0-9]*$ ]] || {
@@ -45,6 +55,88 @@ nacos_console_curl() {
   local path="$1"
   shift
   nacos_curl "http://${nacos_console_addr}${path}" "$@"
+}
+
+current_nacos_container_state() {
+  local container_id
+  if ! container_id="$(docker compose -f "$compose_file" ps -a -q nacos)"; then
+    echo "Failed to inspect the local Nacos Compose service." >&2
+    return 1
+  fi
+  if [[ -z "$container_id" ]]; then
+    printf '%s\n' absent
+    return 0
+  fi
+
+  local running
+  if ! running="$(docker inspect --format '{{.State.Running}}' "$container_id")"; then
+    echo "Failed to inspect Nacos container state: ${container_id}" >&2
+    return 1
+  fi
+  case "$running" in
+    true) printf '%s\n' running ;;
+    false) printf '%s\n' stopped ;;
+    *)
+      echo "Unexpected Nacos container running state: ${running}" >&2
+      return 1
+      ;;
+  esac
+}
+
+compose_host_address_for_port() {
+  local container_port="$1"
+  local mappings
+  if ! mappings="$(docker compose -f "$compose_file" port nacos "$container_port")"; then
+    echo "Failed to resolve the running Nacos host port for container port ${container_port}." >&2
+    return 1
+  fi
+  local first_mapping="${mappings%%$'\n'*}"
+  local host_port="${first_mapping##*:}"
+  if [[ ! "$host_port" =~ ^[1-9][0-9]*$ ]]; then
+    echo "Invalid running Nacos port mapping for ${container_port}: ${first_mapping:-<empty>}" >&2
+    return 1
+  fi
+  printf '127.0.0.1:%s\n' "$host_port"
+}
+
+restore_initial_nacos_container_state() {
+  local current_state
+  if ! current_state="$(current_nacos_container_state)"; then
+    return 1
+  fi
+  if [[ "$current_state" == "$initial_nacos_state" ]]; then
+    return 0
+  fi
+
+  local action_status=0
+  case "$initial_nacos_state" in
+    running)
+      docker compose -f "$compose_file" up -d nacos >/dev/null || action_status=$?
+      ;;
+    stopped)
+      if [[ "$current_state" == "absent" ]]; then
+        docker compose -f "$compose_file" create nacos >/dev/null || action_status=$?
+      else
+        docker compose -f "$compose_file" stop nacos >/dev/null || action_status=$?
+      fi
+      ;;
+    absent)
+      docker compose -f "$compose_file" rm -f -s nacos >/dev/null || action_status=$?
+      ;;
+    *)
+      echo "Unknown initial Nacos container state: ${initial_nacos_state}" >&2
+      return 1
+      ;;
+  esac
+
+  if ! current_state="$(current_nacos_container_state)"; then
+    return 1
+  fi
+  if [[ "$current_state" == "$initial_nacos_state" ]]; then
+    return 0
+  fi
+  echo "Nacos container state restoration failed: expected ${initial_nacos_state}, got ${current_state}; action exited ${action_status}." >&2
+  return 1
 }
 
 authenticate() {
@@ -238,6 +330,12 @@ cleanup() {
       cleanup_status=1
     fi
   fi
+  if [[ "$nacos_state_restore_required" -eq 1 ]]; then
+    if ! restore_initial_nacos_container_state; then
+      echo "Failed to restore initial Nacos container state: ${initial_nacos_state}" >&2
+      cleanup_status=1
+    fi
+  fi
   if [[ "$original_status" -ne 0 ]]; then
     exit "$original_status"
   fi
@@ -245,7 +343,18 @@ cleanup() {
 }
 trap cleanup EXIT
 
-docker compose -f "$compose_file" up -d nacos
+initial_nacos_state="$(current_nacos_container_state)"
+nacos_state_restore_required=1
+if [[ "$initial_nacos_state" == "running" ]]; then
+  if [[ "$nacos_addr_explicit" -eq 0 ]]; then
+    nacos_addr="$(compose_host_address_for_port 8848)"
+  fi
+  if [[ "$nacos_console_addr_explicit" -eq 0 ]]; then
+    nacos_console_addr="$(compose_host_address_for_port 8080)"
+  fi
+else
+  docker compose -f "$compose_file" up -d nacos
+fi
 
 health_url="http://${nacos_console_addr}/v3/console/health/liveness"
 health_deadline=$(( $(date +%s) + 180 ))
