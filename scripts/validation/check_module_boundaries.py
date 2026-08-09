@@ -18,6 +18,7 @@ REQUIRED_MODULES = {
     "cdd-common-redis",
     "cdd-common-security",
     "cdd-common-web",
+    "cdd-common-nacos",
     "cdd-db-migration",
     "cdd-api-auth",
     "cdd-api-merchant",
@@ -43,6 +44,29 @@ REQUIRED_MODULES = {
 }
 OPTIONAL_MODULES = {
     "cdd-agent-core",
+}
+
+NACOS_CONSUMERS = {
+    "cdd-gateway",
+    "cdd-auth-service",
+    "cdd-merchant-service",
+    "cdd-decoration-service",
+    "cdd-product-service",
+    "cdd-order-service",
+    "cdd-marketing-service",
+    "cdd-release-service",
+    "cdd-report-service",
+    "cdd-config-service",
+}
+NACOS_FORBIDDEN = {
+    "cdd-common-core",
+    "cdd-common-db",
+    "cdd-common-redis",
+    "cdd-common-security",
+    "cdd-common-web",
+    "cdd-db-migration",
+    "cdd-agent-core",
+    "cdd-pay-core",
 }
 
 EXPECTED_PROFILES = {"local", "dev", "test", "prod"}
@@ -249,6 +273,28 @@ def validate_service_config_assets() -> list[str]:
     return errors
 
 
+def validate_nacos_boundaries() -> list[str]:
+    errors: list[str] = []
+    for module in sorted(NACOS_CONSUMERS):
+        pom = PARENT_ROOT / module / "pom.xml"
+        if "cdd-common-nacos" not in project_dependencies(pom):
+            errors.append(f"{module} 必须直接依赖 cdd-common-nacos")
+        profile = PARENT_ROOT / module / "src/main/resources/application-nacos.yaml"
+        if not profile.exists():
+            errors.append(f"{module} 缺少 application-nacos.yaml")
+
+    for pom in sorted(PARENT_ROOT.glob("cdd-*/pom.xml")):
+        module = project_artifact_id(pom)
+        forbidden = module in NACOS_FORBIDDEN or module.startswith("cdd-api-")
+        if forbidden and "cdd-common-nacos" in project_dependencies(pom):
+            errors.append(f"{module} 不允许依赖 cdd-common-nacos")
+
+    migration_profile = PARENT_ROOT / "cdd-db-migration/src/main/resources/application-nacos.yaml"
+    if migration_profile.exists():
+        errors.append("cdd-db-migration 不允许包含 application-nacos.yaml")
+    return errors
+
+
 def main() -> int:
     errors: list[str] = []
     errors.extend(validate_root_modules())
@@ -256,6 +302,7 @@ def main() -> int:
     errors.extend(validate_migration_assets())
     errors.extend(validate_shared_config_assets())
     errors.extend(validate_service_config_assets())
+    errors.extend(validate_nacos_boundaries())
 
     for pom_path in sorted(PARENT_ROOT.glob("cdd-*/pom.xml")):
         errors.extend(validate_project_boundaries(pom_path))

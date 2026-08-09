@@ -2,14 +2,20 @@ spring:
   application:
     name: cdd-merchant-service
   profiles:
-    active: ${CDD_ENV:local}
+    active: ${CDD_ENV:local},${CDD_CONFIG_MODE:nacos}
+  cloud:
+    nacos:
+      config:
+        enabled: false
+        import-check:
+          enabled: false
+      discovery:
+        enabled: false
 
 cdd:
   runtime:
+    env: ${CDD_ENV:local}
     config-mode: ${CDD_CONFIG_MODE:nacos}
-  nacos:
-    server-addr: ${CDD_NACOS_SERVER_ADDR:http://127.0.0.1:${CDD_LOCAL_NACOS_PORT:8848}}
-    group: ${CDD_NACOS_GROUP:CHENGDD}
 
 management:
   endpoint:

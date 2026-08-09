@@ -25,6 +25,11 @@
         </dependency>
         <dependency>
             <groupId>com.cdd</groupId>
+            <artifactId>cdd-common-nacos</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.cdd</groupId>
             <artifactId>cdd-common-web</artifactId>
             <version>${project.version}</version>
         </dependency>
