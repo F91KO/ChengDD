@@ -1,0 +1,30 @@
+spring:
+  application:
+    name: cdd-nacos-contract-test
+  config:
+    import:
+      - "nacos:cdd-common-${CDD_ENV:local}.yaml?group=${CDD_NACOS_GROUP:CHENGDD}&refreshEnabled=false"
+      - "nacos:${spring.application.name}-${CDD_ENV:local}.yaml?group=${CDD_NACOS_GROUP:CHENGDD}&refreshEnabled=false"
+  cloud:
+    nacos:
+      server-addr: ${CDD_NACOS_SERVER_ADDR:127.0.0.1:8848}
+      username: ${CDD_NACOS_USERNAME:}
+      password: ${CDD_NACOS_PASSWORD:}
+      config:
+        enabled: true
+        import-check:
+          enabled: true
+        namespace: ${CDD_NACOS_NAMESPACE:}
+        group: ${CDD_NACOS_GROUP:CHENGDD}
+      discovery:
+        enabled: true
+        namespace: ${CDD_NACOS_NAMESPACE:}
+        group: ${CDD_NACOS_GROUP:CHENGDD}
+
+server:
+  port: 0
+
+cdd:
+  runtime:
+    env: ${CDD_ENV:local}
+    config-mode: nacos
