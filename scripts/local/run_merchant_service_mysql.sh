@@ -45,6 +45,4 @@ export CDD_MERCHANT_DB_USERNAME="${CDD_MERCHANT_DB_USERNAME:-$mysql_username}"
 export CDD_MERCHANT_DB_PASSWORD="${CDD_MERCHANT_DB_PASSWORD:-$mysql_password}"
 export CDD_MERCHANT_DB_DRIVER_CLASS_NAME="${CDD_MERCHANT_DB_DRIVER_CLASS_NAME:-com.mysql.cj.jdbc.Driver}"
 export CDD_MERCHANT_SQL_INIT_MODE="${CDD_MERCHANT_SQL_INIT_MODE:-never}"
-merchant_port="${CDD_MERCHANT_SERVER_PORT:-8082}"
-
-run_packaged_module "$repo_root" "$parent_root" "$settings_file" "$work_repo" "cdd-merchant-service" "merchant-service" "$merchant_port"
+run_packaged_module "$repo_root" "$parent_root" "$settings_file" "$work_repo" "cdd-merchant-service" "merchant-service"

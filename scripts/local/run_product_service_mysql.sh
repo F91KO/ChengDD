@@ -45,6 +45,4 @@ export CDD_PRODUCT_DB_USERNAME="${CDD_PRODUCT_DB_USERNAME:-$mysql_username}"
 export CDD_PRODUCT_DB_PASSWORD="${CDD_PRODUCT_DB_PASSWORD:-$mysql_password}"
 export CDD_PRODUCT_DB_DRIVER_CLASS_NAME="${CDD_PRODUCT_DB_DRIVER_CLASS_NAME:-com.mysql.cj.jdbc.Driver}"
 export CDD_PRODUCT_SQL_INIT_MODE="${CDD_PRODUCT_SQL_INIT_MODE:-never}"
-product_port="${CDD_PRODUCT_SERVER_PORT:-8084}"
-
-run_packaged_module "$repo_root" "$parent_root" "$settings_file" "$work_repo" "cdd-product-service" "product-service" "$product_port"
+run_packaged_module "$repo_root" "$parent_root" "$settings_file" "$work_repo" "cdd-product-service" "product-service"

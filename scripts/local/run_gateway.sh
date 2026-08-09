@@ -35,6 +35,4 @@ if [[ -z "$settings_file" ]]; then
 EOF
 fi
 
-gateway_port="${CDD_GATEWAY_SERVER_PORT:-8080}"
-
-run_packaged_module "$repo_root" "$parent_root" "$settings_file" "$work_repo" "cdd-gateway" "gateway" "$gateway_port"
+run_packaged_module "$repo_root" "$parent_root" "$settings_file" "$work_repo" "cdd-gateway" "gateway"

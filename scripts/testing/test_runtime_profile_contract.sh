@@ -45,6 +45,14 @@ assert_fails "invalid configuration mode must be rejected" bash -c "source '$rep
 expected_catalog=$'gateway|cdd-gateway|8080|run_gateway.sh\nauth-service|cdd-auth-service|8081|run_auth_service_mysql.sh\nmerchant-service|cdd-merchant-service|8082|run_merchant_service_mysql.sh\ndecoration-service|cdd-decoration-service|8083|run_decoration_service_mysql.sh\nproduct-service|cdd-product-service|8084|run_product_service_mysql.sh\norder-service|cdd-order-service|8085|run_order_service_mysql.sh\nmarketing-service|cdd-marketing-service|8086|run_marketing_service_mysql.sh\nrelease-service|cdd-release-service|8087|run_release_service_mysql.sh\nreport-service|cdd-report-service|8088|run_report_service_mysql.sh\nconfig-service|cdd-config-service|8089|run_config_service_mysql.sh'
 assert_equals "$expected_catalog" "$(backend_runtime_service_catalog)" "runtime service catalog"
 
+overridden_catalog="$(CDD_GATEWAY_SERVER_PORT=19080 CDD_AUTH_SERVER_PORT=19081 backend_runtime_service_catalog)"
+assert_equals $'gateway|cdd-gateway|19080|run_gateway.sh\nauth-service|cdd-auth-service|19081|run_auth_service_mysql.sh\nmerchant-service|cdd-merchant-service|8082|run_merchant_service_mysql.sh\ndecoration-service|cdd-decoration-service|8083|run_decoration_service_mysql.sh\nproduct-service|cdd-product-service|8084|run_product_service_mysql.sh\norder-service|cdd-order-service|8085|run_order_service_mysql.sh\nmarketing-service|cdd-marketing-service|8086|run_marketing_service_mysql.sh\nrelease-service|cdd-release-service|8087|run_release_service_mysql.sh\nreport-service|cdd-report-service|8088|run_report_service_mysql.sh\nconfig-service|cdd-config-service|8089|run_config_service_mysql.sh' "$overridden_catalog" "runtime service catalog port overrides"
+assert_equals "19080" "$(CDD_GATEWAY_SERVER_PORT=19080 backend_runtime_service_port gateway)" "gateway launcher port resolution"
+assert_equals "19081" "$(CDD_AUTH_SERVER_PORT=19081 backend_runtime_service_port auth-service)" "auth launcher port resolution"
+assert_fails "duplicate resolved service ports must be rejected" bash -c "source '$repo_root/scripts/local/backend_runtime_guard.sh'; CDD_GATEWAY_SERVER_PORT=19080 CDD_AUTH_SERVER_PORT=19080 backend_runtime_service_catalog"
+assert_fails "non-numeric service ports must be rejected" bash -c "source '$repo_root/scripts/local/backend_runtime_guard.sh'; CDD_GATEWAY_SERVER_PORT=invalid backend_runtime_service_catalog"
+assert_fails "out-of-range service ports must be rejected" bash -c "source '$repo_root/scripts/local/backend_runtime_guard.sh'; CDD_GATEWAY_SERVER_PORT=65536 backend_runtime_service_catalog"
+
 while IFS='|' read -r _service_name _service_module _service_port launcher; do
   launcher_path="$repo_root/scripts/local/$launcher"
   [[ -f "$launcher_path" ]] || {

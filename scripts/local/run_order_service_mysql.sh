@@ -45,6 +45,4 @@ export CDD_ORDER_DB_USERNAME="${CDD_ORDER_DB_USERNAME:-$mysql_username}"
 export CDD_ORDER_DB_PASSWORD="${CDD_ORDER_DB_PASSWORD:-$mysql_password}"
 export CDD_ORDER_DB_DRIVER_CLASS_NAME="${CDD_ORDER_DB_DRIVER_CLASS_NAME:-com.mysql.cj.jdbc.Driver}"
 export CDD_ORDER_SQL_INIT_MODE="${CDD_ORDER_SQL_INIT_MODE:-never}"
-order_port="${CDD_ORDER_SERVER_PORT:-8085}"
-
-run_packaged_module "$repo_root" "$parent_root" "$settings_file" "$work_repo" "cdd-order-service" "order-service" "$order_port"
+run_packaged_module "$repo_root" "$parent_root" "$settings_file" "$work_repo" "cdd-order-service" "order-service"

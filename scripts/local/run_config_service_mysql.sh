@@ -45,6 +45,4 @@ export CDD_CONFIG_DB_USERNAME="${CDD_CONFIG_DB_USERNAME:-$mysql_username}"
 export CDD_CONFIG_DB_PASSWORD="${CDD_CONFIG_DB_PASSWORD:-$mysql_password}"
 export CDD_CONFIG_DB_DRIVER_CLASS_NAME="${CDD_CONFIG_DB_DRIVER_CLASS_NAME:-com.mysql.cj.jdbc.Driver}"
 export CDD_CONFIG_SQL_INIT_MODE="${CDD_CONFIG_SQL_INIT_MODE:-never}"
-config_port="${CDD_CONFIG_SERVER_PORT:-8089}"
-
-run_packaged_module "$repo_root" "$parent_root" "$settings_file" "$work_repo" "cdd-config-service" "config-service" "$config_port"
+run_packaged_module "$repo_root" "$parent_root" "$settings_file" "$work_repo" "cdd-config-service" "config-service"

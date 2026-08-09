@@ -5,18 +5,19 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 source "$repo_root/scripts/local/backend_runtime_guard.sh"
 
 configure_backend_runtime
+runtime_catalog="$(backend_runtime_service_catalog)"
 runtime_nacos_checker_script="${CDD_RUNTIME_NACOS_CHECK_SCRIPT:-$repo_root/scripts/nacos/check_nacos_state.sh}"
 
 healthy_count=0
 while IFS='|' read -r service_name _service_module service_port _launcher; do
   health_url="http://127.0.0.1:${service_port}/actuator/health"
-  if curl -fsS "$health_url" >/dev/null 2>&1; then
+  if curl --silent --show-error --fail --connect-timeout 2 --max-time 5 "$health_url" >/dev/null 2>&1; then
     healthy_count=$((healthy_count + 1))
     echo "healthy ${service_name} port=${service_port}"
   else
     echo "unhealthy ${service_name} port=${service_port}"
   fi
-done < <(backend_runtime_service_catalog)
+done <<<"$runtime_catalog"
 
 echo "HTTP healthy services: ${healthy_count}/10"
 

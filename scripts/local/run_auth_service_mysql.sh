@@ -45,6 +45,4 @@ export CDD_AUTH_DB_USERNAME="${CDD_AUTH_DB_USERNAME:-$mysql_username}"
 export CDD_AUTH_DB_PASSWORD="${CDD_AUTH_DB_PASSWORD:-$mysql_password}"
 export CDD_AUTH_DB_DRIVER_CLASS_NAME="${CDD_AUTH_DB_DRIVER_CLASS_NAME:-com.mysql.cj.jdbc.Driver}"
 export CDD_AUTH_SQL_INIT_MODE="${CDD_AUTH_SQL_INIT_MODE:-never}"
-auth_port="${CDD_AUTH_SERVER_PORT:-8081}"
-
-run_packaged_module "$repo_root" "$parent_root" "$settings_file" "$work_repo" "cdd-auth-service" "auth-service" "$auth_port"
+run_packaged_module "$repo_root" "$parent_root" "$settings_file" "$work_repo" "cdd-auth-service" "auth-service"

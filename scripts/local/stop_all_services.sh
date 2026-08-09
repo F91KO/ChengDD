@@ -16,6 +16,8 @@ term_grace_seconds="${CDD_RUNTIME_TERM_GRACE_SECONDS:-5}"
   echo "CDD_RUNTIME_TERM_GRACE_SECONDS must be a positive integer." >&2
   exit 1
 }
+runtime_catalog="$(backend_runtime_service_catalog)"
+local_stop_deadline=$(( $(date +%s) + stop_timeout_seconds ))
 
 owned_java_pid=""
 owned_java_marker=""
@@ -111,20 +113,28 @@ terminate_owned_process() {
   local service_pid="$1"
   local start_marker="$2"
   local process_label="$3"
+  local global_deadline="$4"
+  (( $(date +%s) < global_deadline )) || return 1
   echo "Stopping owned ${process_label} pid=${service_pid}"
   signal_owned_process "$service_pid" "$start_marker" TERM || return 1
 
   local deadline=$(( $(date +%s) + term_grace_seconds ))
+  (( deadline < global_deadline )) || deadline="$global_deadline"
   while kill -0 "$service_pid" >/dev/null 2>&1 && (( $(date +%s) < deadline )); do
     [[ "$(backend_runtime_process_start_marker "$service_pid")" == "$start_marker" ]] || return 1
-    sleep 1
+    sleep 0.1
   done
   if ! kill -0 "$service_pid" >/dev/null 2>&1; then
     return 0
   fi
+  if (( $(date +%s) >= global_deadline )); then
+    return 1
+  fi
   echo "Force stopping owned ${process_label} pid=${service_pid}"
   signal_owned_process "$service_pid" "$start_marker" KILL || return 1
-  sleep 1
+  while kill -0 "$service_pid" >/dev/null 2>&1 && (( $(date +%s) < global_deadline )); do
+    sleep 0.1
+  done
   ! kill -0 "$service_pid" >/dev/null 2>&1
 }
 
@@ -150,6 +160,8 @@ terminate_owned_launcher_tree() {
   local launcher_pid="$1"
   local launcher_marker="$2"
   local process_label="$3"
+  local global_deadline="$4"
+  (( $(date +%s) < global_deadline )) || return 1
   local descendants_output
   if ! descendants_output="$(collect_owned_descendants "$launcher_pid")"; then
     echo "Cannot safely inspect child processes for ${process_label}; refusing termination." >&2
@@ -172,10 +184,15 @@ terminate_owned_launcher_tree() {
   signal_owned_process "$launcher_pid" "$launcher_marker" TERM || return 1
 
   local deadline=$(( $(date +%s) + term_grace_seconds ))
+  (( deadline < global_deadline )) || deadline="$global_deadline"
   while kill -0 "$launcher_pid" >/dev/null 2>&1 && (( $(date +%s) < deadline )); do
     [[ "$(backend_runtime_process_start_marker "$launcher_pid")" == "$launcher_marker" ]] || return 1
-    sleep 1
+    sleep 0.1
   done
+
+  if (( $(date +%s) >= global_deadline )); then
+    return 1
+  fi
 
   for descendant in "${descendants[@]}"; do
     IFS='|' read -r descendant_pid descendant_marker <<<"$descendant"
@@ -186,7 +203,9 @@ terminate_owned_launcher_tree() {
   if kill -0 "$launcher_pid" >/dev/null 2>&1; then
     signal_owned_process "$launcher_pid" "$launcher_marker" KILL || return 1
   fi
-  sleep 1
+  while kill -0 "$launcher_pid" >/dev/null 2>&1 && (( $(date +%s) < global_deadline )); do
+    sleep 0.1
+  done
   ! kill -0 "$launcher_pid" >/dev/null 2>&1
 }
 
@@ -198,12 +217,12 @@ stop_service() {
   local ownership_problem=0
 
   if load_owned_java "$service_name" "$module_name" "$service_port"; then
-    terminate_owned_process "$owned_java_pid" "$owned_java_marker" "$service_name service" || ownership_problem=1
+    terminate_owned_process "$owned_java_pid" "$owned_java_marker" "$service_name service" "$local_stop_deadline" || ownership_problem=1
   else
     [[ "$?" -eq 1 ]] || ownership_problem=1
   fi
   if load_owned_launcher "$service_name" "$launcher_name"; then
-    terminate_owned_launcher_tree "$owned_launcher_pid" "$owned_launcher_marker" "$service_name launcher" || ownership_problem=1
+    terminate_owned_launcher_tree "$owned_launcher_pid" "$owned_launcher_marker" "$service_name launcher" "$local_stop_deadline" || ownership_problem=1
   else
     [[ "$?" -eq 1 ]] || ownership_problem=1
   fi
@@ -243,7 +262,7 @@ service_is_confirmed_stopped() {
 catalog_entries=()
 while IFS= read -r entry; do
   catalog_entries+=("$entry")
-done < <(backend_runtime_service_catalog)
+done <<<"$runtime_catalog"
 
 for ((index=${#catalog_entries[@]} - 1; index >= 0; index--)); do
   IFS='|' read -r service_name module_name service_port launcher_name <<<"${catalog_entries[$index]}"
@@ -251,7 +270,6 @@ for ((index=${#catalog_entries[@]} - 1; index >= 0; index--)); do
 done
 
 services_stopped=0
-local_stop_deadline=$(( $(date +%s) + stop_timeout_seconds ))
 while :; do
   services_stopped=1
   while IFS='|' read -r service_name module_name service_port launcher_name; do
@@ -260,7 +278,7 @@ while :; do
     else
       remove_backend_runtime_state "$repo_root" "$service_name"
     fi
-  done < <(backend_runtime_service_catalog)
+  done <<<"$runtime_catalog"
   [[ "$services_stopped" -eq 1 ]] && break
   (( $(date +%s) >= local_stop_deadline )) && break
   sleep 1

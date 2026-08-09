@@ -45,6 +45,4 @@ export CDD_MARKETING_DB_USERNAME="${CDD_MARKETING_DB_USERNAME:-$mysql_username}"
 export CDD_MARKETING_DB_PASSWORD="${CDD_MARKETING_DB_PASSWORD:-$mysql_password}"
 export CDD_MARKETING_DB_DRIVER_CLASS_NAME="${CDD_MARKETING_DB_DRIVER_CLASS_NAME:-com.mysql.cj.jdbc.Driver}"
 export CDD_MARKETING_SQL_INIT_MODE="${CDD_MARKETING_SQL_INIT_MODE:-never}"
-marketing_port="${CDD_MARKETING_SERVER_PORT:-8086}"
-
-run_packaged_module "$repo_root" "$parent_root" "$settings_file" "$work_repo" "cdd-marketing-service" "marketing-service" "$marketing_port"
+run_packaged_module "$repo_root" "$parent_root" "$settings_file" "$work_repo" "cdd-marketing-service" "marketing-service"

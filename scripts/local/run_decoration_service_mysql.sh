@@ -45,6 +45,4 @@ export CDD_DECORATION_DB_USERNAME="${CDD_DECORATION_DB_USERNAME:-$mysql_username
 export CDD_DECORATION_DB_PASSWORD="${CDD_DECORATION_DB_PASSWORD:-$mysql_password}"
 export CDD_DECORATION_DB_DRIVER_CLASS_NAME="${CDD_DECORATION_DB_DRIVER_CLASS_NAME:-com.mysql.cj.jdbc.Driver}"
 export CDD_DECORATION_SQL_INIT_MODE="${CDD_DECORATION_SQL_INIT_MODE:-never}"
-decoration_port="${CDD_DECORATION_SERVER_PORT:-8083}"
-
-run_packaged_module "$repo_root" "$parent_root" "$settings_file" "$work_repo" "cdd-decoration-service" "decoration-service" "$decoration_port"
+run_packaged_module "$repo_root" "$parent_root" "$settings_file" "$work_repo" "cdd-decoration-service" "decoration-service"

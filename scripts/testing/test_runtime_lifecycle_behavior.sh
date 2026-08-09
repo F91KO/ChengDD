@@ -40,13 +40,61 @@ write_fixture() {
 }
 
 write_fixture "$fixture_bin/docker" '#!/usr/bin/env bash' 'exit 1'
+write_fixture "$fixture_bin/lsof" '#!/usr/bin/env bash' 'exit 1'
 write_fixture "$fixture_bin/curl" '#!/usr/bin/env bash' 'for argument in "$@"; do' '  if [[ "$argument" == *":${CDD_TEST_FAIL_HEALTH_PORT:-0}/actuator/health" ]]; then exit 1; fi' 'done' 'exit 0'
+write_fixture "$fixture_bin/ps" \
+  '#!/usr/bin/env bash' \
+  'request="$*"' \
+  'pid=""' \
+  'previous=""' \
+  'for argument in "$@"; do if [[ "$previous" == "-p" ]]; then pid="$argument"; fi; previous="$argument"; done' \
+  'if [[ "$request" == *"lstart="* ]]; then printf "fixture-marker-%s\n" "$pid"; exit 0; fi' \
+  'if [[ "$request" == *"command="* ]]; then' \
+  '  for state_file in "$CDD_RUNTIME_STATE_DIR"/*.env; do' \
+  '    [[ -f "$state_file" ]] || continue' \
+  '    state_pid="$(awk -F= '\''$1 == "SERVICE_PID" { print $2 }'\'' "$state_file")"' \
+  '    [[ "$state_pid" == "$pid" ]] || continue' \
+  '    module_name="$(awk -F= '\''$1 == "MODULE_NAME" { print $2 }'\'' "$state_file")"' \
+  '    service_port="$(awk -F= '\''$1 == "SERVICE_PORT" { print $2 }'\'' "$state_file")"' \
+  '    printf "java -jar %s-0.1.0-SNAPSHOT.jar --server.port=%s\n" "$module_name" "$service_port"' \
+  '    exit 0' \
+  '  done' \
+  'fi' \
+  'exit 1'
 write_fixture "$fixture_scripts/up.sh" '#!/usr/bin/env bash' 'echo "infra:${CDD_LOCAL_NACOS_CONSOLE_PORT}" >>"$CDD_TEST_TRACE"'
 write_fixture "$fixture_scripts/publish.sh" '#!/usr/bin/env bash' 'echo publish >>"$CDD_TEST_TRACE"'
 write_fixture "$fixture_scripts/migrate.sh" '#!/usr/bin/env bash' 'echo migrate >>"$CDD_TEST_TRACE"'
 
 for launcher in run_gateway.sh run_auth_service_mysql.sh run_merchant_service_mysql.sh run_decoration_service_mysql.sh run_product_service_mysql.sh run_order_service_mysql.sh run_marketing_service_mysql.sh run_release_service_mysql.sh run_report_service_mysql.sh run_config_service_mysql.sh; do
-  write_fixture "$fixture_launchers/$launcher" '#!/usr/bin/env bash' 'echo "fixture-launcher:'"$launcher"'"' 'echo "launch '"$launcher"'" >>"$CDD_TEST_TRACE"' 'sleep 30'
+  case "$launcher" in
+    run_gateway.sh) service_name=gateway; module_name=cdd-gateway; port_expression='${CDD_GATEWAY_SERVER_PORT:-8080}' ;;
+    run_auth_service_mysql.sh) service_name=auth-service; module_name=cdd-auth-service; port_expression='${CDD_AUTH_SERVER_PORT:-8081}' ;;
+    run_merchant_service_mysql.sh) service_name=merchant-service; module_name=cdd-merchant-service; port_expression='${CDD_MERCHANT_SERVER_PORT:-8082}' ;;
+    run_decoration_service_mysql.sh) service_name=decoration-service; module_name=cdd-decoration-service; port_expression='${CDD_DECORATION_SERVER_PORT:-8083}' ;;
+    run_product_service_mysql.sh) service_name=product-service; module_name=cdd-product-service; port_expression='${CDD_PRODUCT_SERVER_PORT:-8084}' ;;
+    run_order_service_mysql.sh) service_name=order-service; module_name=cdd-order-service; port_expression='${CDD_ORDER_SERVER_PORT:-8085}' ;;
+    run_marketing_service_mysql.sh) service_name=marketing-service; module_name=cdd-marketing-service; port_expression='${CDD_MARKETING_SERVER_PORT:-8086}' ;;
+    run_release_service_mysql.sh) service_name=release-service; module_name=cdd-release-service; port_expression='${CDD_RELEASE_SERVER_PORT:-8087}' ;;
+    run_report_service_mysql.sh) service_name=report-service; module_name=cdd-report-service; port_expression='${CDD_REPORT_SERVER_PORT:-8088}' ;;
+    run_config_service_mysql.sh) service_name=config-service; module_name=cdd-config-service; port_expression='${CDD_CONFIG_SERVER_PORT:-8089}' ;;
+  esac
+  write_fixture "$fixture_launchers/$launcher" \
+    '#!/usr/bin/env bash' \
+    'echo "fixture-launcher:'"$launcher"'"' \
+    'echo "launch '"$launcher"'" >>"$CDD_TEST_TRACE"' \
+    'service_port="'"$port_expression"'"' \
+    'cat >"$CDD_RUNTIME_STATE_DIR/'"$service_name"'.env" <<EOF' \
+    'SERVICE_NAME='"$service_name" \
+    'MODULE_NAME='"$module_name" \
+    'SERVICE_PORT=${service_port}' \
+    'SERVICE_PID=$$' \
+    'PROCESS_START_MARKER=fixture-marker-$$' \
+    'GIT_HEAD=fixture' \
+    'BACKEND_FINGERPRINT=fixture' \
+    'STARTED_AT=0' \
+    'STARTED_AT_TEXT=fixture' \
+    'EOF' \
+    'sleep 30'
 done
 
 run_all() {
@@ -57,7 +105,7 @@ run_all() {
     CDD_RUNTIME_MIGRATE_SCRIPT="$fixture_scripts/migrate.sh" \
     CDD_RUNTIME_LAUNCHER_DIR="$fixture_launchers" \
     CDD_RUNTIME_STATE_DIR="$fixture_state_dir" \
-    CDD_RUNTIME_HEALTH_TIMEOUT_SECONDS=1 \
+    CDD_RUNTIME_HEALTH_TIMEOUT_SECONDS=3 \
     "$@" bash "$repo_root/scripts/local/run_all_services_mysql.sh"
 }
 
@@ -95,7 +143,17 @@ if run_all CDD_ENV=local CDD_CONFIG_MODE=file CDD_LOCAL_NACOS_CONSOLE_PORT=8080;
 fi
 
 : >"$trace_file"
-if run_all CDD_ENV=local CDD_CONFIG_MODE=nacos CDD_TEST_FAIL_HEALTH_PORT=8081; then
+if run_all CDD_ENV=local CDD_CONFIG_MODE=file CDD_GATEWAY_SERVER_PORT=19080 CDD_AUTH_SERVER_PORT=19080; then
+  echo "Assertion failed: duplicate resolved service ports must fail before infrastructure startup." >&2
+  exit 1
+fi
+[[ ! -s "$trace_file" ]] || {
+  echo "Assertion failed: service port validation ran after infrastructure startup." >&2
+  exit 1
+}
+
+: >"$trace_file"
+if run_all CDD_ENV=local CDD_CONFIG_MODE=nacos CDD_AUTH_SERVER_PORT=19081 CDD_TEST_FAIL_HEALTH_PORT=19081; then
   echo "Assertion failed: child launcher failure must fail run-all." >&2
   exit 1
 fi
