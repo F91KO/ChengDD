@@ -21,7 +21,7 @@ fi
 "${COMPOSE_CMD[@]}" -f "$compose_file" up -d
 
 echo "Waiting for Nacos to become healthy..."
-nacos_health_url="http://127.0.0.1:${CDD_LOCAL_NACOS_PORT:-8848}/nacos/v1/console/health/liveness"
+nacos_health_url="http://127.0.0.1:${CDD_LOCAL_NACOS_CONSOLE_PORT:-8080}/v3/console/health/liveness"
 for _ in {1..60}; do
   if curl --silent --fail "$nacos_health_url" >/dev/null 2>&1; then
     break
