@@ -1,5 +1,6 @@
 package com.cdd.common.nacos;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 import org.junit.jupiter.api.Test;
@@ -14,7 +15,7 @@ class NacosStartupValidatorTest {
     @Test
     void shouldAcceptLocalPublicNamespace() {
         MockEnvironment environment = validEnvironment("local");
-        assertDoesNotThrow(() -> new NacosStartupValidator(environment).validate());
+        assertDoesNotThrow(() -> validator(environment, validRemoteConfigs("local")).validate());
     }
 
     @Test
@@ -22,7 +23,7 @@ class NacosStartupValidatorTest {
         MockEnvironment environment = validEnvironment("dev")
                 .withProperty("spring.cloud.nacos.config.namespace", "")
                 .withProperty("spring.cloud.nacos.discovery.namespace", "");
-        assertThatThrownBy(() -> new NacosStartupValidator(environment).validate())
+        assertThatThrownBy(() -> validator(environment, validRemoteConfigs("dev")).validate())
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("namespace ID");
     }
@@ -31,7 +32,7 @@ class NacosStartupValidatorTest {
     void shouldRequireMatchingNonBlankGroups() {
         MockEnvironment environment = validEnvironment("local")
                 .withProperty("spring.cloud.nacos.discovery.group", "");
-        assertThatThrownBy(() -> new NacosStartupValidator(environment).validate())
+        assertThatThrownBy(() -> validator(environment, validRemoteConfigs("local")).validate())
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("CHENGDD");
     }
@@ -39,9 +40,11 @@ class NacosStartupValidatorTest {
     @Test
     void shouldRequireSharedMarkerFromExpectedNacosDataId() {
         MockEnvironment environment = validEnvironment("local");
-        environment.getPropertySources().remove("CHENGDD@cdd-common-local.yaml");
+        Map<String, String> remoteConfigs = Map.of(
+                "cdd-contract-service-local.yaml",
+                serviceConfig("cdd-contract-service-local.yaml"));
 
-        assertThatThrownBy(() -> new NacosStartupValidator(environment).validate())
+        assertThatThrownBy(() -> validator(environment, remoteConfigs).validate())
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("cdd-common-local.yaml")
                 .hasMessageContaining("remote configuration");
@@ -50,14 +53,12 @@ class NacosStartupValidatorTest {
     @Test
     void shouldRejectServiceMarkerThatDoesNotMatchApplicationDataId() {
         MockEnvironment environment = validEnvironment("local");
-        environment.getPropertySources().replace(
-                "CHENGDD@cdd-contract-service-local.yaml",
-                nacosPropertySource(
-                        "cdd-contract-service-local.yaml",
-                        "cdd.nacos.config.service-data-id",
-                        "cdd-other-service-local.yaml"));
+        Map<String, String> remoteConfigs = new LinkedHashMap<>(validRemoteConfigs("local"));
+        remoteConfigs.put(
+                "cdd-contract-service-local.yaml",
+                serviceConfig("cdd-other-service-local.yaml"));
 
-        assertThatThrownBy(() -> new NacosStartupValidator(environment).validate())
+        assertThatThrownBy(() -> validator(environment, remoteConfigs).validate())
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("cdd-contract-service-local.yaml")
                 .hasMessageContaining("marker");
@@ -74,13 +75,39 @@ class NacosStartupValidatorTest {
                 .withProperty("cdd.nacos.config.shared-data-id", "cdd-common-local.yaml")
                 .withProperty("cdd.nacos.config.service-data-id", "cdd-contract-service-local.yaml");
 
-        assertThatThrownBy(() -> new NacosStartupValidator(environment).validate())
+        assertThatThrownBy(() -> validator(environment, Map.of()).validate())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("cdd-common-local.yaml")
+                .hasMessageContaining("remote configuration");
+    }
+
+    @Test
+    void shouldNotAcceptLocalMapPropertySourcesThatSpoofNacosNames() {
+        MockEnvironment environment = baseEnvironment("local");
+        environment.getPropertySources().addFirst(new MapPropertySource(
+                "CHENGDD@cdd-contract-service-local.yaml",
+                Map.of("cdd.nacos.config.service-data-id", "cdd-contract-service-local.yaml")));
+        environment.getPropertySources().addFirst(new MapPropertySource(
+                "CHENGDD@cdd-common-local.yaml",
+                Map.of("cdd.nacos.config.shared-data-id", "cdd-common-local.yaml")));
+
+        assertThatThrownBy(() -> validator(environment, Map.of()).validate())
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("cdd-common-local.yaml")
                 .hasMessageContaining("remote configuration");
     }
 
     private static MockEnvironment validEnvironment(String runtimeEnv) {
+        return baseEnvironment(runtimeEnv)
+                .withProperty(
+                        "cdd.nacos.config.shared-data-id",
+                        "cdd-common-" + runtimeEnv + ".yaml")
+                .withProperty(
+                        "cdd.nacos.config.service-data-id",
+                        "cdd-contract-service-" + runtimeEnv + ".yaml");
+    }
+
+    private static MockEnvironment baseEnvironment(String runtimeEnv) {
         MockEnvironment environment = new MockEnvironment()
                 .withProperty("spring.application.name", "cdd-contract-service")
                 .withProperty("cdd.runtime.env", runtimeEnv)
@@ -91,18 +118,27 @@ class NacosStartupValidatorTest {
             environment.withProperty("spring.cloud.nacos.config.namespace", "namespace-id-" + runtimeEnv)
                     .withProperty("spring.cloud.nacos.discovery.namespace", "namespace-id-" + runtimeEnv);
         }
-        environment.getPropertySources().addFirst(nacosPropertySource(
-                "cdd-contract-service-" + runtimeEnv + ".yaml",
-                "cdd.nacos.config.service-data-id",
-                "cdd-contract-service-" + runtimeEnv + ".yaml"));
-        environment.getPropertySources().addFirst(nacosPropertySource(
-                "cdd-common-" + runtimeEnv + ".yaml",
-                "cdd.nacos.config.shared-data-id",
-                "cdd-common-" + runtimeEnv + ".yaml"));
         return environment;
     }
 
-    private static MapPropertySource nacosPropertySource(String dataId, String markerKey, String markerValue) {
-        return new MapPropertySource("CHENGDD@" + dataId, Map.of(markerKey, markerValue));
+    private static NacosStartupValidator validator(
+            MockEnvironment environment, Map<String, String> remoteConfigs) {
+        return new NacosStartupValidator(environment, (dataId, group) -> remoteConfigs.get(dataId));
+    }
+
+    private static Map<String, String> validRemoteConfigs(String runtimeEnv) {
+        String sharedDataId = "cdd-common-" + runtimeEnv + ".yaml";
+        String serviceDataId = "cdd-contract-service-" + runtimeEnv + ".yaml";
+        return Map.of(
+                sharedDataId, sharedConfig(sharedDataId),
+                serviceDataId, serviceConfig(serviceDataId));
+    }
+
+    private static String sharedConfig(String markerValue) {
+        return "cdd:\n  nacos:\n    config:\n      shared-data-id: " + markerValue + "\n";
+    }
+
+    private static String serviceConfig(String markerValue) {
+        return "cdd:\n  nacos:\n    config:\n      service-data-id: " + markerValue + "\n";
     }
 }

@@ -1,8 +1,12 @@
 package com.cdd.common.nacos;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Set;
 
-import org.springframework.core.env.ConfigurableEnvironment;
+import org.springframework.boot.env.YamlPropertySourceLoader;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.env.Environment;
 import org.springframework.core.env.PropertySource;
 
@@ -14,9 +18,11 @@ public final class NacosStartupValidator {
     private static final String SERVICE_MARKER = "cdd.nacos.config.service-data-id";
 
     private final Environment environment;
+    private final NacosRemoteConfigReader remoteConfigReader;
 
-    public NacosStartupValidator(Environment environment) {
+    NacosStartupValidator(Environment environment, NacosRemoteConfigReader remoteConfigReader) {
         this.environment = environment;
+        this.remoteConfigReader = remoteConfigReader;
     }
 
     public void validate() {
@@ -48,16 +54,44 @@ public final class NacosStartupValidator {
     }
 
     private void requireRemoteMarker(String dataId, String markerKey) {
-        if (!(environment instanceof ConfigurableEnvironment configurableEnvironment)) {
+        String content;
+        try {
+            content = remoteConfigReader.read(dataId, NACOS_GROUP);
+        }
+        catch (Exception ignored) {
             throw missingRemoteConfiguration(dataId, markerKey);
+        }
+        if (content == null || content.isBlank() || !hasExpectedMarker(content, dataId, markerKey)) {
+            throw missingRemoteConfiguration(dataId, markerKey);
+        }
+        String importedMarker = environment.getProperty(markerKey, "").trim();
+        if (!dataId.equals(importedMarker)) {
+            throw missingRemoteConfiguration(dataId, markerKey);
+        }
+    }
+
+    private boolean hasExpectedMarker(String content, String dataId, String markerKey) {
+        List<PropertySource<?>> propertySources;
+        try {
+            propertySources = new YamlPropertySourceLoader().load(
+                    dataId,
+                    new ByteArrayResource(content.getBytes(StandardCharsets.UTF_8), dataId));
+        }
+        catch (IOException | RuntimeException ignored) {
+            return false;
         }
 
-        PropertySource<?> propertySource = configurableEnvironment.getPropertySources()
-                .get(NACOS_GROUP + "@" + dataId);
-        Object marker = propertySource == null ? null : propertySource.getProperty(markerKey);
-        if (marker == null || !dataId.equals(marker.toString().trim())) {
-            throw missingRemoteConfiguration(dataId, markerKey);
+        boolean markerFound = false;
+        for (PropertySource<?> propertySource : propertySources) {
+            Object marker = propertySource.getProperty(markerKey);
+            if (marker != null) {
+                markerFound = true;
+                if (!dataId.equals(marker.toString().trim())) {
+                    return false;
+                }
+            }
         }
+        return markerFound;
     }
 
     private IllegalStateException missingRemoteConfiguration(String dataId, String markerKey) {
@@ -73,4 +107,10 @@ public final class NacosStartupValidator {
         }
         return value;
     }
+}
+
+@FunctionalInterface
+interface NacosRemoteConfigReader {
+
+    String read(String dataId, String group) throws Exception;
 }
