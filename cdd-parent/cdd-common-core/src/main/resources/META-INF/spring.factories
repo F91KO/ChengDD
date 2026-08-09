@@ -1,2 +1,0 @@
-org.springframework.boot.env.EnvironmentPostProcessor=\
-com.cdd.common.core.runtime.NacosConfigEnvironmentPostProcessor

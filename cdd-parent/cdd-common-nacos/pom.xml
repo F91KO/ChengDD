@@ -9,13 +9,17 @@
         <version>0.1.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>cdd-common-core</artifactId>
-    <name>cdd-common-core</name>
+    <artifactId>cdd-common-nacos</artifactId>
+    <name>cdd-common-nacos</name>
 
     <dependencies>
         <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot</artifactId>
+            <groupId>com.alibaba.cloud</groupId>
+            <artifactId>spring-cloud-starter-alibaba-nacos-config</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.alibaba.cloud</groupId>
+            <artifactId>spring-cloud-starter-alibaba-nacos-discovery</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>

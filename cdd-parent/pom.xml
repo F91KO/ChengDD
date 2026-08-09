@@ -34,6 +34,7 @@
 
     <modules>
         <module>cdd-common-core</module>
+        <module>cdd-common-nacos</module>
         <module>cdd-common-db</module>
         <module>cdd-common-redis</module>
         <module>cdd-common-security</module>
