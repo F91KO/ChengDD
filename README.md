@@ -25,6 +25,16 @@ Java Spring 多模块后端骨架已经按 `cdd-parent` 聚合完成，技术基
 
 ## Backend Build
 
+后端版本基线由 `cdd-parent/pom.xml` 统一管理：
+
+| Component | Version |
+| --- | --- |
+| JDK | 21 |
+| Spring Boot | 3.5.14 |
+| Spring Cloud | 2025.0.3 |
+| Spring Cloud Alibaba | 2025.0.0.0 |
+| Nacos Client | 3.0.3 |
+
 ```bash
 export JAVA_HOME=$(/usr/libexec/java_home -v 21)
 mvn -f cdd-parent/pom.xml clean install
@@ -100,6 +110,7 @@ corepack pnpm build
 ## Environment Convention
 
 - Maven profiles: `local` / `dev` / `test` / `prod`
+- Spring runtime profiles: `{env},file` or `{env},nacos`
 - Runtime property keys: `cdd.runtime.env` / `cdd.runtime.config-mode`
 - Environment variable overrides: `CDD_ENV` / `CDD_CONFIG_MODE`
 - Each executable module keeps:
@@ -109,9 +120,24 @@ corepack pnpm build
   - `application-test.yaml`
   - `application-prod.yaml`
 
-当前默认仍走服务内文件配置；后续接 Nacos 时，沿用相同的 `cdd.runtime.*` 键和环境命名规则继续演进，服务 `dataId` 采用 `{service-name}-{env}.yaml`，共享配置采用 `cdd-common-{env}.yaml`。
+本地脚本默认使用 `CDD_ENV=local`、`CDD_CONFIG_MODE=file`。切换为 `nacos` 后，十个可执行模块通过 `cdd-common-nacos` 统一接入 Spring Cloud Alibaba Config/Discovery；先导入共享配置 `cdd-common-{env}.yaml`，再导入服务配置 `{service-name}-{env}.yaml`，两项均固定 `refreshEnabled=false`。Gateway 在 `nacos` profile 下通过 Spring Cloud LoadBalancer 选择服务实例；没有可用实例或处于 `file` profile 时使用 `application.yaml` 中的静态地址。
 
-## Flyway Migration
+本地 Nacos 快速验证：
+
+```bash
+export CDD_LOCAL_NACOS_CONSOLE_PORT=18080
+bash scripts/local/up_local_infra.sh
+export CDD_ENV=local
+export CDD_CONFIG_MODE=nacos
+bash scripts/local/run_all_services_mysql.sh
+bash scripts/local/status_all_services.sh
+bash scripts/nacos/check_nacos_state.sh local
+bash scripts/local/stop_all_services.sh
+```
+
+单独执行 Compose 时，Nacos Console 默认使用 `http://127.0.0.1:8080/index.html`；全服务启动脚本默认将宿主机 Console 端口改为 `18080`，避免与 Gateway 的 `8080` 冲突。Nacos Client API 为 `127.0.0.1:8848`，gRPC 为 `9848`。
+
+## Liquibase Migration
 
 迁移脚本统一使用仓库根目录的 `db/migration`，数据库连接配置已外置到独立 `yml`：
 
@@ -126,7 +152,9 @@ bash scripts/db/migrate.sh
 config/db-migration/application-db-migration.yml
 ```
 
-后续如果接入 Nacos，可以继续沿用这套 Spring Boot 配置键，将本地 `yml` 迁移为远端配置中心；`cdd-db-migration` 仍保持独立文件配置，不并入 Nacos。
+`cdd-db-migration` 是明确的例外：始终使用文件配置，不依赖 Nacos。为兼容 Liquibase `4.31.1` 的 classpath 解析，构建时会把主清单打包到 `config/db-migration/`、把 SQL 打包到 `db/migration/`；这不改变仓库中的迁移文件来源。
+
+本地 Compose 使用 `nacos/nacos-server:v3.0.3` standalone 且关闭鉴权，只用于开发与验收，不可作为生产部署模板。生产 Nacos 集群、高可用、鉴权、TLS、Nginx/HTTPS 和 CI/CD 仍待实施。
 
 ## Modules
 

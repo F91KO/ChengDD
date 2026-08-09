@@ -1,277 +1,107 @@
 # 本地数据库、Redis 与 Nacos 启动说明
 
-## 1. 目标
+## 1. 基线与用途
 
-- 在本地一键拉起 `MySQL + Redis + Nacos` 基础设施。
-- 为数据库迁移、后续服务切换到本地 MySQL、以及未来 Nacos 接入做好准备。
-- 保持当前项目默认验收路径不强依赖 Nacos 可用。
+本地 Compose 提供：
 
-## 2. 当前约定
+| Component | Image | Default host port |
+| --- | --- | ---: |
+| MySQL | `mysql:5.7.44` | 3306 |
+| Redis | `redis:7.2.5-alpine` | 6379 |
+| Nacos | `nacos/nacos-server:v3.0.3` | Console 8080、Client 8848、gRPC 9848 |
 
-- 本地数据库：`MySQL 5.7`
-- 本地缓存：`Redis 7.2`
-- 本地配置中心：`Nacos 2.3.2`
-- 容器编排文件：`infrastructure/local/docker-compose.yml`
-- 本地环境仍遵循《[Nacos配置命名与加载约定.md](../02-architecture/Nacos配置命名与加载约定.md)》：
-  - `local` 默认允许只走文件配置
-  - `dev / test / prod` 才是后续 Nacos 主要接入路径
+Nacos 使用 standalone、关闭鉴权，只用于本地开发和自动化验收。它不是生产模板；生产集群、高可用、持久化设计、鉴权、权限、TLS 和密钥轮换均需另行建设。
 
-## 3. 启动方式
+## 2. 启停基础设施
 
-启动本地基础设施：
+单独启动 Compose：
 
 ```bash
 bash scripts/local/up_local_infra.sh
-```
-
-如果本机 `3306` 已被占用，先改一个本地映射端口再启动：
-
-```bash
-export CDD_LOCAL_MYSQL_PORT=3307
-bash scripts/local/up_local_infra.sh
-```
-
-查看状态：
-
-```bash
 bash scripts/local/status_local_infra.sh
 ```
 
-停止基础设施：
+此时 Nacos Console 为 `http://127.0.0.1:8080/index.html`，Client API 为 `127.0.0.1:8848`，gRPC 为 `9848`；健康检查使用 Nacos 3 的 `/v3/console/health/liveness`。
+
+全后端同机运行时，Gateway 也占用 `8080`，因此 `run_all_services_mysql.sh` 默认把 Nacos Console 的宿主机端口覆盖为 `18080`：
+
+```bash
+CDD_ENV=local CDD_CONFIG_MODE=nacos bash scripts/local/run_all_services_mysql.sh
+```
+
+已用默认 8080 启动过 Nacos 时，先统一按同一端口设置重建，避免 Compose 端口配置与当前容器不一致：
+
+```bash
+export CDD_LOCAL_NACOS_CONSOLE_PORT=18080
+bash scripts/local/up_local_infra.sh
+```
+
+停止全部基础设施：
 
 ```bash
 bash scripts/local/down_local_infra.sh
 ```
 
-## 4. 默认端口与账号
+## 3. 可覆盖端口
 
-### 4.1 MySQL
+```bash
+export CDD_LOCAL_MYSQL_PORT=3307
+export CDD_LOCAL_REDIS_PORT=6380
+export CDD_LOCAL_NACOS_CONSOLE_PORT=18080
+export CDD_LOCAL_NACOS_PORT=8858
+export CDD_LOCAL_NACOS_GRPC_PORT=9858
+```
 
-- 地址：`127.0.0.1:${CDD_LOCAL_MYSQL_PORT:-3306}`
-- 数据库：`chengdd`
-- 用户名：`root`
-- 密码：`change_me`
+没有额外的 Nacos Raft 宿主机端口映射。应用侧 `CDD_NACOS_SERVER_ADDR` 必须与 Client API 映射一致。
 
-当前与迁移配置文件保持一致：
+## 4. 数据库迁移
 
-- [application-db-migration.yml](/Volumes/workspace/ChengDD/config/db-migration/application-db-migration.yml)
-
-补充说明：
-
-- 当前运行时基线为 `MySQL 5.7`
-- 数据库迁移由 `Liquibase` 执行，主清单位于 `config/db-migration/db.changelog-master.yaml`
-- `local` 环境下的 `auth-service`、`decoration-service`、`marketing-service`、`order-service`、`release-service`、`report-service`、`product-service`、`merchant-service`、`config-service` 默认也统一连接本地 MySQL，不再走 H2
-
-### 4.2 Nacos
-
-- 控制台地址：`http://127.0.0.1:8848/nacos`
-- 当前本地 compose 采用 `standalone` 模式
-- 当前本地 compose 关闭鉴权，便于先完成本地联调
-
-### 4.3 Redis
-
-- 地址：`127.0.0.1:${CDD_LOCAL_REDIS_PORT:-6379}`
-- 当前本地 compose 默认开启 AOF 持久化
-- `order-service`、`config-service` 等依赖 `cdd-common-redis` 的服务，本地 actuator 健康检查依赖 Redis 可达
-
-## 5. 初始化数据库
-
-基础设施启动后，执行：
+默认数据库为 `chengdd`，本地开发默认用户为 `root`、默认密码为 `change_me`。先启动 MySQL，再执行：
 
 ```bash
 bash scripts/db/migrate.sh
 ```
 
-该脚本会读取：
+迁移模块始终使用文件配置，不依赖 Nacos。Liquibase `4.31.1` 的兼容实现会在构建产物中保留 `config/db-migration/db.changelog-master.yaml` 和 `db/migration/V*.sql` 的 classpath 目录结构；对已经迁移的本地库会正确识别已执行 changeSet。
 
-- [application-db-migration.yml](/Volumes/workspace/ChengDD/config/db-migration/application-db-migration.yml)
-
-并通过 `cdd-db-migration` 执行 `db/migration/` 下的 Liquibase 迁移编排。
-
-`db-migration` 会默认跟随以下环境变量：
-
-- `CDD_LOCAL_MYSQL_PORT`
-- `CDD_LOCAL_MYSQL_DATABASE`
-- `CDD_LOCAL_MYSQL_ROOT_PASSWORD`
-
-如需单独覆盖迁移连接，也可以直接指定：
+可按需覆盖：
 
 ```bash
-export CDD_DB_MIGRATION_URL='jdbc:mysql://127.0.0.1:3307/chengdd?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false'
-export CDD_DB_MIGRATION_USERNAME='root'
-export CDD_DB_MIGRATION_PASSWORD='change_me'
-```
-
-## 6. 本地服务数据库约定
-
-当前 `local` 环境下，以下服务默认直接连接本地 MySQL：
-
-- `auth-service`
-- `decoration-service`
-- `marketing-service`
-- `order-service`
-- `release-service`
-- `report-service`
-- `product-service`
-- `merchant-service`
-- `config-service`
-
-默认连接参数：
-
-- 地址：`127.0.0.1:${CDD_LOCAL_MYSQL_PORT:-3306}`
-- 数据库：`${CDD_LOCAL_MYSQL_DATABASE:-chengdd}`
-- 用户名：`${CDD_LOCAL_MYSQL_USERNAME:-root}`
-- 密码：`${CDD_LOCAL_MYSQL_ROOT_PASSWORD:-change_me}`
-
-如果你需要单独覆盖某个服务，也可以在启动前覆盖：
-
-```bash
-export CDD_AUTH_DB_URL='jdbc:mysql://127.0.0.1:3306/chengdd?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false'
-export CDD_AUTH_DB_USERNAME='root'
-export CDD_AUTH_DB_PASSWORD='change_me'
-export CDD_AUTH_DB_DRIVER_CLASS_NAME='com.mysql.cj.jdbc.Driver'
-export CDD_AUTH_SQL_INIT_MODE='never'
-```
-
-说明：
-
-- 本地表结构与演示数据应先通过 `bash scripts/db/migrate.sh` 完成迁移
-- `V18__local_demo_product_order_seed.sql` 会补齐本地联调用的商品与订单演示数据
-- `V19__local_demo_product_seed_patch.sql` 会兼容已执行过旧版 `V18` 的数据库，并补齐商品演示数据
-- `V20__local_demo_report_seed.sql` 与 `V21__local_demo_dashboard_refresh.sql` 会补齐并刷新工作台报表演示数据，避免旧的手工验收数据影响本地工作台展示
-- `auth-service` 登录账号由正式迁移脚本种子提供，不再依赖本地 H2 初始化
-
-也可以直接使用启动脚本：
-
-```bash
-bash scripts/local/run_auth_service_mysql.sh
-```
-
-默认行为：
-
-- 连接 `127.0.0.1:${CDD_LOCAL_MYSQL_PORT:-3306}`
-- 数据库名使用 `${CDD_LOCAL_MYSQL_DATABASE:-chengdd}`
-- 用户名默认 `${CDD_LOCAL_MYSQL_USERNAME:-root}`
-- 关闭 SQL 初始化脚本，直接连 MySQL 启动 `auth-service`
-
-## 7. 可覆盖环境变量
-
-如需改端口或数据库名，可在执行脚本前覆盖：
-
-```bash
-export CDD_LOCAL_MYSQL_PORT=3307
 export CDD_LOCAL_MYSQL_DATABASE=chengdd_local
 export CDD_LOCAL_MYSQL_ROOT_PASSWORD=change_me
-export CDD_LOCAL_REDIS_PORT=6379
-export CDD_LOCAL_NACOS_PORT=8858
-export CDD_LOCAL_NACOS_GRPC_PORT=9858
-export CDD_LOCAL_NACOS_RAFT_PORT=9859
+export CDD_DB_MIGRATION_URL='jdbc:mysql://127.0.0.1:3307/chengdd_local?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false'
+export CDD_DB_MIGRATION_USERNAME=root
+export CDD_DB_MIGRATION_PASSWORD=change_me
 ```
 
-## 8. 启动本地服务
+## 5. 配置发布与状态检查
 
-启动 `auth-service`：
+本地 group 固定为 `CHENGDD`，namespace 可为空。发布 11 个 DataId：
 
 ```bash
-bash scripts/local/run_auth_service_mysql.sh
+bash scripts/nacos/publish_nacos_configs.sh local
 ```
 
-启动 `order-service`：
+检查共享配置和十个应用的注册状态：
 
 ```bash
-bash scripts/local/run_order_service_mysql.sh
+bash scripts/nacos/check_nacos_state.sh local
 ```
 
-启动 `decoration-service`：
+非 local 环境必须显式提供 `CDD_NACOS_NAMESPACE`，并让 Config/Discovery 使用同一 namespace ID。
+
+## 6. 服务生命周期
 
 ```bash
-bash scripts/local/run_decoration_service_mysql.sh
+export CDD_ENV=local
+export CDD_CONFIG_MODE=nacos
+bash scripts/local/run_all_services_mysql.sh
+bash scripts/local/status_all_services.sh
+bash scripts/local/stop_all_services.sh
 ```
 
-启动 `marketing-service`：
+服务端口为 Gateway `8080`，auth `8081`，merchant `8082`，decoration `8083`，product `8084`，order `8085`，marketing `8086`，release `8087`，report `8088`，config `8089`。
 
-```bash
-bash scripts/local/run_marketing_service_mysql.sh
-```
+`status_all_services.sh` 在 nacos 模式同时检查 HTTP 健康和注册实例；`stop_all_services.sh` 只处理运行时状态文件证明归属的进程，并等待注销。2026-08-09 验收确认 10/10 服务可启动、经 Gateway 完成登录及 auth/me、商品、订单、报表、配置请求，停止后 8080–8089 均无监听且 10 个实例全部注销。
 
-启动 `release-service`：
-
-```bash
-bash scripts/local/run_release_service_mysql.sh
-```
-
-启动 `report-service`：
-
-```bash
-bash scripts/local/run_report_service_mysql.sh
-```
-
-启动 `config-service`：
-
-```bash
-bash scripts/local/run_config_service_mysql.sh
-```
-
-启动 `product-service`：
-
-```bash
-bash scripts/local/run_product_service_mysql.sh
-```
-
-启动 `gateway`：
-
-```bash
-bash scripts/local/run_gateway.sh
-```
-
-默认端口：
-
-- `gateway`: `127.0.0.1:8080`
-- `auth-service`: `127.0.0.1:8081`
-- `decoration-service`: `127.0.0.1:8083`
-- `product-service`: `127.0.0.1:8084`
-- `order-service`: `127.0.0.1:8085`
-- `marketing-service`: `127.0.0.1:8086`
-- `release-service`: `127.0.0.1:8087`
-- `report-service`: `127.0.0.1:8088`
-- `config-service`: `127.0.0.1:8089`
-
-已验证：
-
-- `decoration-service` 可在 `local + MySQL` 下启动，并通过装修草稿保存、查询、发布接口完成本地联调
-- `marketing-service` 可在 `local + MySQL` 下启动，并通过优惠券、活动、推荐规则、专题会场接口完成本地联调
-- `report-service` 可在 `local + MySQL` 下启动，并通过首页事件日报、订单日报、商品日报、商家看板、平台看板接口完成本地联调
-- `config-service` 可在 `local + MySQL` 下启动，并通过商家功能开关列表、生效配置查询接口完成本地联调
-- `config-service` 与 `order-service` 的 actuator 健康检查依赖本地 Redis；若 Redis 未启动，业务接口仍可访问，但 `/actuator/health` 会显示 `DOWN`
-- `product-service` 可在 `local + MySQL` 下启动，并通过 `GET /api/product/spu?merchant_id=1001&store_id=1001` 返回 3 条演示商品，状态覆盖 `on_shelf / draft / off_shelf`
-
-当前本地联调测试账号：
-
-- 平台账号：`platform_admin` / `admin123456`
-- 商家账号：`merchant_admin` / `merchant123456`
-
-常用检查：
-
-```bash
-lsof -nP -iTCP:8080 -sTCP:LISTEN
-lsof -nP -iTCP:8081 -sTCP:LISTEN
-```
-
-## 9. 后续接入建议
-
-- 当前阶段本地数据库已作为主要联调基线，优先保证 `local` 与 `test` 的 MySQL 口径一致。
-- Nacos 优先用于：
-  - 验证 namespace / group / dataId 规则
-  - 准备后续 `dev / test / prod` 配置中心接入
-- 等 Nacos 真正接入代码时，再单独补：
-  - namespace 初始化
-  - group 固化
-  - dataId 导入脚本
-  - 配置变更回滚与审计
-
-## 10. Gateway ��������
-
-- ǰ�� `Vite` ������ͳһָ�� `http://127.0.0.1:8080`
-- `cdd-gateway` �����ת�� `auth/report/config/product/order/release` ���
-- ��������ʱ����ȷ�� `gateway` ���������ټ������η���˿�
-- `runtime-logs/gateway-start.cmd` �� `runtime-logs/gateway-start.ps1` �Ѳ��룬��ֱ�����ڱ�������
+已知问题：Nacos 模式服务在成功注销后会记录 `NacosGracefulShutdownDelegate` ERROR/NPE。当前证据表明它未阻止退出、端口清理或注销，但日志缺陷仍待兼容性修复。
