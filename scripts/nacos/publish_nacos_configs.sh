@@ -12,16 +12,39 @@ nacos_connect_timeout_seconds="${CDD_NACOS_CONNECT_TIMEOUT_SECONDS:-2}"
 nacos_request_timeout_seconds="${CDD_NACOS_REQUEST_TIMEOUT_SECONDS:-5}"
 nacos_auth_args=()
 nacos_secret_dir=""
+nacos_cleanup_started=0
 
 cleanup_nacos_secrets() {
-  local status=$?
+  local primary_status="${1:-$?}"
+  local cleanup_status=0
+  if [[ "$nacos_cleanup_started" -eq 1 ]]; then
+    exit "$primary_status"
+  fi
+  nacos_cleanup_started=1
   trap - EXIT HUP INT TERM
   if [[ -n "$nacos_secret_dir" && -d "$nacos_secret_dir" ]]; then
+    set +e
     rm -rf -- "$nacos_secret_dir"
+    cleanup_status=$?
+    set -e
   fi
-  exit "$status"
+  if [[ "$primary_status" -ne 0 ]]; then
+    exit "$primary_status"
+  fi
+  if [[ "$cleanup_status" -ne 0 ]]; then
+    exit "$cleanup_status"
+  fi
+  exit 0
 }
-trap cleanup_nacos_secrets EXIT HUP INT TERM
+
+handle_nacos_signal() {
+  cleanup_nacos_secrets "$1"
+}
+
+trap 'cleanup_nacos_secrets "$?"' EXIT
+trap 'handle_nacos_signal 129' HUP
+trap 'handle_nacos_signal 130' INT
+trap 'handle_nacos_signal 143' TERM
 
 [[ "$nacos_connect_timeout_seconds" =~ ^[1-9][0-9]*$ ]] || {
   echo "CDD_NACOS_CONNECT_TIMEOUT_SECONDS must be a positive integer." >&2

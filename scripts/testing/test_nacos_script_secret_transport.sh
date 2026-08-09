@@ -141,14 +141,24 @@ import sys
 
 argv = [item for line in pathlib.Path(sys.argv[1]).read_text().splitlines() for item in json.loads(line)]
 output = pathlib.Path(sys.argv[2]).read_text(encoding="utf-8")
-for secret in [os.environ[name] for name in ["CDD_TEST_USERNAME", "CDD_TEST_PASSWORD", "CDD_TEST_TOKEN", "CDD_TEST_CONFIG_MARKER"]]:
-    assert all(secret not in item for item in argv), (secret, argv)
-    assert secret not in output, (secret, output)
+for label, name in [
+    ("username", "CDD_TEST_USERNAME"),
+    ("password", "CDD_TEST_PASSWORD"),
+    ("token", "CDD_TEST_TOKEN"),
+    ("config marker", "CDD_TEST_CONFIG_MARKER"),
+]:
+    secret = os.environ[name]
+    if any(secret in item for item in argv):
+        raise AssertionError(f"{label} was present in recorded curl argv")
+    if secret in output:
+        raise AssertionError(f"{label} was present in script output")
 for item in argv:
     if item.startswith("content@"):
         content = pathlib.Path(item.split("@", 1)[1]).read_text(encoding="utf-8")
-        assert all(content not in argument for argument in argv), item
-        assert content not in output, item
+        if any(content in argument for argument in argv):
+            raise AssertionError("configuration content was present in recorded curl argv")
+        if content in output:
+            raise AssertionError("configuration content was present in script output")
 PY
 }
 
