@@ -100,7 +100,7 @@ wait_for_runtime_service_health() {
       && [[ "$RUNTIME_STATE_SERVICE_NAME" == "$service_name" ]] \
       && [[ "$RUNTIME_STATE_MODULE_NAME" == "$module_name" ]] \
       && [[ "$RUNTIME_STATE_SERVICE_PORT" == "$service_port" ]] \
-      && backend_runtime_process_matches_state "$service_name" "$module_name" "$service_port" "$RUNTIME_STATE_SERVICE_PID" "$RUNTIME_STATE_PROCESS_START_MARKER" "$RUNTIME_STATE_JAVA_PATH" "$RUNTIME_STATE_JAR_PATH" \
+      && backend_runtime_process_matches_state_before_deadline "$deadline" "$service_name" "$module_name" "$service_port" "$RUNTIME_STATE_SERVICE_PID" "$RUNTIME_STATE_PROCESS_START_MARKER" "$RUNTIME_STATE_JAVA_PATH" "$RUNTIME_STATE_JAR_PATH" \
       && curl --silent --show-error --fail --connect-timeout "$connect_timeout" --max-time "$request_timeout" "$health_url" >/dev/null 2>&1; then
         return 0
     fi
@@ -184,6 +184,7 @@ backend_runtime_java_argv_matches() {
 
   local jar_matches=0
   local port_matches=0
+  local total_port_arguments=0
   local index
   for ((index=0; index<${#process_arguments[@]}; index++)); do
     if [[ "${process_arguments[$index]}" == "-jar" ]]; then
@@ -191,11 +192,14 @@ backend_runtime_java_argv_matches() {
       [[ "${process_arguments[$((index + 1))]}" == "$expected_jar_path" ]] || return 1
       jar_matches=$((jar_matches + 1))
     fi
-    if [[ "${process_arguments[$index]}" == "--server.port=${expected_port}" ]]; then
-      port_matches=$((port_matches + 1))
+    if [[ "${process_arguments[$index]}" == --server.port=* ]]; then
+      total_port_arguments=$((total_port_arguments + 1))
+      if [[ "${process_arguments[$index]}" == "--server.port=${expected_port}" ]]; then
+        port_matches=$((port_matches + 1))
+      fi
     fi
   done
-  [[ "$jar_matches" -eq 1 && "$port_matches" -eq 1 ]]
+  [[ "$jar_matches" -eq 1 && "$total_port_arguments" -eq 1 && "$port_matches" -eq 1 ]]
 }
 
 backend_runtime_run_bounded_command() {
@@ -215,11 +219,58 @@ backend_runtime_run_bounded_command() {
       wait "$command_pid" >/dev/null 2>&1 || true
       return 124
     fi
-    sleep 0.1
+    sleep 0.05
   done
   local command_status=0
   wait "$command_pid" || command_status=$?
   return "$command_status"
+}
+
+backend_runtime_capture_bounded_command() {
+  local deadline="$1"
+  shift
+  local output_file error_file command_status=0
+  output_file="$(mktemp "${TMPDIR:-/tmp}/chengdd-bounded-output.XXXXXX")"
+  error_file="$(mktemp "${TMPDIR:-/tmp}/chengdd-bounded-error.XXXXXX")"
+  backend_runtime_run_bounded_command "$deadline" "$output_file" "$error_file" "$@" || command_status=$?
+  if (( command_status == 0 )); then
+    printf '%s' "$(<"$output_file")"
+  fi
+  rm -f "$output_file" "$error_file"
+  return "$command_status"
+}
+
+backend_runtime_process_start_marker_before_deadline() {
+  local deadline="$1"
+  local service_pid="$2"
+  local marker
+  if [[ -r "/proc/${service_pid}/stat" ]]; then
+    marker="$(backend_runtime_capture_bounded_command "$deadline" awk '{print $22}' "/proc/${service_pid}/stat")" || return 1
+  else
+    marker="$(backend_runtime_capture_bounded_command "$deadline" ps -p "$service_pid" -o lstart=)" || return 1
+    marker="${marker//[[:space:]]/}"
+  fi
+  [[ -n "$marker" ]] || return 1
+  printf '%s\n' "$marker"
+}
+
+backend_runtime_process_argv_before_deadline() {
+  local deadline="$1"
+  local service_pid="$2"
+  if [[ -r "/proc/${service_pid}/cmdline" ]]; then
+    local argument
+    while IFS= read -r -d '' argument; do
+      printf '%s\n' "$argument"
+    done < "/proc/${service_pid}/cmdline"
+    return 0
+  fi
+
+  local process_command
+  process_command="$(backend_runtime_capture_bounded_command "$deadline" ps -ww -p "$service_pid" -o command=)" || return 1
+  [[ -n "$process_command" ]] || return 1
+  local process_arguments=()
+  read -r -a process_arguments <<<"$process_command"
+  printf '%s\n' "${process_arguments[@]}"
 }
 
 backend_runtime_parse_ss_listener_pids() {
@@ -360,8 +411,23 @@ wait_for_backend_runtime_process_start_marker() {
   return 1
 }
 
-read_backend_runtime_state() {
-  local state_file="$1"
+wait_for_backend_runtime_process_start_marker_before_deadline() {
+  local service_pid="$1"
+  local deadline="$2"
+  local marker=""
+  while (( $(date +%s) < deadline )); do
+    marker="$(backend_runtime_process_start_marker_before_deadline "$deadline" "$service_pid")" || marker=""
+    if [[ -n "$marker" ]]; then
+      printf '%s\n' "$marker"
+      return 0
+    fi
+    kill -0 "$service_pid" >/dev/null 2>&1 || return 1
+    sleep 0.05
+  done
+  return 1
+}
+
+reset_backend_runtime_state_globals() {
   RUNTIME_STATE_SERVICE_NAME=""
   RUNTIME_STATE_MODULE_NAME=""
   RUNTIME_STATE_SERVICE_PORT=""
@@ -373,6 +439,11 @@ read_backend_runtime_state() {
   RUNTIME_STATE_BACKEND_FINGERPRINT=""
   RUNTIME_STATE_STARTED_AT=""
   RUNTIME_STATE_STARTED_AT_TEXT=""
+}
+
+read_backend_runtime_state() {
+  local state_file="$1"
+  reset_backend_runtime_state_globals
 
   [[ -f "$state_file" ]] || return 1
 
@@ -401,12 +472,16 @@ read_backend_runtime_state() {
   [[ "$RUNTIME_STATE_JAVA_PATH" == /* && "$RUNTIME_STATE_JAR_PATH" == /* ]] || return 1
 }
 
-read_backend_runtime_launcher_state() {
-  local state_file="$1"
+reset_backend_runtime_launcher_state_globals() {
   RUNTIME_LAUNCHER_SERVICE_NAME=""
   RUNTIME_LAUNCHER_NAME=""
   RUNTIME_LAUNCHER_PID=""
   RUNTIME_LAUNCHER_START_MARKER=""
+}
+
+read_backend_runtime_launcher_state() {
+  local state_file="$1"
+  reset_backend_runtime_launcher_state_globals
 
   [[ -f "$state_file" ]] || return 1
 
@@ -451,7 +526,66 @@ backend_runtime_process_matches_state() {
 backend_runtime_process_matches_state_before_deadline() {
   local deadline="$1"
   shift
-  backend_runtime_run_bounded_command "$deadline" /dev/null /dev/null backend_runtime_process_matches_state "$@"
+  local service_name="$1"
+  local module_name="$2"
+  local service_port="$3"
+  local service_pid="$4"
+  local start_marker="$5"
+  local expected_java_path="$6"
+  local expected_jar_path="$7"
+
+  kill -0 "$service_pid" >/dev/null 2>&1 || return 1
+  local observed_marker
+  observed_marker="$(backend_runtime_process_start_marker_before_deadline "$deadline" "$service_pid")" || return 1
+  [[ "$observed_marker" == "$start_marker" ]] || return 1
+  [[ "$expected_java_path" == /* && "$expected_jar_path" == /* ]] || return 1
+  [[ "$expected_jar_path" == *"/${module_name}-0.1.0-SNAPSHOT.jar" ]] || return 1
+  if [[ ! -r "/proc/${service_pid}/cmdline" && ( "$expected_java_path" == *[[:space:]]* || "$expected_jar_path" == *[[:space:]]* ) ]]; then
+    echo "Cannot prove exact Java argv with whitespace paths on this platform." >&2
+    return 1
+  fi
+  local process_argv
+  process_argv="$(backend_runtime_process_argv_before_deadline "$deadline" "$service_pid")" || return 1
+  printf '%s\n' "$process_argv" | backend_runtime_java_argv_matches "$expected_java_path" "$expected_jar_path" "$service_port" || return 1
+  [[ -n "$service_name" ]]
+}
+
+backend_runtime_default_inspection_deadline() {
+  local inspection_timeout="${CDD_RUNTIME_PROCESS_INSPECTION_TIMEOUT_SECONDS:-5}"
+  [[ "$inspection_timeout" =~ ^[1-9][0-9]{0,4}$ ]] || {
+    echo "CDD_RUNTIME_PROCESS_INSPECTION_TIMEOUT_SECONDS must be a positive integer." >&2
+    return 1
+  }
+  printf '%s\n' "$(( $(date +%s) + inspection_timeout ))"
+}
+
+backend_runtime_validate_existing_service_state() {
+  local repo_root="$1"
+  local service_name="$2"
+  local module_name="$3"
+  local expected_jar_path="$4"
+  local deadline="$5"
+  local state_file
+  state_file="$(backend_runtime_state_file "$repo_root" "$service_name")"
+  [[ -f "$state_file" ]] || return 0
+
+  if ! read_backend_runtime_state "$state_file"; then
+    echo "Refusing malformed existing service state: ${state_file}" >&2
+    return 1
+  fi
+  if [[ "$RUNTIME_STATE_SERVICE_NAME" != "$service_name" || "$RUNTIME_STATE_MODULE_NAME" != "$module_name" || "$RUNTIME_STATE_JAR_PATH" != "$expected_jar_path" ]]; then
+    echo "Refusing mismatched existing service state: ${state_file}" >&2
+    return 1
+  fi
+  if kill -0 "$RUNTIME_STATE_SERVICE_PID" >/dev/null 2>&1; then
+    if backend_runtime_process_matches_state_before_deadline "$deadline" "$service_name" "$module_name" "$RUNTIME_STATE_SERVICE_PORT" "$RUNTIME_STATE_SERVICE_PID" "$RUNTIME_STATE_PROCESS_START_MARKER" "$RUNTIME_STATE_JAVA_PATH" "$RUNTIME_STATE_JAR_PATH"; then
+      echo "Refusing to replace live existing ${service_name} service pid=${RUNTIME_STATE_SERVICE_PID} port=${RUNTIME_STATE_SERVICE_PORT}." >&2
+    else
+      echo "Refusing unprovable existing ${service_name} service pid=${RUNTIME_STATE_SERVICE_PID}." >&2
+    fi
+    return 1
+  fi
+  rm -f "$state_file"
 }
 
 backend_runtime_launcher_matches_state() {
@@ -469,20 +603,69 @@ backend_runtime_launcher_matches_state() {
   [[ "$service_name" != "" ]]
 }
 
-backend_runtime_collect_owned_descendants() {
+backend_runtime_launcher_matches_state_before_deadline() {
+  local deadline="$1"
+  local service_name="$2"
+  local launcher_name="$3"
+  local launcher_pid="$4"
+  local start_marker="$5"
+  kill -0 "$launcher_pid" >/dev/null 2>&1 || return 1
+  [[ "$start_marker" != "unavailable" ]] || return 1
+  [[ "$(backend_runtime_process_start_marker_before_deadline "$deadline" "$launcher_pid")" == "$start_marker" ]] || return 1
+  local process_command
+  process_command="$(backend_runtime_capture_bounded_command "$deadline" ps -ww -p "$launcher_pid" -o command=)" || return 1
+  [[ "$process_command" == *"${launcher_name}"* ]] || return 1
+  [[ -n "$service_name" ]]
+}
+
+backend_runtime_child_pids_before_deadline() {
   local parent_pid="$1"
+  local deadline="$2"
   command -v pgrep >/dev/null 2>&1 || return 1
-  local children child_pid child_marker
-  local pgrep_status=0
-  children="$(pgrep -P "$parent_pid" 2>/dev/null)" || pgrep_status=$?
-  (( pgrep_status == 0 || pgrep_status == 1 )) || return 1
+  local output_file error_file pgrep_status=0
+  output_file="$(mktemp "${TMPDIR:-/tmp}/chengdd-pgrep-output.XXXXXX")"
+  error_file="$(mktemp "${TMPDIR:-/tmp}/chengdd-pgrep-error.XXXXXX")"
+  backend_runtime_run_bounded_command "$deadline" "$output_file" "$error_file" pgrep -P "$parent_pid" || pgrep_status=$?
+  if (( pgrep_status != 0 && pgrep_status != 1 )); then
+    rm -f "$output_file" "$error_file"
+    return 1
+  fi
+  local children
+  children="$(<"$output_file")"
+  rm -f "$output_file" "$error_file"
+  local child_pid
   while IFS= read -r child_pid; do
     [[ -n "$child_pid" ]] || continue
     [[ "$child_pid" =~ ^[0-9]+$ ]] || return 1
-    child_marker="$(backend_runtime_process_start_marker "$child_pid")"
-    [[ -n "$child_marker" ]] || return 1
+    printf '%s\n' "$child_pid"
+  done <<<"$children"
+}
+
+backend_runtime_collect_owned_descendants() {
+  local parent_pid="$1"
+  local deadline="$2"
+  local ancestors="${3:-|${parent_pid}|}"
+  local descendant_pids child_pid child_marker
+  descendant_pids="$(backend_runtime_collect_descendant_pids "$parent_pid" "$deadline" "$ancestors")" || return 1
+  while IFS= read -r child_pid; do
+    [[ -n "$child_pid" ]] || continue
+    child_marker="$(backend_runtime_process_start_marker_before_deadline "$deadline" "$child_pid")" || return 1
     printf '%s|%s\n' "$child_pid" "$child_marker"
-    backend_runtime_collect_owned_descendants "$child_pid"
+  done <<<"$descendant_pids"
+}
+
+backend_runtime_collect_descendant_pids() {
+  local parent_pid="$1"
+  local deadline="$2"
+  local ancestors="${3:-|${parent_pid}|}"
+  local children child_pid descendants
+  children="$(backend_runtime_child_pids_before_deadline "$parent_pid" "$deadline")" || return 1
+  while IFS= read -r child_pid; do
+    [[ -n "$child_pid" ]] || continue
+    [[ "$ancestors" != *"|${child_pid}|"* ]] || return 1
+    descendants="$(backend_runtime_collect_descendant_pids "$child_pid" "$deadline" "${ancestors}${child_pid}|")" || return 1
+    [[ -z "$descendants" ]] || printf '%s\n' "$descendants"
+    printf '%s\n' "$child_pid"
   done <<<"$children"
 }
 
@@ -495,70 +678,200 @@ backend_runtime_signal_exact_process() {
   kill "-$signal_name" "$process_pid" >/dev/null 2>&1
 }
 
+backend_runtime_signal_exact_process_before_deadline() {
+  local deadline="$1"
+  local process_pid="$2"
+  local process_marker="$3"
+  local signal_name="$4"
+  kill -0 "$process_pid" >/dev/null 2>&1 || return 0
+  [[ "$(backend_runtime_process_start_marker_before_deadline "$deadline" "$process_pid")" == "$process_marker" ]] || return 1
+  kill "-$signal_name" "$process_pid" >/dev/null 2>&1
+}
+
+backend_runtime_process_is_stopped_before_deadline() {
+  local deadline="$1"
+  local process_pid="$2"
+  local process_state
+  if [[ -r "/proc/${process_pid}/stat" ]]; then
+    process_state="$(backend_runtime_capture_bounded_command "$deadline" awk '{print $3}' "/proc/${process_pid}/stat")" || return 1
+  else
+    process_state="$(backend_runtime_capture_bounded_command "$deadline" ps -p "$process_pid" -o state=)" || return 1
+    process_state="${process_state//[[:space:]]/}"
+  fi
+  [[ "$process_state" == T* || "$process_state" == t* ]]
+}
+
+backend_runtime_resume_tree_entries() {
+  local deadline="$1"
+  shift
+  local entry process_pid process_marker resume_status=0
+  for entry in "$@"; do
+    IFS='|' read -r process_pid process_marker <<<"$entry"
+    kill -0 "$process_pid" >/dev/null 2>&1 || continue
+    backend_runtime_signal_exact_process_before_deadline "$deadline" "$process_pid" "$process_marker" CONT || resume_status=1
+  done
+  return "$resume_status"
+}
+
 backend_runtime_terminate_owned_tree() {
   local root_pid="$1"
   local root_marker="$2"
   local deadline="$3"
   local process_label="$4"
   (( $(date +%s) < deadline )) || return 1
-  [[ "$(backend_runtime_process_start_marker "$root_pid")" == "$root_marker" ]] || return 1
+  [[ "$(backend_runtime_process_start_marker_before_deadline "$deadline" "$root_pid")" == "$root_marker" ]] || return 1
 
   local descendants_output
-  descendants_output="$(backend_runtime_collect_owned_descendants "$root_pid")" || {
+  descendants_output="$(backend_runtime_collect_owned_descendants "$root_pid" "$deadline")" || {
     echo "Cannot safely inspect descendants for ${process_label}." >&2
     return 1
   }
-  local target_pids=()
-  local target_markers=()
-  local child_pid child_marker
+  local tree_entries=("${root_pid}|${root_marker}")
+  local tree_seen="|${root_pid}|"
+  local child_pid child_marker entry process_pid process_marker
   while IFS='|' read -r child_pid child_marker; do
     [[ -n "$child_pid" ]] || continue
-    target_pids+=("$child_pid")
-    target_markers+=("$child_marker")
+    [[ "$tree_seen" != *"|${child_pid}|"* ]] || continue
+    tree_entries+=("${child_pid}|${child_marker}")
+    tree_seen+="${child_pid}|"
   done <<<"$descendants_output"
-  target_pids+=("$root_pid")
-  target_markers+=("$root_marker")
 
+  # Signal known descendants before the root. No signal occurs until the
+  # complete initial tree has been proved.
   local index
-  for ((index=0; index<${#target_pids[@]}; index++)); do
-    backend_runtime_signal_exact_process "${target_pids[$index]}" "${target_markers[$index]}" TERM || return 1
+  for ((index=1; index<${#tree_entries[@]}; index++)); do
+    IFS='|' read -r process_pid process_marker <<<"${tree_entries[$index]}"
+    backend_runtime_signal_exact_process_before_deadline "$deadline" "$process_pid" "$process_marker" TERM || return 1
   done
+  backend_runtime_signal_exact_process_before_deadline "$deadline" "$root_pid" "$root_marker" TERM || return 1
 
   local term_deadline=$(( $(date +%s) + 1 ))
-  local kill_reserve_deadline=$(( deadline - 1 ))
+  local kill_reserve_deadline=$(( deadline - 3 ))
   (( term_deadline < kill_reserve_deadline )) || term_deadline="$kill_reserve_deadline"
   while (( $(date +%s) < term_deadline )); do
+    # TERM handlers can create children. Re-prove and signal every new child.
+    if kill -0 "$root_pid" >/dev/null 2>&1; then
+      descendants_output="$(backend_runtime_collect_owned_descendants "$root_pid" "$deadline")" || {
+        echo "Cannot safely rescan descendants for ${process_label}." >&2
+        return 1
+      }
+      while IFS='|' read -r child_pid child_marker; do
+        [[ -n "$child_pid" ]] || continue
+        if [[ "$tree_seen" != *"|${child_pid}|"* ]]; then
+          tree_entries+=("${child_pid}|${child_marker}")
+          tree_seen+="${child_pid}|"
+          backend_runtime_signal_exact_process_before_deadline "$deadline" "$child_pid" "$child_marker" TERM || return 1
+        fi
+      done <<<"$descendants_output"
+    fi
     local any_alive=0
-    for ((index=0; index<${#target_pids[@]}; index++)); do
-      kill -0 "${target_pids[$index]}" >/dev/null 2>&1 && any_alive=1
+    for entry in "${tree_entries[@]}"; do
+      IFS='|' read -r process_pid process_marker <<<"$entry"
+      kill -0 "$process_pid" >/dev/null 2>&1 && any_alive=1
     done
     [[ "$any_alive" -eq 0 ]] && break
     sleep 0.1
   done
 
-  (( $(date +%s) < deadline )) || return 1
-  for ((index=0; index<${#target_pids[@]}; index++)); do
-    if kill -0 "${target_pids[$index]}" >/dev/null 2>&1; then
-      backend_runtime_signal_exact_process "${target_pids[$index]}" "${target_markers[$index]}" KILL || return 1
+  # Freeze the exact root first, then every known child. This prevents the
+  # tree from evolving while fixed-point discovery runs.
+  local stopped_entries=()
+  if kill -0 "$root_pid" >/dev/null 2>&1; then
+    backend_runtime_signal_exact_process_before_deadline "$deadline" "$root_pid" "$root_marker" STOP || return 1
+    stopped_entries+=("${root_pid}|${root_marker}")
+  fi
+  for ((index=1; index<${#tree_entries[@]}; index++)); do
+    IFS='|' read -r process_pid process_marker <<<"${tree_entries[$index]}"
+    if kill -0 "$process_pid" >/dev/null 2>&1; then
+      if ! backend_runtime_signal_exact_process_before_deadline "$deadline" "$process_pid" "$process_marker" STOP; then
+        backend_runtime_resume_tree_entries "$deadline" "${stopped_entries[@]}" || true
+        return 1
+      fi
+      stopped_entries+=("${process_pid}|${process_marker}")
     fi
   done
-  while kill -0 "$root_pid" >/dev/null 2>&1 && (( $(date +%s) < deadline )); do
+  for entry in "${stopped_entries[@]}"; do
+    IFS='|' read -r process_pid process_marker <<<"$entry"
+    if ! backend_runtime_process_is_stopped_before_deadline "$deadline" "$process_pid"; then
+      backend_runtime_resume_tree_entries "$deadline" "${stopped_entries[@]}" || true
+      echo "Cannot prove frozen process tree for ${process_label}." >&2
+      return 1
+    fi
+  done
+
+  local stable_snapshots=0
+  while (( stable_snapshots < 2 )); do
+    (( $(date +%s) < deadline )) || {
+      backend_runtime_resume_tree_entries "$deadline" "${stopped_entries[@]}" || true
+      return 1
+    }
+    local added_child=0
+    local snapshot_entries=()
+    if kill -0 "$root_pid" >/dev/null 2>&1; then
+      snapshot_entries=("${root_pid}|${root_marker}")
+    else
+      snapshot_entries=("${tree_entries[@]}")
+    fi
+    for entry in "${snapshot_entries[@]}"; do
+      IFS='|' read -r process_pid process_marker <<<"$entry"
+      kill -0 "$process_pid" >/dev/null 2>&1 || continue
+      descendants_output="$(backend_runtime_collect_descendant_pids "$process_pid" "$deadline")" || {
+        backend_runtime_resume_tree_entries "$deadline" "${stopped_entries[@]}" || true
+        echo "Cannot prove frozen descendants for ${process_label}." >&2
+        return 1
+      }
+      while IFS= read -r child_pid; do
+        [[ -n "$child_pid" ]] || continue
+        if [[ "$tree_seen" != *"|${child_pid}|"* ]]; then
+          child_marker="$(backend_runtime_process_start_marker_before_deadline "$deadline" "$child_pid")" || {
+            backend_runtime_resume_tree_entries "$deadline" "${stopped_entries[@]}" || true
+            return 1
+          }
+          if ! backend_runtime_signal_exact_process_before_deadline "$deadline" "$child_pid" "$child_marker" STOP \
+            || ! backend_runtime_process_is_stopped_before_deadline "$deadline" "$child_pid"; then
+            backend_runtime_resume_tree_entries "$deadline" "${stopped_entries[@]}" || true
+            return 1
+          fi
+          tree_entries+=("${child_pid}|${child_marker}")
+          stopped_entries+=("${child_pid}|${child_marker}")
+          tree_seen+="${child_pid}|"
+          added_child=1
+        fi
+      done <<<"$descendants_output"
+    done
+    if [[ "$added_child" -eq 0 ]]; then
+      stable_snapshots=$((stable_snapshots + 1))
+    else
+      stable_snapshots=0
+    fi
+  done
+
+  # Every known process is frozen. Kill descendants before the root.
+  for ((index=1; index<${#tree_entries[@]}; index++)); do
+    IFS='|' read -r process_pid process_marker <<<"${tree_entries[$index]}"
+    kill -0 "$process_pid" >/dev/null 2>&1 || continue
+    backend_runtime_signal_exact_process_before_deadline "$deadline" "$process_pid" "$process_marker" KILL || return 1
+  done
+  if kill -0 "$root_pid" >/dev/null 2>&1; then
+    backend_runtime_signal_exact_process_before_deadline "$deadline" "$root_pid" "$root_marker" KILL || return 1
+  fi
+
+  while (( $(date +%s) < deadline )); do
+    local survivors=0
+    for entry in "${tree_entries[@]}"; do
+      IFS='|' read -r process_pid process_marker <<<"$entry"
+      kill -0 "$process_pid" >/dev/null 2>&1 && survivors=1
+    done
+    [[ "$survivors" -eq 0 ]] && break
     sleep 0.1
   done
   if ! kill -0 "$root_pid" >/dev/null 2>&1; then
     wait "$root_pid" >/dev/null 2>&1 || true
   fi
-  while (( $(date +%s) < deadline )); do
-    local survivors=0
-    for ((index=0; index<${#target_pids[@]}; index++)); do
-      kill -0 "${target_pids[$index]}" >/dev/null 2>&1 && survivors=1
-    done
-    [[ "$survivors" -eq 0 ]] && break
-    sleep 0.1
-  done
-  for ((index=0; index<${#target_pids[@]}; index++)); do
-    if kill -0 "${target_pids[$index]}" >/dev/null 2>&1; then
-      echo "Owned process tree survivor for ${process_label}: pid=${target_pids[$index]}" >&2
+  for entry in "${tree_entries[@]}"; do
+    IFS='|' read -r process_pid process_marker <<<"$entry"
+    if kill -0 "$process_pid" >/dev/null 2>&1; then
+      echo "Owned process tree survivor for ${process_label}: pid=${process_pid}" >&2
       return 1
     fi
   done
@@ -578,23 +891,36 @@ record_backend_launcher_state() {
   local service_name="$2"
   local launcher_name="$3"
   local launcher_pid="$4"
+  local start_marker="$5"
+  local deadline="$6"
   local state_dir
   state_dir="$(backend_runtime_state_dir "$repo_root")"
   mkdir -p "$state_dir/logs"
 
-  local start_marker
-  start_marker="$(wait_for_backend_runtime_process_start_marker "$launcher_pid" || true)"
-  if [[ -z "$start_marker" ]]; then
+  if [[ -z "$start_marker" ]] || ! backend_runtime_launcher_matches_state_before_deadline "$deadline" "$service_name" "$launcher_name" "$launcher_pid" "$start_marker"; then
     echo "Unable to record launcher start marker for ${service_name} pid=${launcher_pid}." >&2
     return 1
   fi
 
-  cat > "$(backend_runtime_launcher_state_file "$repo_root" "$service_name")" <<EOF
+  local launcher_state_file temporary_state_file
+  launcher_state_file="$(backend_runtime_launcher_state_file "$repo_root" "$service_name")"
+  temporary_state_file="$(umask 077; mktemp "${launcher_state_file}.tmp.XXXXXX")" || return 1
+  if ! cat >"$temporary_state_file" <<EOF
 SERVICE_NAME=${service_name}
 LAUNCHER_NAME=${launcher_name}
 LAUNCHER_PID=${launcher_pid}
 PROCESS_START_MARKER=${start_marker}
 EOF
+  then
+    rm -f "$temporary_state_file"
+    return 1
+  fi
+  if (( $(date +%s) >= deadline )) \
+    || ! backend_runtime_launcher_matches_state_before_deadline "$deadline" "$service_name" "$launcher_name" "$launcher_pid" "$start_marker" \
+    || ! mv -f "$temporary_state_file" "$launcher_state_file"; then
+    rm -f "$temporary_state_file"
+    return 1
+  fi
 }
 
 compute_backend_runtime_fingerprint() {
@@ -614,6 +940,37 @@ compute_backend_runtime_identity() {
   printf 'GIT_HEAD=%s\nBACKEND_FINGERPRINT=%s\n' "$git_head" "$fingerprint"
 }
 
+compute_backend_runtime_identity_before_deadline() {
+  local deadline="$1"
+  local repo_root="$2"
+  local git_head_status=0 git_status_status=0
+  local git_head git_changes fingerprint_input hash_output fingerprint
+  git_head="$(backend_runtime_capture_bounded_command "$deadline" git -C "$repo_root" rev-parse HEAD)" || git_head_status=$?
+  if (( git_head_status == 124 )); then
+    return 1
+  elif (( git_head_status != 0 )); then
+    git_head="unknown"
+  fi
+  git_changes="$(backend_runtime_capture_bounded_command "$deadline" git -C "$repo_root" status --porcelain --untracked-files=no -- cdd-parent config db scripts/local README.md)" || git_status_status=$?
+  (( git_status_status != 124 )) || return 1
+  (( git_status_status == 0 )) || git_changes=""
+
+  fingerprint_input="$(mktemp "${TMPDIR:-/tmp}/chengdd-runtime-fingerprint.XXXXXX")"
+  if [[ "$git_head" == "unknown" ]]; then
+    printf 'NO_GIT_HEAD\n%s\n' "$git_changes" >"$fingerprint_input"
+  else
+    printf '%s\n%s\n' "$git_head" "$git_changes" >"$fingerprint_input"
+  fi
+  hash_output="$(backend_runtime_capture_bounded_command "$deadline" shasum -a 256 "$fingerprint_input")" || {
+    rm -f "$fingerprint_input"
+    return 1
+  }
+  rm -f "$fingerprint_input"
+  fingerprint="${hash_output%%[[:space:]]*}"
+  [[ "$fingerprint" =~ ^[0-9a-f]{64}$ ]] || return 1
+  printf 'GIT_HEAD=%s\nBACKEND_FINGERPRINT=%s\n' "$git_head" "$fingerprint"
+}
+
 record_backend_runtime_state() {
   local repo_root="$1"
   local service_name="$2"
@@ -629,11 +986,10 @@ record_backend_runtime_state() {
   mkdir -p "$state_dir"
 
   (( $(date +%s) < readiness_deadline )) || return 1
-  local identity_output_file identity_error_file
+  local identity_output_file
   identity_output_file="$(mktemp "${state_dir}/.runtime-identity.XXXXXX")"
-  identity_error_file="$(mktemp "${state_dir}/.runtime-identity-error.XXXXXX")"
-  if ! backend_runtime_run_bounded_command "$readiness_deadline" "$identity_output_file" "$identity_error_file" compute_backend_runtime_identity "$repo_root"; then
-    rm -f "$identity_output_file" "$identity_error_file"
+  if ! compute_backend_runtime_identity_before_deadline "$readiness_deadline" "$repo_root" >"$identity_output_file"; then
+    rm -f "$identity_output_file"
     echo "Runtime identity inspection failed or exceeded its deadline for ${service_name}." >&2
     return 1
   fi
@@ -645,12 +1001,12 @@ record_backend_runtime_state() {
       GIT_HEAD) git_head="$identity_value" ;;
       BACKEND_FINGERPRINT) fingerprint="$identity_value" ;;
       *)
-        rm -f "$identity_output_file" "$identity_error_file"
+        rm -f "$identity_output_file"
         return 1
         ;;
     esac
   done < "$identity_output_file"
-  rm -f "$identity_output_file" "$identity_error_file"
+  rm -f "$identity_output_file"
   [[ -n "$git_head" && "$fingerprint" =~ ^[0-9a-f]{64}$ ]] || return 1
   local started_at
   started_at="$(date +%s)"

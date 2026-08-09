@@ -158,6 +158,11 @@ run_packaged_module() {
   service_port="$(backend_runtime_service_port "$service_name")"
   configure_backend_runtime
 
+  local jar_path="${parent_root}/${module_name}/target/${module_name}-0.1.0-SNAPSHOT.jar"
+  local existing_state_deadline
+  existing_state_deadline="$(backend_runtime_default_inspection_deadline)" || return 1
+  backend_runtime_validate_existing_service_state "$repo_root" "$service_name" "$module_name" "$jar_path" "$existing_state_deadline" || return 1
+
   if [[ "$runtime_config_mode" == "nacos" && "${CDD_NACOS_CONFIG_PUBLISHED_FOR:-}" != "$runtime_env" ]]; then
     "$repo_root/scripts/nacos/publish_nacos_configs.sh" "$runtime_env"
     export CDD_NACOS_CONFIG_PUBLISHED_FOR="$runtime_env"
@@ -167,7 +172,6 @@ run_packaged_module() {
     -pl "${module_name}" -am \
     package -DskipTests
 
-  local jar_path="${parent_root}/${module_name}/target/${module_name}-0.1.0-SNAPSHOT.jar"
   local java_path="$JAVA_HOME/bin/java"
   if [[ ! -f "$jar_path" ]]; then
     echo "未找到可执行包：${jar_path}" >&2

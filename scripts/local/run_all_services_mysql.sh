@@ -113,9 +113,13 @@ while IFS='|' read -r service_name _service_module _service_port launcher; do
   launcher_pid=$!
   launcher_deadline=$(( $(date +%s) + health_timeout_seconds ))
   readiness_deadline=$(( launcher_deadline - cleanup_reserve_seconds ))
-  if ! record_backend_launcher_state "$repo_root" "$service_name" "$launcher" "$launcher_pid"; then
-    kill -KILL "$launcher_pid" >/dev/null 2>&1 || true
-    wait "$launcher_pid" >/dev/null 2>&1 || true
+  launcher_start_marker="$(wait_for_backend_runtime_process_start_marker_before_deadline "$launcher_pid" "$readiness_deadline" || true)"
+  if [[ -z "$launcher_start_marker" ]] || ! record_backend_launcher_state "$repo_root" "$service_name" "$launcher" "$launcher_pid" "$launcher_start_marker" "$readiness_deadline"; then
+    echo "Failed to atomically publish launcher state for ${service_name}." >&2
+    if [[ -z "$launcher_start_marker" ]] \
+      || ! backend_runtime_terminate_owned_tree "$launcher_pid" "$launcher_start_marker" "$launcher_deadline" "$service_name launcher"; then
+      echo "Unable to safely clean the unpublished launcher tree for ${service_name}." >&2
+    fi
     exit 1
   fi
   if ! wait_for_runtime_service_health "$repo_root" "$service_name" "$_service_module" "$_service_port" "$launcher_pid" "$readiness_deadline"; then
@@ -128,7 +132,7 @@ while IFS='|' read -r service_name _service_module _service_port launcher; do
     elif [[ "$RUNTIME_LAUNCHER_PID" != "$launcher_pid" ]]; then
       echo "Launcher PID state changed for ${service_name}." >&2
       launcher_cleanup_ok=0
-    elif ! backend_runtime_launcher_matches_state "$service_name" "$launcher" "$launcher_pid" "$RUNTIME_LAUNCHER_START_MARKER"; then
+    elif ! backend_runtime_launcher_matches_state_before_deadline "$launcher_deadline" "$service_name" "$launcher" "$launcher_pid" "$RUNTIME_LAUNCHER_START_MARKER"; then
       echo "Launcher ownership proof failed for ${service_name}." >&2
       launcher_cleanup_ok=0
     elif ! backend_runtime_terminate_owned_tree "$launcher_pid" "$RUNTIME_LAUNCHER_START_MARKER" "$launcher_deadline" "$service_name launcher"; then

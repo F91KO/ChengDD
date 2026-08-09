@@ -7,6 +7,7 @@ trace_file="$fixture_root/trace"
 state_dir="$fixture_root/runtime-state"
 fixture_bin="$fixture_root/bin"
 term_trace="$fixture_root/term.trace"
+stop_log="$fixture_root/stop.log"
 mkdir -p "$state_dir" "$fixture_bin"
 
 cleanup() {
@@ -50,6 +51,7 @@ printf '%s\n' \
   '  previous="$argument"' \
   'done' \
   'if [[ "$request" == *"lstart="* ]]; then printf "marker-%s\\n" "$pid"; exit 0; fi' \
+  'if [[ "$request" == *"state="* ]]; then printf "T\\n"; exit 0; fi' \
   'if [[ "$request" == *"command="* && "$pid" == "$CDD_TEST_GATEWAY_PID" ]]; then printf "/fixture/java -jar %s/cdd-parent/cdd-gateway/target/cdd-gateway-0.1.0-SNAPSHOT.jar --server.port=8080\\n" "$CDD_TEST_REPO_ROOT"; exit 0; fi' \
   'if [[ "$request" == *"command="* && "$pid" == "$CDD_TEST_AUTH_PID" ]]; then printf "/fixture/java -jar %s/cdd-parent/cdd-auth-service/target/cdd-auth-service-0.1.0-SNAPSHOT.jar --server.port=8081\\n" "$CDD_TEST_REPO_ROOT"; exit 0; fi' \
   'if [[ "$request" == *"-ax"* ]]; then exit 0; fi' \
@@ -75,7 +77,8 @@ if ! PATH="$fixture_bin:$PATH" \
   CDD_RUNTIME_STATE_DIR="$state_dir" \
   CDD_RUNTIME_STOP_TIMEOUT_SECONDS=3 \
   CDD_RUNTIME_TERM_GRACE_SECONDS=2 \
-  bash "$repo_root/scripts/local/stop_all_services.sh" >/dev/null 2>&1; then
+  bash "$repo_root/scripts/local/stop_all_services.sh" >"$stop_log" 2>&1; then
+  tail -n 160 "$stop_log" >&2
   echo "Assertion failed: phased global shutdown failed to stop all controllable owned processes." >&2
   exit 1
 fi

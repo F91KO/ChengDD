@@ -49,6 +49,7 @@ write_fixture "$fixture_bin/ps" \
   'previous=""' \
   'for argument in "$@"; do if [[ "$previous" == "-p" ]]; then pid="$argument"; fi; previous="$argument"; done' \
   'if [[ "$request" == *"lstart="* ]]; then printf "fixture-marker-%s\n" "$pid"; exit 0; fi' \
+  'if [[ "$request" == *"state="* ]]; then printf "T\n"; exit 0; fi' \
   'if [[ "$request" == *"command="* ]]; then' \
   '  for state_file in "$CDD_RUNTIME_STATE_DIR"/*.env; do' \
   '    [[ -f "$state_file" ]] || continue' \
@@ -68,6 +69,13 @@ write_fixture "$fixture_bin/ps" \
   '    printf "bash %s/%s\n" "$CDD_RUNTIME_LAUNCHER_DIR" "$launcher_name"' \
   '    exit 0' \
   '  done' \
+  '  if [[ -f "$CDD_RUNTIME_STATE_DIR/logs/launcher.commands" ]]; then' \
+  '    while IFS="|" read -r launcher_pid launcher_name; do' \
+  '      [[ "$launcher_pid" == "$pid" ]] || continue' \
+  '      printf "bash %s/%s\n" "$CDD_RUNTIME_LAUNCHER_DIR" "$launcher_name"' \
+  '      exit 0' \
+  '    done <"$CDD_RUNTIME_STATE_DIR/logs/launcher.commands"' \
+  '  fi' \
   'fi' \
   'exit 1'
 write_fixture "$fixture_bin/pgrep" \
@@ -104,6 +112,7 @@ for launcher in run_gateway.sh run_auth_service_mysql.sh run_merchant_service_my
     '#!/usr/bin/env bash' \
     'echo "fixture-launcher:'"$launcher"'"' \
     'echo "launch '"$launcher"'" >>"$CDD_TEST_TRACE"' \
+    'printf "%s|%s\n" "$$" "'"$launcher"'" >>"$CDD_RUNTIME_STATE_DIR/logs/launcher.commands"' \
     'service_port="'"$port_expression"'"' \
     'trap "" TERM' \
     'bash -c '\''trap "" TERM; while :; do sleep 1; done'\'' &' \
@@ -137,7 +146,7 @@ clear_fixture_runtime() {
     kill -KILL "$(<"$child_file")" >/dev/null 2>&1 || true
   done
   sleep 0.1
-  rm -f "$fixture_state_dir"/*.env "$fixture_state_dir"/logs/*.launcher.env "$fixture_state_dir"/logs/*.child.pid
+  rm -f "$fixture_state_dir"/*.env "$fixture_state_dir"/logs/*.launcher.env "$fixture_state_dir"/logs/*.child.pid "$fixture_state_dir"/logs/launcher.commands
 }
 
 run_all() {

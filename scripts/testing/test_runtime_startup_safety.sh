@@ -13,6 +13,7 @@ java_trace_file="$fixture_root/java.trace"
 curl_trace_file="$fixture_root/curl.trace"
 inspector_count_file="$fixture_root/inspector.count"
 inspector_pid_file="$fixture_root/inspector.pid"
+git_pid_file="$fixture_root/git.pid"
 mkdir -p "$fixture_repo" "$fixture_parent/cdd-gateway/target" "$fixture_bin" "$fixture_java_home/bin" "$fixture_state_dir"
 touch "$fixture_parent/cdd-gateway/target/cdd-gateway-0.1.0-SNAPSHOT.jar" "$fixture_root/settings.xml"
 
@@ -25,6 +26,9 @@ cleanup() {
   if [[ -s "$inspector_pid_file" ]]; then
     kill -KILL "$(<"$inspector_pid_file")" >/dev/null 2>&1 || true
   fi
+  if [[ -s "$git_pid_file" ]]; then
+    kill -KILL "$(<"$git_pid_file")" >/dev/null 2>&1 || true
+  fi
   jobs -pr | xargs -r kill -KILL >/dev/null 2>&1 || true
   rm -rf "$fixture_root"
   exit "$code"
@@ -36,7 +40,7 @@ cat >"$fixture_bin/inspect-port" <<'EOF'
 case "$CDD_TEST_PORT_MODE" in
   occupied) printf '%s\n' "$CDD_TEST_UNRELATED_PID" ;;
   racing) [[ ! -s "$CDD_TEST_JAVA_PID_FILE" ]] || printf '%s\n' "$CDD_TEST_UNRELATED_PID" ;;
-  owned) [[ ! -s "$CDD_TEST_JAVA_PID_FILE" ]] || cat "$CDD_TEST_JAVA_PID_FILE" ;;
+  owned|fingerprint-hang) [[ ! -s "$CDD_TEST_JAVA_PID_FILE" ]] || cat "$CDD_TEST_JAVA_PID_FILE" ;;
   inspector-hang)
     count=0
     [[ ! -f "$CDD_TEST_INSPECTOR_COUNT_FILE" ]] || count="$(<"$CDD_TEST_INSPECTOR_COUNT_FILE")"
@@ -53,6 +57,19 @@ case "$CDD_TEST_PORT_MODE" in
 esac
 EOF
 chmod +x "$fixture_bin/inspect-port"
+
+cat >"$fixture_bin/git" <<'EOF'
+#!/usr/bin/env bash
+if [[ "$CDD_TEST_PORT_MODE" == "fingerprint-hang" ]]; then
+  printf '%s\n' "$$" >"$CDD_TEST_GIT_PID_FILE"
+  trap '' TERM
+  while :; do :; done
+fi
+if [[ "$*" == *"rev-parse"* ]]; then printf 'fixture-head\n'; exit 0; fi
+if [[ "$*" == *"status"* ]]; then exit 0; fi
+exit 1
+EOF
+chmod +x "$fixture_bin/git"
 
 cat >"$fixture_bin/mvn" <<'EOF'
 #!/usr/bin/env bash
@@ -79,7 +96,7 @@ cat >"$fixture_java_home/bin/java" <<'EOF'
 #!/usr/bin/env bash
 printf '%s\n' "$$" >"$CDD_TEST_JAVA_PID_FILE"
 printf 'java %s\n' "$*" >>"$CDD_TEST_JAVA_TRACE"
-if [[ "$CDD_TEST_PORT_MODE" == "unhealthy" || "$CDD_TEST_PORT_MODE" == "inspector-hang" ]]; then
+if [[ "$CDD_TEST_PORT_MODE" == "unhealthy" || "$CDD_TEST_PORT_MODE" == "inspector-hang" || "$CDD_TEST_PORT_MODE" == "fingerprint-hang" ]]; then
   trap '' TERM
   while :; do :; done
 fi
@@ -111,7 +128,7 @@ chmod +x "$fixture_bin/curl"
 
 run_module() {
   local mode="$1"
-  rm -f "$java_pid_file" "$java_trace_file" "$curl_trace_file" "$inspector_count_file" "$inspector_pid_file"
+  rm -f "$java_pid_file" "$java_trace_file" "$curl_trace_file" "$inspector_count_file" "$inspector_pid_file" "$git_pid_file"
   rm -rf "$fixture_state_dir"
   mkdir -p "$fixture_state_dir"
   env \
@@ -131,6 +148,7 @@ run_module() {
     CDD_TEST_JAR_PATH="$fixture_parent/cdd-gateway/target/cdd-gateway-0.1.0-SNAPSHOT.jar" \
     CDD_TEST_INSPECTOR_COUNT_FILE="$inspector_count_file" \
     CDD_TEST_INSPECTOR_PID_FILE="$inspector_pid_file" \
+    CDD_TEST_GIT_PID_FILE="$git_pid_file" \
     bash -c 'source "$1"; run_packaged_module "$2" "$3" "$4" "$5" cdd-gateway gateway 8080' _ \
       "$repo_root/scripts/local/run_packaged_module.sh" "$fixture_repo" "$fixture_parent" "$fixture_root/settings.xml" "$fixture_root/m2"
 }
@@ -239,6 +257,28 @@ for stopped_pid_file in "$java_pid_file" "$inspector_pid_file"; do
 done
 [[ ! -e "$fixture_state_dir/gateway.env" ]] || {
   echo "Assertion failed: post-health exhaustion published runtime state." >&2
+  exit 1
+}
+
+started_at="$(date +%s)"
+if run_module fingerprint-hang; then
+  echo "Assertion failed: hanging runtime fingerprint returned startup success." >&2
+  exit 1
+fi
+elapsed_seconds=$(( $(date +%s) - started_at ))
+(( elapsed_seconds <= 6 )) || {
+  echo "Assertion failed: hanging runtime fingerprint exceeded startup cleanup deadline (${elapsed_seconds}s)." >&2
+  exit 1
+}
+for stopped_pid_file in "$java_pid_file" "$git_pid_file"; do
+  [[ -s "$stopped_pid_file" ]] || { echo "Assertion failed: fingerprint fixture did not record a pid." >&2; exit 1; }
+  if kill -0 "$(<"$stopped_pid_file")" >/dev/null 2>&1; then
+    echo "Assertion failed: fingerprint exhaustion left pid $(<"$stopped_pid_file") alive." >&2
+    exit 1
+  fi
+done
+[[ ! -e "$fixture_state_dir/gateway.env" ]] || {
+  echo "Assertion failed: fingerprint exhaustion published runtime state." >&2
   exit 1
 }
 

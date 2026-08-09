@@ -65,6 +65,7 @@ expected_jar_path="/srv/cdd/cdd-gateway-0.1.0-SNAPSHOT.jar"
 assert_equals "" "$(printf '%s\n' "$expected_java_path" -jar "$expected_jar_path" --server.port=8080 --spring.profiles.active=local,file | backend_runtime_java_argv_matches "$expected_java_path" "$expected_jar_path" 8080)" "exact Java argv acceptance"
 assert_fails "server port argv must not use prefix matching" bash -c "source '$repo_root/scripts/local/backend_runtime_guard.sh'; printf '%s\n' '$expected_java_path' -jar '$expected_jar_path' --server.port=80800 | backend_runtime_java_argv_matches '$expected_java_path' '$expected_jar_path' 8080"
 assert_fails "jar argv must not use prefix matching" bash -c "source '$repo_root/scripts/local/backend_runtime_guard.sh'; printf '%s\n' '$expected_java_path' -jar '${expected_jar_path}.bak' --server.port=8080 | backend_runtime_java_argv_matches '$expected_java_path' '$expected_jar_path' 8080"
+assert_fails "duplicate conflicting server port argv must be rejected" bash -c "source '$repo_root/scripts/local/backend_runtime_guard.sh'; printf '%s\n' '$expected_java_path' -jar '$expected_jar_path' --server.port=8080 --server.port=9999 | backend_runtime_java_argv_matches '$expected_java_path' '$expected_jar_path' 8080"
 
 while IFS='|' read -r _service_name _service_module _service_port launcher; do
   launcher_path="$repo_root/scripts/local/$launcher"
