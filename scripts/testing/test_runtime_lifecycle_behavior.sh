@@ -54,12 +54,34 @@ write_fixture "$fixture_bin/ps" \
   '    [[ -f "$state_file" ]] || continue' \
   '    state_pid="$(awk -F= '\''$1 == "SERVICE_PID" { print $2 }'\'' "$state_file")"' \
   '    [[ "$state_pid" == "$pid" ]] || continue' \
-  '    module_name="$(awk -F= '\''$1 == "MODULE_NAME" { print $2 }'\'' "$state_file")"' \
+  '    java_path="$(awk -F= '\''$1 == "JAVA_PATH" { print $2 }'\'' "$state_file")"' \
+  '    jar_path="$(awk -F= '\''$1 == "JAR_PATH" { print $2 }'\'' "$state_file")"' \
   '    service_port="$(awk -F= '\''$1 == "SERVICE_PORT" { print $2 }'\'' "$state_file")"' \
-  '    printf "java -jar %s-0.1.0-SNAPSHOT.jar --server.port=%s\n" "$module_name" "$service_port"' \
+  '    printf "%s -jar %s --server.port=%s\n" "$java_path" "$jar_path" "$service_port"' \
+  '    exit 0' \
+  '  done' \
+  '  for launcher_state in "$CDD_RUNTIME_STATE_DIR"/logs/*.launcher.env; do' \
+  '    [[ -f "$launcher_state" ]] || continue' \
+  '    launcher_pid="$(awk -F= '\''$1 == "LAUNCHER_PID" { print $2 }'\'' "$launcher_state")"' \
+  '    [[ "$launcher_pid" == "$pid" ]] || continue' \
+  '    launcher_name="$(awk -F= '\''$1 == "LAUNCHER_NAME" { print $2 }'\'' "$launcher_state")"' \
+  '    printf "bash %s/%s\n" "$CDD_RUNTIME_LAUNCHER_DIR" "$launcher_name"' \
   '    exit 0' \
   '  done' \
   'fi' \
+  'exit 1'
+write_fixture "$fixture_bin/pgrep" \
+  '#!/usr/bin/env bash' \
+  'parent_pid="$2"' \
+  'for launcher_state in "$CDD_RUNTIME_STATE_DIR"/logs/*.launcher.env; do' \
+  '  [[ -f "$launcher_state" ]] || continue' \
+  '  launcher_pid="$(awk -F= '\''$1 == "LAUNCHER_PID" { print $2 }'\'' "$launcher_state")"' \
+  '  [[ "$launcher_pid" == "$parent_pid" ]] || continue' \
+  '  service_name="$(awk -F= '\''$1 == "SERVICE_NAME" { print $2 }'\'' "$launcher_state")"' \
+  '  [[ -s "$CDD_RUNTIME_STATE_DIR/logs/${service_name}.child.pid" ]] || exit 1' \
+  '  cat "$CDD_RUNTIME_STATE_DIR/logs/${service_name}.child.pid"' \
+  '  exit 0' \
+  'done' \
   'exit 1'
 write_fixture "$fixture_scripts/up.sh" '#!/usr/bin/env bash' 'echo "infra:${CDD_LOCAL_NACOS_CONSOLE_PORT}" >>"$CDD_TEST_TRACE"'
 write_fixture "$fixture_scripts/publish.sh" '#!/usr/bin/env bash' 'echo publish >>"$CDD_TEST_TRACE"'
@@ -83,19 +105,40 @@ for launcher in run_gateway.sh run_auth_service_mysql.sh run_merchant_service_my
     'echo "fixture-launcher:'"$launcher"'"' \
     'echo "launch '"$launcher"'" >>"$CDD_TEST_TRACE"' \
     'service_port="'"$port_expression"'"' \
+    'trap "" TERM' \
+    'bash -c '\''trap "" TERM; while :; do sleep 1; done'\'' &' \
+    'child_pid=$!' \
+    'printf "%s\n" "$child_pid" >"$CDD_RUNTIME_STATE_DIR/logs/'"$service_name"'.child.pid"' \
     'cat >"$CDD_RUNTIME_STATE_DIR/'"$service_name"'.env" <<EOF' \
     'SERVICE_NAME='"$service_name" \
     'MODULE_NAME='"$module_name" \
     'SERVICE_PORT=${service_port}' \
-    'SERVICE_PID=$$' \
-    'PROCESS_START_MARKER=fixture-marker-$$' \
+    'SERVICE_PID=${child_pid}' \
+    'PROCESS_START_MARKER=fixture-marker-${child_pid}' \
+    'JAVA_PATH='"$fixture_root"'/java' \
+    'JAR_PATH='"$repo_root"'/cdd-parent/'"$module_name"'/target/'"$module_name"'-0.1.0-SNAPSHOT.jar' \
     'GIT_HEAD=fixture' \
     'BACKEND_FINGERPRINT=fixture' \
     'STARTED_AT=0' \
     'STARTED_AT_TEXT=fixture' \
     'EOF' \
-    'sleep 30'
+    'while :; do sleep 1; done'
 done
+
+clear_fixture_runtime() {
+  local state_file fixture_pid
+  for state_file in "$fixture_state_dir"/*.env; do
+    [[ -f "$state_file" ]] || continue
+    fixture_pid="$(awk -F= '$1 == "SERVICE_PID" { print $2 }' "$state_file")"
+    [[ -n "$fixture_pid" ]] && kill -KILL "$fixture_pid" >/dev/null 2>&1 || true
+  done
+  for child_file in "$fixture_state_dir"/logs/*.child.pid; do
+    [[ -s "$child_file" ]] || continue
+    kill -KILL "$(<"$child_file")" >/dev/null 2>&1 || true
+  done
+  sleep 0.1
+  rm -f "$fixture_state_dir"/*.env "$fixture_state_dir"/logs/*.launcher.env "$fixture_state_dir"/logs/*.child.pid
+}
 
 run_all() {
   env PATH="$fixture_bin:$PATH" \
@@ -105,7 +148,8 @@ run_all() {
     CDD_RUNTIME_MIGRATE_SCRIPT="$fixture_scripts/migrate.sh" \
     CDD_RUNTIME_LAUNCHER_DIR="$fixture_launchers" \
     CDD_RUNTIME_STATE_DIR="$fixture_state_dir" \
-    CDD_RUNTIME_HEALTH_TIMEOUT_SECONDS=3 \
+    CDD_RUNTIME_HEALTH_TIMEOUT_SECONDS=7 \
+    CDD_RUNTIME_STARTUP_CLEANUP_RESERVE_SECONDS=3 \
     "$@" bash "$repo_root/scripts/local/run_all_services_mysql.sh"
 }
 
@@ -131,11 +175,13 @@ while IFS= read -r launcher_state; do
     exit 1
   fi
 done < <(find "$fixture_state_dir/logs" -name '*.launcher.env' -type f | sort)
+clear_fixture_runtime
 
 : >"$trace_file"
 run_all CDD_ENV=local CDD_CONFIG_MODE=file
 expected_file_trace=$'infra:18080\nmigrate\nlaunch run_gateway.sh\nlaunch run_auth_service_mysql.sh\nlaunch run_merchant_service_mysql.sh\nlaunch run_decoration_service_mysql.sh\nlaunch run_product_service_mysql.sh\nlaunch run_order_service_mysql.sh\nlaunch run_marketing_service_mysql.sh\nlaunch run_release_service_mysql.sh\nlaunch run_report_service_mysql.sh\nlaunch run_config_service_mysql.sh'
 assert_equals "$expected_file_trace" "$(<"$trace_file")" "file mode must bypass publication"
+clear_fixture_runtime
 
 if run_all CDD_ENV=local CDD_CONFIG_MODE=file CDD_LOCAL_NACOS_CONSOLE_PORT=8080; then
   echo "Assertion failed: gateway and Nacos Console port collision must fail before infrastructure startup." >&2
@@ -161,5 +207,6 @@ if ! rg -F 'launch run_auth_service_mysql.sh' "$trace_file" >/dev/null; then
   echo "Assertion failed: child failure did not reach the auth launcher." >&2
   exit 1
 fi
+clear_fixture_runtime
 
 echo "runtime lifecycle behavior checks passed"

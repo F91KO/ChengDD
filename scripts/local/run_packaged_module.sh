@@ -108,14 +108,18 @@ cleanup_started_service() {
     return 1
   fi
 
-  kill -TERM "$service_pid" >/dev/null 2>&1 || true
   local now="$(date +%s)"
-  local term_deadline=$(( now + 1 ))
-  (( term_deadline < startup_deadline )) || term_deadline="$startup_deadline"
-  while kill -0 "$service_pid" >/dev/null 2>&1 && (( $(date +%s) < term_deadline )); do
-    [[ -z "$start_marker" || "$(backend_runtime_process_start_marker "$service_pid")" == "$start_marker" ]] || return 1
-    sleep 0.1
-  done
+  local remaining=$(( startup_deadline - now ))
+  if (( remaining > 1 )); then
+    kill -TERM "$service_pid" >/dev/null 2>&1 || true
+    local term_deadline=$(( now + 1 ))
+    local kill_reserve_deadline=$(( startup_deadline - 1 ))
+    (( term_deadline < kill_reserve_deadline )) || term_deadline="$kill_reserve_deadline"
+    while kill -0 "$service_pid" >/dev/null 2>&1 && (( $(date +%s) < term_deadline )); do
+      [[ -z "$start_marker" || "$(backend_runtime_process_start_marker "$service_pid")" == "$start_marker" ]] || return 1
+      sleep 0.1
+    done
+  fi
 
   if kill -0 "$service_pid" >/dev/null 2>&1; then
     [[ -z "$start_marker" || "$(backend_runtime_process_start_marker "$service_pid")" == "$start_marker" ]] || return 1
@@ -129,6 +133,18 @@ cleanup_started_service() {
     return 1
   fi
   wait "$service_pid" >/dev/null 2>&1 || true
+}
+
+fail_started_service() {
+  local service_name="$1"
+  local service_pid="$2"
+  local start_marker="$3"
+  local startup_deadline="$4"
+  if ! cleanup_started_service "$service_name" "$service_pid" "$start_marker" "$startup_deadline"; then
+    echo "Startup failed and owned-process cleanup did not complete for ${service_name} pid=${service_pid}." >&2
+    return 2
+  fi
+  return 1
 }
 
 run_packaged_module() {
@@ -152,6 +168,7 @@ run_packaged_module() {
     package -DskipTests
 
   local jar_path="${parent_root}/${module_name}/target/${module_name}-0.1.0-SNAPSHOT.jar"
+  local java_path="$JAVA_HOME/bin/java"
   if [[ ! -f "$jar_path" ]]; then
     echo "未找到可执行包：${jar_path}" >&2
     return 1
@@ -178,30 +195,36 @@ run_packaged_module() {
   local startup_deadline=$(( $(date +%s) + startup_timeout_seconds ))
   local health_deadline=$(( startup_deadline - cleanup_reserve_seconds ))
 
-  "$JAVA_HOME/bin/java" -jar "$jar_path" --server.port="${service_port}" --spring.profiles.active="${runtime_env},${runtime_config_mode}" &
+  "$java_path" -jar "$jar_path" --server.port="${service_port}" --spring.profiles.active="${runtime_env},${runtime_config_mode}" &
   local service_pid=$!
   local process_start_marker
   process_start_marker="$(wait_for_backend_runtime_process_start_marker "$service_pid" || true)"
-  if [[ -z "$process_start_marker" ]] || ! backend_runtime_process_matches_state "$service_name" "$module_name" "$service_port" "$service_pid" "$process_start_marker"; then
+  if [[ -z "$process_start_marker" ]] || ! backend_runtime_process_matches_state_before_deadline "$startup_deadline" "$service_name" "$module_name" "$service_port" "$service_pid" "$process_start_marker" "$java_path" "$jar_path"; then
     echo "Unable to prove ownership of launched ${service_name} pid=${service_pid}." >&2
-    cleanup_started_service "$service_name" "$service_pid" "$process_start_marker" "$startup_deadline" || true
-    return 1
+    local failure_status=0
+    fail_started_service "$service_name" "$service_pid" "$process_start_marker" "$startup_deadline" || failure_status=$?
+    return "$failure_status"
   fi
 
   if ! wait_for_service_health "$service_name" "$service_port" "$service_pid" "$health_deadline"; then
-    cleanup_started_service "$service_name" "$service_pid" "$process_start_marker" "$startup_deadline" || true
-    return 1
+    local failure_status=0
+    fail_started_service "$service_name" "$service_pid" "$process_start_marker" "$startup_deadline" || failure_status=$?
+    return "$failure_status"
   fi
 
-  if ! backend_runtime_process_matches_state "$service_name" "$module_name" "$service_port" "$service_pid" "$process_start_marker" || ! backend_runtime_listener_matches_process "$service_port" "$service_pid"; then
+  if (( $(date +%s) >= health_deadline )) \
+    || ! backend_runtime_process_matches_state_before_deadline "$health_deadline" "$service_name" "$module_name" "$service_port" "$service_pid" "$process_start_marker" "$java_path" "$jar_path" \
+    || ! backend_runtime_listener_matches_process "$service_port" "$service_pid" "$health_deadline"; then
     echo "Healthy endpoint for ${service_name} is not owned by the exact launched JVM pid=${service_pid}." >&2
-    cleanup_started_service "$service_name" "$service_pid" "$process_start_marker" "$startup_deadline" || true
-    return 1
+    local failure_status=0
+    fail_started_service "$service_name" "$service_pid" "$process_start_marker" "$startup_deadline" || failure_status=$?
+    return "$failure_status"
   fi
 
-  if ! record_backend_runtime_state "$repo_root" "$service_name" "$module_name" "$service_port" "$service_pid" "$process_start_marker"; then
-    cleanup_started_service "$service_name" "$service_pid" "$process_start_marker" "$startup_deadline" || true
-    return 1
+  if ! record_backend_runtime_state "$repo_root" "$service_name" "$module_name" "$service_port" "$service_pid" "$process_start_marker" "$java_path" "$jar_path" "$health_deadline"; then
+    local failure_status=0
+    fail_started_service "$service_name" "$service_pid" "$process_start_marker" "$startup_deadline" || failure_status=$?
+    return "$failure_status"
   fi
   wait "$service_pid"
 }

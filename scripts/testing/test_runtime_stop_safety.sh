@@ -26,6 +26,8 @@ printf '%s\n' \
   'SERVICE_PORT=8080' \
   "SERVICE_PID=${unrelated_pid}" \
   'PROCESS_START_MARKER=not-the-sleep-process' \
+  'JAVA_PATH=/fixture/java' \
+  "JAR_PATH=${repo_root}/cdd-parent/cdd-gateway/target/cdd-gateway-0.1.0-SNAPSHOT.jar" \
   'GIT_HEAD=fixture' \
   'BACKEND_FINGERPRINT=fixture' \
   'STARTED_AT=0' \

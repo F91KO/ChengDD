@@ -22,7 +22,7 @@ printf '%s\n' \
   'request="$*"' \
   'if [[ "$request" == *"lstart="* ]]; then printf "%s\\n" "${CDD_TEST_PROCESS_MARKER}"; exit 0; fi' \
   'if [[ "$request" == *"-ax"* ]]; then exit 0; fi' \
-  'if [[ "$request" == *"command="* ]]; then printf "%s\\n" "java -jar cdd-gateway-0.1.0-SNAPSHOT.jar --server.port=8080"; exit 0; fi' \
+  'if [[ "$request" == *"command="* ]]; then printf "%s\\n" "/fixture/java -jar '"$repo_root"'/cdd-parent/cdd-gateway/target/cdd-gateway-0.1.0-SNAPSHOT.jar --server.port=8080"; exit 0; fi' \
   'exit 0' >"$fixture_bin/ps"
 chmod +x "$fixture_bin/ps"
 
@@ -40,6 +40,8 @@ printf '%s\n' \
   'SERVICE_PORT=8080' \
   "SERVICE_PID=${service_pid}" \
   "PROCESS_START_MARKER=${process_marker}" \
+  'JAVA_PATH=/fixture/java' \
+  "JAR_PATH=${repo_root}/cdd-parent/cdd-gateway/target/cdd-gateway-0.1.0-SNAPSHOT.jar" \
   'GIT_HEAD=fixture' \
   'BACKEND_FINGERPRINT=fixture' \
   'STARTED_AT=0' \

@@ -6,6 +6,7 @@ fixture_root="$(mktemp -d /tmp/chengdd-runtime-stop-deadline.XXXXXX)"
 trace_file="$fixture_root/trace"
 state_dir="$fixture_root/runtime-state"
 fixture_bin="$fixture_root/bin"
+term_trace="$fixture_root/term.trace"
 mkdir -p "$state_dir" "$fixture_bin"
 
 cleanup() {
@@ -31,6 +32,8 @@ write_state() {
     "SERVICE_PORT=${service_port}" \
     "SERVICE_PID=${service_pid}" \
     "PROCESS_START_MARKER=${process_marker}" \
+    'JAVA_PATH=/fixture/java' \
+    "JAR_PATH=${repo_root}/cdd-parent/${module_name}/target/${module_name}-0.1.0-SNAPSHOT.jar" \
     'GIT_HEAD=fixture' \
     'BACKEND_FINGERPRINT=fixture' \
     'STARTED_AT=0' \
@@ -47,15 +50,15 @@ printf '%s\n' \
   '  previous="$argument"' \
   'done' \
   'if [[ "$request" == *"lstart="* ]]; then printf "marker-%s\\n" "$pid"; exit 0; fi' \
-  'if [[ "$request" == *"command="* && "$pid" == "$CDD_TEST_GATEWAY_PID" ]]; then printf "java -jar cdd-gateway-0.1.0-SNAPSHOT.jar --server.port=8080\\n"; exit 0; fi' \
-  'if [[ "$request" == *"command="* && "$pid" == "$CDD_TEST_AUTH_PID" ]]; then printf "java -jar cdd-auth-service-0.1.0-SNAPSHOT.jar --server.port=8081\\n"; exit 0; fi' \
+  'if [[ "$request" == *"command="* && "$pid" == "$CDD_TEST_GATEWAY_PID" ]]; then printf "/fixture/java -jar %s/cdd-parent/cdd-gateway/target/cdd-gateway-0.1.0-SNAPSHOT.jar --server.port=8080\\n" "$CDD_TEST_REPO_ROOT"; exit 0; fi' \
+  'if [[ "$request" == *"command="* && "$pid" == "$CDD_TEST_AUTH_PID" ]]; then printf "/fixture/java -jar %s/cdd-parent/cdd-auth-service/target/cdd-auth-service-0.1.0-SNAPSHOT.jar --server.port=8081\\n" "$CDD_TEST_REPO_ROOT"; exit 0; fi' \
   'if [[ "$request" == *"-ax"* ]]; then exit 0; fi' \
   'exit 1' >"$fixture_bin/ps"
 chmod +x "$fixture_bin/ps"
 
-bash -c 'trap "" TERM; while :; do sleep 1; done' &
+bash -c 'trap '\''printf "gateway\\n" >>"$1"'\'' TERM; while :; do sleep 1; done' _ "$term_trace" &
 gateway_pid=$!
-bash -c 'trap "" TERM; while :; do sleep 1; done' &
+bash -c 'trap '\''printf "auth\\n" >>"$1"'\'' TERM; while :; do sleep 1; done' _ "$term_trace" &
 auth_pid=$!
 sleep 30 &
 unrelated_pid=$!
@@ -63,16 +66,17 @@ write_state gateway cdd-gateway 8080 "$gateway_pid" "marker-${gateway_pid}"
 write_state auth-service cdd-auth-service 8081 "$auth_pid" "marker-${auth_pid}"
 
 local_started_at="$(date +%s)"
-if PATH="$fixture_bin:$PATH" \
+if ! PATH="$fixture_bin:$PATH" \
   CDD_TEST_GATEWAY_PID="$gateway_pid" \
   CDD_TEST_AUTH_PID="$auth_pid" \
+  CDD_TEST_REPO_ROOT="$repo_root" \
   CDD_ENV=local \
   CDD_CONFIG_MODE=file \
   CDD_RUNTIME_STATE_DIR="$state_dir" \
-  CDD_RUNTIME_STOP_TIMEOUT_SECONDS=1 \
+  CDD_RUNTIME_STOP_TIMEOUT_SECONDS=3 \
   CDD_RUNTIME_TERM_GRACE_SECONDS=2 \
   bash "$repo_root/scripts/local/stop_all_services.sh" >/dev/null 2>&1; then
-  echo "Assertion failed: surviving owned processes must make shutdown fail." >&2
+  echo "Assertion failed: phased global shutdown failed to stop all controllable owned processes." >&2
   exit 1
 fi
 local_elapsed_seconds=$(( $(date +%s) - local_started_at ))
@@ -84,6 +88,18 @@ if ! kill -0 "$unrelated_pid" >/dev/null 2>&1; then
   echo "Assertion failed: global shutdown deadline killed an unrelated process." >&2
   exit 1
 fi
+for stopped_pid in "$gateway_pid" "$auth_pid"; do
+  if kill -0 "$stopped_pid" >/dev/null 2>&1; then
+    echo "Assertion failed: global shutdown left a controllable owned process unsignalled: ${stopped_pid}." >&2
+    exit 1
+  fi
+done
+for service_name in gateway auth; do
+  rg -Fx "$service_name" "$term_trace" >/dev/null || {
+    echo "Assertion failed: phased shutdown did not promptly TERM ${service_name}." >&2
+    exit 1
+  }
+done
 
 rm -rf "$state_dir"
 mkdir -p "$state_dir"

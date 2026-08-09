@@ -21,6 +21,7 @@ local_stop_deadline=$(( $(date +%s) + stop_timeout_seconds ))
 
 owned_java_pid=""
 owned_java_marker=""
+owned_java_port=""
 owned_launcher_pid=""
 owned_launcher_marker=""
 
@@ -32,25 +33,28 @@ load_owned_java() {
   state_file="$(backend_runtime_state_file "$repo_root" "$service_name")"
   owned_java_pid=""
   owned_java_marker=""
+  owned_java_port=""
 
   [[ -f "$state_file" ]] || return 1
   if ! read_backend_runtime_state "$state_file"; then
     echo "Refusing malformed runtime state for ${service_name}: ${state_file}" >&2
     return 2
   fi
-  if [[ "$RUNTIME_STATE_SERVICE_NAME" != "$service_name" || "$RUNTIME_STATE_MODULE_NAME" != "$module_name" || "$RUNTIME_STATE_SERVICE_PORT" != "$service_port" ]]; then
+  local expected_jar_path="$repo_root/cdd-parent/${module_name}/target/${module_name}-0.1.0-SNAPSHOT.jar"
+  if [[ "$RUNTIME_STATE_SERVICE_NAME" != "$service_name" || "$RUNTIME_STATE_MODULE_NAME" != "$module_name" || "$RUNTIME_STATE_JAR_PATH" != "$expected_jar_path" ]]; then
     echo "Refusing mismatched runtime state for ${service_name}: ${state_file}" >&2
     return 2
   fi
   if ! kill -0 "$RUNTIME_STATE_SERVICE_PID" >/dev/null 2>&1; then
     return 1
   fi
-  if ! backend_runtime_process_matches_state "$service_name" "$module_name" "$service_port" "$RUNTIME_STATE_SERVICE_PID" "$RUNTIME_STATE_PROCESS_START_MARKER"; then
+  if ! backend_runtime_process_matches_state "$service_name" "$module_name" "$RUNTIME_STATE_SERVICE_PORT" "$RUNTIME_STATE_SERVICE_PID" "$RUNTIME_STATE_PROCESS_START_MARKER" "$RUNTIME_STATE_JAVA_PATH" "$RUNTIME_STATE_JAR_PATH"; then
     echo "Refusing unowned runtime process for ${service_name} pid=${RUNTIME_STATE_SERVICE_PID}." >&2
     return 2
   fi
   owned_java_pid="$RUNTIME_STATE_SERVICE_PID"
   owned_java_marker="$RUNTIME_STATE_PROCESS_START_MARKER"
+  owned_java_port="$RUNTIME_STATE_SERVICE_PORT"
   return 0
 }
 
@@ -100,145 +104,20 @@ find_unmanaged_service_process() {
   return 1
 }
 
-signal_owned_process() {
-  local service_pid="$1"
-  local start_marker="$2"
-  local signal_name="$3"
-  kill -0 "$service_pid" >/dev/null 2>&1 || return 0
-  [[ "$(backend_runtime_process_start_marker "$service_pid")" == "$start_marker" ]] || return 1
-  kill "-$signal_name" "$service_pid" >/dev/null 2>&1
-}
-
-terminate_owned_process() {
-  local service_pid="$1"
-  local start_marker="$2"
-  local process_label="$3"
-  local global_deadline="$4"
-  (( $(date +%s) < global_deadline )) || return 1
-  echo "Stopping owned ${process_label} pid=${service_pid}"
-  signal_owned_process "$service_pid" "$start_marker" TERM || return 1
-
-  local deadline=$(( $(date +%s) + term_grace_seconds ))
-  (( deadline < global_deadline )) || deadline="$global_deadline"
-  while kill -0 "$service_pid" >/dev/null 2>&1 && (( $(date +%s) < deadline )); do
-    [[ "$(backend_runtime_process_start_marker "$service_pid")" == "$start_marker" ]] || return 1
-    sleep 0.1
-  done
-  if ! kill -0 "$service_pid" >/dev/null 2>&1; then
-    return 0
-  fi
-  if (( $(date +%s) >= global_deadline )); then
-    return 1
-  fi
-  echo "Force stopping owned ${process_label} pid=${service_pid}"
-  signal_owned_process "$service_pid" "$start_marker" KILL || return 1
-  while kill -0 "$service_pid" >/dev/null 2>&1 && (( $(date +%s) < global_deadline )); do
-    sleep 0.1
-  done
-  ! kill -0 "$service_pid" >/dev/null 2>&1
-}
-
-collect_owned_descendants() {
-  local parent_pid="$1"
-  command -v pgrep >/dev/null 2>&1 || return 1
-  local child_pid child_marker
-  local children
-  local pgrep_status=0
-  children="$(pgrep -P "$parent_pid" 2>/dev/null)" || pgrep_status=$?
-  (( pgrep_status == 0 || pgrep_status == 1 )) || return 1
-  while IFS= read -r child_pid; do
-    [[ -n "$child_pid" ]] || continue
-    [[ "$child_pid" =~ ^[0-9]+$ ]] || return 1
-    child_marker="$(backend_runtime_process_start_marker "$child_pid")"
-    [[ -n "$child_marker" ]] || return 1
-    printf '%s|%s\n' "$child_pid" "$child_marker"
-    collect_owned_descendants "$child_pid"
-  done <<<"$children"
-}
-
-terminate_owned_launcher_tree() {
-  local launcher_pid="$1"
-  local launcher_marker="$2"
-  local process_label="$3"
-  local global_deadline="$4"
-  (( $(date +%s) < global_deadline )) || return 1
-  local descendants_output
-  if ! descendants_output="$(collect_owned_descendants "$launcher_pid")"; then
-    echo "Cannot safely inspect child processes for ${process_label}; refusing termination." >&2
-    return 1
-  fi
-
-  local descendant_pid descendant_marker
-  local descendants=()
-  while IFS='|' read -r descendant_pid descendant_marker; do
-    [[ -n "$descendant_pid" ]] || continue
-    descendants+=("${descendant_pid}|${descendant_marker}")
-  done <<<"$descendants_output"
-
-  echo "Stopping owned ${process_label} pid=${launcher_pid}"
-  for descendant in "${descendants[@]}"; do
-    IFS='|' read -r descendant_pid descendant_marker <<<"$descendant"
-    [[ "$(backend_runtime_process_start_marker "$descendant_pid")" == "$descendant_marker" ]] || return 1
-    kill -TERM "$descendant_pid" >/dev/null 2>&1 || true
-  done
-  signal_owned_process "$launcher_pid" "$launcher_marker" TERM || return 1
-
-  local deadline=$(( $(date +%s) + term_grace_seconds ))
-  (( deadline < global_deadline )) || deadline="$global_deadline"
-  while kill -0 "$launcher_pid" >/dev/null 2>&1 && (( $(date +%s) < deadline )); do
-    [[ "$(backend_runtime_process_start_marker "$launcher_pid")" == "$launcher_marker" ]] || return 1
-    sleep 0.1
-  done
-
-  if (( $(date +%s) >= global_deadline )); then
-    return 1
-  fi
-
-  for descendant in "${descendants[@]}"; do
-    IFS='|' read -r descendant_pid descendant_marker <<<"$descendant"
-    if kill -0 "$descendant_pid" >/dev/null 2>&1 && [[ "$(backend_runtime_process_start_marker "$descendant_pid")" == "$descendant_marker" ]]; then
-      kill -KILL "$descendant_pid" >/dev/null 2>&1 || true
-    fi
-  done
-  if kill -0 "$launcher_pid" >/dev/null 2>&1; then
-    signal_owned_process "$launcher_pid" "$launcher_marker" KILL || return 1
-  fi
-  while kill -0 "$launcher_pid" >/dev/null 2>&1 && (( $(date +%s) < global_deadline )); do
-    sleep 0.1
-  done
-  ! kill -0 "$launcher_pid" >/dev/null 2>&1
-}
-
-stop_service() {
-  local service_name="$1"
-  local module_name="$2"
-  local service_port="$3"
-  local launcher_name="$4"
-  local ownership_problem=0
-
-  if load_owned_java "$service_name" "$module_name" "$service_port"; then
-    terminate_owned_process "$owned_java_pid" "$owned_java_marker" "$service_name service" "$local_stop_deadline" || ownership_problem=1
-  else
-    [[ "$?" -eq 1 ]] || ownership_problem=1
-  fi
-  if load_owned_launcher "$service_name" "$launcher_name"; then
-    terminate_owned_launcher_tree "$owned_launcher_pid" "$owned_launcher_marker" "$service_name launcher" "$local_stop_deadline" || ownership_problem=1
-  else
-    [[ "$?" -eq 1 ]] || ownership_problem=1
-  fi
-  return "$ownership_problem"
-}
-
 service_is_confirmed_stopped() {
   local service_name="$1"
   local module_name="$2"
   local service_port="$3"
   local launcher_name="$4"
   local state_result=0
+  local recorded_port="$service_port"
 
   load_owned_java "$service_name" "$module_name" "$service_port" || state_result=$?
   if [[ "$state_result" -eq 0 ]]; then
     return 1
+  fi
+  if [[ -n "${RUNTIME_STATE_SERVICE_PORT:-}" ]]; then
+    recorded_port="$RUNTIME_STATE_SERVICE_PORT"
   fi
   [[ "$state_result" -eq 1 ]] || return 2
 
@@ -250,7 +129,7 @@ service_is_confirmed_stopped() {
   [[ "$state_result" -eq 1 ]] || return 2
 
   local unmanaged_result=0
-  find_unmanaged_service_process "$module_name" "$service_port" || unmanaged_result=$?
+  find_unmanaged_service_process "$module_name" "$recorded_port" || unmanaged_result=$?
   if [[ "$unmanaged_result" -eq 0 ]]; then
     echo "Unmanaged matching process remains for ${service_name}; refusing termination." >&2
     return 2
@@ -264,10 +143,104 @@ while IFS= read -r entry; do
   catalog_entries+=("$entry")
 done <<<"$runtime_catalog"
 
+shutdown_target_pids=()
+shutdown_target_markers=()
+shutdown_target_labels=()
+shutdown_target_seen='|'
+shutdown_safety_problem=0
+
+add_shutdown_target() {
+  local target_pid="$1"
+  local target_marker="$2"
+  local target_label="$3"
+  if [[ "$shutdown_target_seen" == *"|${target_pid}|"* ]]; then
+    local existing_index
+    for ((existing_index=0; existing_index<${#shutdown_target_pids[@]}; existing_index++)); do
+      if [[ "${shutdown_target_pids[$existing_index]}" == "$target_pid" && "${shutdown_target_markers[$existing_index]}" != "$target_marker" ]]; then
+        return 1
+      fi
+    done
+    return 0
+  fi
+  shutdown_target_seen+="${target_pid}|"
+  shutdown_target_pids+=("$target_pid")
+  shutdown_target_markers+=("$target_marker")
+  shutdown_target_labels+=("$target_label")
+}
+
 for ((index=${#catalog_entries[@]} - 1; index >= 0; index--)); do
   IFS='|' read -r service_name module_name service_port launcher_name <<<"${catalog_entries[$index]}"
-  stop_service "$service_name" "$module_name" "$service_port" "$launcher_name" || true
+  load_result=0
+  load_owned_java "$service_name" "$module_name" "$service_port" || load_result=$?
+  if [[ "$load_result" -eq 0 ]]; then
+    add_shutdown_target "$owned_java_pid" "$owned_java_marker" "$service_name service" || shutdown_safety_problem=1
+  elif [[ "$load_result" -ne 1 ]]; then
+    shutdown_safety_problem=1
+  fi
+
+  load_result=0
+  load_owned_launcher "$service_name" "$launcher_name" || load_result=$?
+  if [[ "$load_result" -eq 0 ]]; then
+    descendants_output="$(backend_runtime_collect_owned_descendants "$owned_launcher_pid")" || {
+      echo "Cannot safely snapshot descendants for ${service_name} launcher." >&2
+      shutdown_safety_problem=1
+      descendants_output=""
+    }
+    while IFS='|' read -r descendant_pid descendant_marker; do
+      [[ -n "$descendant_pid" ]] || continue
+      add_shutdown_target "$descendant_pid" "$descendant_marker" "$service_name launcher child" || shutdown_safety_problem=1
+    done <<<"$descendants_output"
+    add_shutdown_target "$owned_launcher_pid" "$owned_launcher_marker" "$service_name launcher" || shutdown_safety_problem=1
+  elif [[ "$load_result" -ne 1 ]]; then
+    shutdown_safety_problem=1
+  fi
 done
+
+# Phase 1: signal every proven target promptly in reverse service order.
+if [[ ${#shutdown_target_pids[@]} -gt 0 ]]; then
+for ((target_index=0; target_index<${#shutdown_target_pids[@]}; target_index++)); do
+  target_pid="${shutdown_target_pids[$target_index]}"
+  target_marker="${shutdown_target_markers[$target_index]}"
+  if ! backend_runtime_signal_exact_process "$target_pid" "$target_marker" TERM; then
+    shutdown_safety_problem=1
+  fi
+done
+
+# Phase 2: one shared TERM grace, with one second reserved for KILL verification.
+term_deadline=$(( $(date +%s) + term_grace_seconds ))
+kill_reserve_deadline=$(( local_stop_deadline - 1 ))
+(( term_deadline < kill_reserve_deadline )) || term_deadline="$kill_reserve_deadline"
+while (( $(date +%s) < term_deadline )); do
+  any_alive=0
+  for target_pid in "${shutdown_target_pids[@]}"; do
+    kill -0 "$target_pid" >/dev/null 2>&1 && any_alive=1
+  done
+  [[ "$any_alive" -eq 0 ]] && break
+  sleep 0.1
+done
+
+# Phase 3: KILL every exact survivor, then verify against the same global deadline.
+for ((target_index=0; target_index<${#shutdown_target_pids[@]}; target_index++)); do
+  target_pid="${shutdown_target_pids[$target_index]}"
+  target_marker="${shutdown_target_markers[$target_index]}"
+  if kill -0 "$target_pid" >/dev/null 2>&1; then
+    if (( $(date +%s) >= local_stop_deadline )) || ! backend_runtime_signal_exact_process "$target_pid" "$target_marker" KILL; then
+      shutdown_safety_problem=1
+    fi
+  fi
+done
+while (( $(date +%s) < local_stop_deadline )); do
+  survivors=0
+  for target_pid in "${shutdown_target_pids[@]}"; do
+    kill -0 "$target_pid" >/dev/null 2>&1 && survivors=1
+  done
+  [[ "$survivors" -eq 0 ]] && break
+  sleep 0.1
+done
+for target_pid in "${shutdown_target_pids[@]}"; do
+  kill -0 "$target_pid" >/dev/null 2>&1 && shutdown_safety_problem=1
+done
+fi
 
 services_stopped=0
 while :; do
@@ -284,7 +257,7 @@ while :; do
   sleep 1
 done
 
-if [[ "$services_stopped" -ne 1 ]]; then
+if [[ "$services_stopped" -ne 1 || "$shutdown_safety_problem" -ne 0 ]]; then
   echo "Timed out waiting for owned backend processes to stop safely." >&2
 fi
 
@@ -305,7 +278,7 @@ if [[ "$runtime_config_mode" == "nacos" ]]; then
   fi
 fi
 
-if [[ "$services_stopped" -ne 1 || "$nacos_stopped" -ne 1 ]]; then
+if [[ "$services_stopped" -ne 1 || "$shutdown_safety_problem" -ne 0 || "$nacos_stopped" -ne 1 ]]; then
   exit 1
 fi
 

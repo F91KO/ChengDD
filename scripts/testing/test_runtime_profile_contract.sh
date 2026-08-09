@@ -52,6 +52,19 @@ assert_equals "19081" "$(CDD_AUTH_SERVER_PORT=19081 backend_runtime_service_port
 assert_fails "duplicate resolved service ports must be rejected" bash -c "source '$repo_root/scripts/local/backend_runtime_guard.sh'; CDD_GATEWAY_SERVER_PORT=19080 CDD_AUTH_SERVER_PORT=19080 backend_runtime_service_catalog"
 assert_fails "non-numeric service ports must be rejected" bash -c "source '$repo_root/scripts/local/backend_runtime_guard.sh'; CDD_GATEWAY_SERVER_PORT=invalid backend_runtime_service_catalog"
 assert_fails "out-of-range service ports must be rejected" bash -c "source '$repo_root/scripts/local/backend_runtime_guard.sh'; CDD_GATEWAY_SERVER_PORT=65536 backend_runtime_service_catalog"
+assert_fails "arbitrarily large service ports must be rejected before arithmetic" bash -c "source '$repo_root/scripts/local/backend_runtime_guard.sh'; CDD_GATEWAY_SERVER_PORT=18446744073709551617 backend_runtime_service_catalog"
+assert_fails "leading-zero service ports must be rejected" bash -c "source '$repo_root/scripts/local/backend_runtime_guard.sh'; CDD_GATEWAY_SERVER_PORT=08080 backend_runtime_service_catalog"
+
+valid_ss_rows=$'LISTEN 0 128 127.0.0.1:8080 0.0.0.0:* users:(("java",pid=123,fd=9))\nLISTEN 0 128 [::1]:8080 [::]:* users:(("java",pid=123,fd=10))'
+assert_equals "123" "$(printf '%s\n' "$valid_ss_rows" | backend_runtime_parse_ss_listener_pids 8080 | sort -u)" "ss listener PID normalization"
+mixed_ss_rows=$'LISTEN 0 128 127.0.0.1:8080 0.0.0.0:* users:(("java",pid=123,fd=9))\nLISTEN 0 128 [::1]:8080 [::]:*'
+assert_fails "every matching ss listener row must expose PID proof" bash -c "source '$repo_root/scripts/local/backend_runtime_guard.sh'; printf '%s\n' \"\$1\" | backend_runtime_parse_ss_listener_pids 8080" _ "$mixed_ss_rows"
+
+expected_java_path="/opt/jdk/bin/java"
+expected_jar_path="/srv/cdd/cdd-gateway-0.1.0-SNAPSHOT.jar"
+assert_equals "" "$(printf '%s\n' "$expected_java_path" -jar "$expected_jar_path" --server.port=8080 --spring.profiles.active=local,file | backend_runtime_java_argv_matches "$expected_java_path" "$expected_jar_path" 8080)" "exact Java argv acceptance"
+assert_fails "server port argv must not use prefix matching" bash -c "source '$repo_root/scripts/local/backend_runtime_guard.sh'; printf '%s\n' '$expected_java_path' -jar '$expected_jar_path' --server.port=80800 | backend_runtime_java_argv_matches '$expected_java_path' '$expected_jar_path' 8080"
+assert_fails "jar argv must not use prefix matching" bash -c "source '$repo_root/scripts/local/backend_runtime_guard.sh'; printf '%s\n' '$expected_java_path' -jar '${expected_jar_path}.bak' --server.port=8080 | backend_runtime_java_argv_matches '$expected_java_path' '$expected_jar_path' 8080"
 
 while IFS='|' read -r _service_name _service_module _service_port launcher; do
   launcher_path="$repo_root/scripts/local/$launcher"
