@@ -19,6 +19,64 @@ esac
 nacos_addr="${CDD_NACOS_SERVER_ADDR:-127.0.0.1:8848}"
 nacos_namespace="${CDD_NACOS_NAMESPACE:-}"
 nacos_group="${CDD_NACOS_GROUP:-CHENGDD}"
+nacos_username="${CDD_NACOS_USERNAME:-}"
+nacos_password="${CDD_NACOS_PASSWORD:-}"
+nacos_connect_timeout_seconds="${CDD_NACOS_CONNECT_TIMEOUT_SECONDS:-2}"
+nacos_request_timeout_seconds="${CDD_NACOS_REQUEST_TIMEOUT_SECONDS:-5}"
+nacos_auth_args=()
+
+[[ "$nacos_connect_timeout_seconds" =~ ^[1-9][0-9]*$ ]] || {
+  echo "CDD_NACOS_CONNECT_TIMEOUT_SECONDS must be a positive integer." >&2
+  exit 1
+}
+[[ "$nacos_request_timeout_seconds" =~ ^[1-9][0-9]*$ ]] || {
+  echo "CDD_NACOS_REQUEST_TIMEOUT_SECONDS must be a positive integer." >&2
+  exit 1
+}
+
+nacos_curl() {
+  local url="$1"
+  shift
+  local request_timeout="$nacos_request_timeout_seconds"
+  if [[ -n "${CDD_NACOS_DEADLINE_EPOCH:-}" ]]; then
+    [[ "$CDD_NACOS_DEADLINE_EPOCH" =~ ^[0-9]+$ ]] || return 1
+    local remaining=$(( CDD_NACOS_DEADLINE_EPOCH - $(date +%s) ))
+    (( remaining > 0 )) || return 1
+    (( remaining < request_timeout )) && request_timeout="$remaining"
+  fi
+  curl --connect-timeout "$nacos_connect_timeout_seconds" --max-time "$request_timeout" "$@" "$url"
+}
+
+nacos_authenticate() {
+  if [[ -z "$nacos_username" && -z "$nacos_password" ]]; then
+    return 0
+  fi
+  if [[ -z "$nacos_username" || -z "$nacos_password" ]]; then
+    echo "CDD_NACOS_USERNAME and CDD_NACOS_PASSWORD must be set together." >&2
+    return 1
+  fi
+
+  local response
+  if ! response="$(nacos_curl "http://${nacos_addr}/nacos/v3/auth/user/login" --silent --show-error --fail --request POST --data-urlencode "username=${nacos_username}" --data-urlencode "password=${nacos_password}")"; then
+    echo "Nacos authentication failed." >&2
+    return 1
+  fi
+  local access_token
+  if ! access_token="$(printf '%s' "$response" | python3 -c '
+import json
+import sys
+
+payload = json.load(sys.stdin)
+token = payload.get("accessToken")
+if not isinstance(token, str) or not token.strip():
+    raise SystemExit(1)
+print(token)
+')"; then
+    echo "Nacos authentication response did not contain an access token." >&2
+    return 1
+  fi
+  nacos_auth_args=(-H "Authorization: Bearer ${access_token}")
+}
 
 service_modules=(
   "cdd-gateway"
@@ -44,8 +102,13 @@ nacos_get() {
   if [[ -n "$nacos_namespace" ]]; then
     args+=(--data-urlencode "tenant=${nacos_namespace}")
   fi
-  curl "${args[@]}" "http://${nacos_addr}${path}"
+  if [[ ${#nacos_auth_args[@]} -gt 0 ]]; then
+    args+=("${nacos_auth_args[@]}")
+  fi
+  nacos_curl "http://${nacos_addr}${path}" "${args[@]}"
 }
+
+nacos_authenticate
 
 shared_config="$(nacos_get "/nacos/v1/cs/configs" "dataId=cdd-common-${runtime_env}.yaml" "group=${nacos_group}")"
 if [[ -z "${shared_config//[[:space:]]/}" ]]; then

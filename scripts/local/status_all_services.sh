@@ -5,6 +5,7 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 source "$repo_root/scripts/local/backend_runtime_guard.sh"
 
 configure_backend_runtime
+runtime_nacos_checker_script="${CDD_RUNTIME_NACOS_CHECK_SCRIPT:-$repo_root/scripts/nacos/check_nacos_state.sh}"
 
 healthy_count=0
 while IFS='|' read -r service_name _service_module service_port _launcher; do
@@ -22,10 +23,10 @@ echo "HTTP healthy services: ${healthy_count}/10"
 nacos_state_ok=1
 if [[ "$runtime_config_mode" == "nacos" ]]; then
   if [[ "$healthy_count" -gt 0 ]]; then
-    if ! "$repo_root/scripts/nacos/check_nacos_state.sh" "$runtime_env" running; then
+    if ! bash "$runtime_nacos_checker_script" "$runtime_env" running; then
       nacos_state_ok=0
     fi
-  elif ! "$repo_root/scripts/nacos/check_nacos_state.sh" "$runtime_env" stopped; then
+  elif ! bash "$runtime_nacos_checker_script" "$runtime_env" stopped; then
     nacos_state_ok=0
   fi
 fi

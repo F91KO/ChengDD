@@ -71,9 +71,10 @@ for lifecycle_script in run_all_services_mysql.sh status_all_services.sh stop_al
   }
   rg -F -- 'backend_runtime_service_catalog' "$repo_root/scripts/local/$lifecycle_script" >/dev/null
 done
-rg -F -- 'check_nacos_state.sh" "$runtime_env" running' "$repo_root/scripts/local/status_all_services.sh" >/dev/null
-rg -F -- 'check_nacos_state.sh" "$runtime_env" stopped' "$repo_root/scripts/local/status_all_services.sh" >/dev/null
-rg -F -- 'check_nacos_state.sh" "$runtime_env" stopped' "$repo_root/scripts/local/stop_all_services.sh" >/dev/null
+rg -F -- 'runtime_nacos_checker_script="${CDD_RUNTIME_NACOS_CHECK_SCRIPT:-$repo_root/scripts/nacos/check_nacos_state.sh}"' "$repo_root/scripts/local/status_all_services.sh" >/dev/null
+rg -F -- 'bash "$runtime_nacos_checker_script" "$runtime_env" running' "$repo_root/scripts/local/status_all_services.sh" >/dev/null
+rg -F -- 'bash "$runtime_nacos_checker_script" "$runtime_env" stopped' "$repo_root/scripts/local/status_all_services.sh" >/dev/null
+rg -F -- 'CDD_NACOS_DEADLINE_EPOCH="$nacos_stop_deadline" bash "$nacos_checker_script" "$runtime_env" stopped' "$repo_root/scripts/local/stop_all_services.sh" >/dev/null
 rg -F -- 'remove_backend_runtime_state' "$repo_root/scripts/local/stop_all_services.sh" >/dev/null
 
 echo "runtime profile contract checks passed"

@@ -23,15 +23,18 @@ fi
 
 has_stale=0
 for state_file in "${state_files[@]}"; do
-  unset SERVICE_NAME MODULE_NAME SERVICE_PORT GIT_HEAD BACKEND_FINGERPRINT STARTED_AT STARTED_AT_TEXT
-  source "$state_file"
-  if [[ "${BACKEND_FINGERPRINT:-}" == "$current_fingerprint" ]]; then
-    echo "已同步: ${SERVICE_NAME} (${MODULE_NAME}) 端口 ${SERVICE_PORT}，启动时间 ${STARTED_AT_TEXT}"
+  if ! read_backend_runtime_state "$state_file"; then
+    echo "启动记录格式无效: ${state_file}" >&2
+    has_stale=1
+    continue
+  fi
+  if [[ "$RUNTIME_STATE_BACKEND_FINGERPRINT" == "$current_fingerprint" ]]; then
+    echo "已同步: ${RUNTIME_STATE_SERVICE_NAME} (${RUNTIME_STATE_MODULE_NAME}) 端口 ${RUNTIME_STATE_SERVICE_PORT}，启动时间 ${RUNTIME_STATE_STARTED_AT_TEXT}"
     continue
   fi
 
   has_stale=1
-  echo "需要重启: ${SERVICE_NAME} (${MODULE_NAME}) 端口 ${SERVICE_PORT}，启动时间 ${STARTED_AT_TEXT}"
+  echo "需要重启: ${RUNTIME_STATE_SERVICE_NAME} (${RUNTIME_STATE_MODULE_NAME}) 端口 ${RUNTIME_STATE_SERVICE_PORT}，启动时间 ${RUNTIME_STATE_STARTED_AT_TEXT}"
 done
 
 if [[ "$has_stale" -eq 1 ]]; then
