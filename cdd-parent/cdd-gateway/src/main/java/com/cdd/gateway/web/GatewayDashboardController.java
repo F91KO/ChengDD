@@ -9,6 +9,7 @@ import com.cdd.common.security.context.AuthContext;
 import com.cdd.common.security.context.AuthContextHolder;
 import com.cdd.gateway.config.GatewayRouteProperties;
 import com.cdd.gateway.service.GatewayDownstreamClient;
+import com.cdd.gateway.service.GatewayRouteResolver;
 import com.cdd.gateway.service.MerchantPermissionAuthorizer;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.ResponseEntity;
@@ -23,13 +24,16 @@ public class GatewayDashboardController {
 
     private final GatewayDownstreamClient gatewayDownstreamClient;
     private final GatewayRouteProperties gatewayRouteProperties;
+    private final GatewayRouteResolver gatewayRouteResolver;
     private final MerchantPermissionAuthorizer merchantPermissionAuthorizer;
 
     public GatewayDashboardController(GatewayDownstreamClient gatewayDownstreamClient,
                                       GatewayRouteProperties gatewayRouteProperties,
+                                      GatewayRouteResolver gatewayRouteResolver,
                                       MerchantPermissionAuthorizer merchantPermissionAuthorizer) {
         this.gatewayDownstreamClient = gatewayDownstreamClient;
         this.gatewayRouteProperties = gatewayRouteProperties;
+        this.gatewayRouteResolver = gatewayRouteResolver;
         this.merchantPermissionAuthorizer = merchantPermissionAuthorizer;
     }
 
@@ -41,7 +45,7 @@ public class GatewayDashboardController {
         merchantPermissionAuthorizer.authorize(request);
         MerchantScope scope = resolveMerchantScope();
         return gatewayDownstreamClient.get(
-                gatewayRouteProperties.getReport().getBaseUrl(),
+                gatewayRouteResolver.resolveBaseUrl(gatewayRouteProperties.getReport()),
                 "/api/report/merchant-dashboard/latest?merchant_id=" + scope.merchantId() + "&store_id=" + scope.storeId(),
                 request);
     }
@@ -51,7 +55,7 @@ public class GatewayDashboardController {
     @RequireRoles(anyOf = {"platform_admin"})
     public ResponseEntity<byte[]> getPlatformDashboardLatest(HttpServletRequest request) {
         return gatewayDownstreamClient.get(
-                gatewayRouteProperties.getReport().getBaseUrl(),
+                gatewayRouteResolver.resolveBaseUrl(gatewayRouteProperties.getReport()),
                 "/api/report/platform-dashboard/latest",
                 request);
     }
@@ -66,7 +70,7 @@ public class GatewayDashboardController {
         merchantPermissionAuthorizer.authorize(request);
         MerchantScope scope = resolveMerchantScope();
         return gatewayDownstreamClient.get(
-                gatewayRouteProperties.getReport().getBaseUrl(),
+                gatewayRouteResolver.resolveBaseUrl(gatewayRouteProperties.getReport()),
                 buildMerchantDashboardQueryPath("/api/report/orders/daily", scope.merchantId(), scope.storeId(), startDate, endDate),
                 request);
     }
@@ -81,7 +85,7 @@ public class GatewayDashboardController {
         merchantPermissionAuthorizer.authorize(request);
         MerchantScope scope = resolveMerchantScope();
         return gatewayDownstreamClient.get(
-                gatewayRouteProperties.getReport().getBaseUrl(),
+                gatewayRouteResolver.resolveBaseUrl(gatewayRouteProperties.getReport()),
                 buildMerchantDashboardQueryPath("/api/report/home-events/daily", scope.merchantId(), scope.storeId(), startDate, endDate),
                 request);
     }
@@ -94,7 +98,7 @@ public class GatewayDashboardController {
         merchantPermissionAuthorizer.authorize(request);
         MerchantScope scope = resolveMerchantScope();
         return gatewayDownstreamClient.get(
-                gatewayRouteProperties.getReport().getBaseUrl(),
+                gatewayRouteResolver.resolveBaseUrl(gatewayRouteProperties.getReport()),
                 buildMerchantDashboardQueryPath("/api/report/health", scope.merchantId(), scope.storeId(), null, null),
                 request);
     }

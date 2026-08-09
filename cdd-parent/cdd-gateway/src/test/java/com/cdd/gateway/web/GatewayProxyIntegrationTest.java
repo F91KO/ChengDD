@@ -3,6 +3,7 @@ package com.cdd.gateway.web;
 import com.cdd.common.core.context.RequestHeaders;
 import com.cdd.common.security.authentication.JwtTokenService;
 import com.cdd.common.security.context.AuthContext;
+import com.cdd.gateway.config.GatewayRouteProperties;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import org.junit.jupiter.api.Assertions;
@@ -46,6 +47,9 @@ class GatewayProxyIntegrationTest {
     @Autowired
     private RestTemplate gatewayProxyRestTemplate;
 
+    @Autowired
+    private GatewayRouteProperties gatewayRouteProperties;
+
     private MockRestServiceServer mockRestServiceServer;
 
     @BeforeEach
@@ -53,6 +57,19 @@ class GatewayProxyIntegrationTest {
         mockRestServiceServer = MockRestServiceServer.bindTo(gatewayProxyRestTemplate)
                 .ignoreExpectOrder(true)
                 .build();
+    }
+
+    @Test
+    void shouldBindGatewayServiceNamesFromBaseConfiguration() {
+        Assertions.assertEquals("cdd-auth-service", gatewayRouteProperties.getAuth().getServiceName());
+        Assertions.assertEquals("cdd-merchant-service", gatewayRouteProperties.getMerchant().getServiceName());
+        Assertions.assertEquals("cdd-decoration-service", gatewayRouteProperties.getDecoration().getServiceName());
+        Assertions.assertEquals("cdd-report-service", gatewayRouteProperties.getReport().getServiceName());
+        Assertions.assertEquals("cdd-config-service", gatewayRouteProperties.getConfig().getServiceName());
+        Assertions.assertEquals("cdd-product-service", gatewayRouteProperties.getProduct().getServiceName());
+        Assertions.assertEquals("cdd-order-service", gatewayRouteProperties.getOrder().getServiceName());
+        Assertions.assertEquals("cdd-marketing-service", gatewayRouteProperties.getMarketing().getServiceName());
+        Assertions.assertEquals("cdd-release-service", gatewayRouteProperties.getRelease().getServiceName());
     }
 
     @Test

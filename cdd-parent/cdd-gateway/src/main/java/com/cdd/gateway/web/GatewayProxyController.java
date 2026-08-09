@@ -5,6 +5,7 @@ import com.cdd.common.security.authorization.RequireRoles;
 import com.cdd.common.security.authorization.RequireScope;
 import com.cdd.gateway.config.GatewayRouteProperties;
 import com.cdd.gateway.service.GatewayDownstreamClient;
+import com.cdd.gateway.service.GatewayRouteResolver;
 import com.cdd.gateway.service.MerchantPermissionAuthorizer;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.ResponseEntity;
@@ -17,13 +18,16 @@ public class GatewayProxyController {
 
     private final GatewayDownstreamClient gatewayDownstreamClient;
     private final GatewayRouteProperties gatewayRouteProperties;
+    private final GatewayRouteResolver gatewayRouteResolver;
     private final MerchantPermissionAuthorizer merchantPermissionAuthorizer;
 
     public GatewayProxyController(GatewayDownstreamClient gatewayDownstreamClient,
                                   GatewayRouteProperties gatewayRouteProperties,
+                                  GatewayRouteResolver gatewayRouteResolver,
                                   MerchantPermissionAuthorizer merchantPermissionAuthorizer) {
         this.gatewayDownstreamClient = gatewayDownstreamClient;
         this.gatewayRouteProperties = gatewayRouteProperties;
+        this.gatewayRouteResolver = gatewayRouteResolver;
         this.merchantPermissionAuthorizer = merchantPermissionAuthorizer;
     }
 
@@ -34,7 +38,7 @@ public class GatewayProxyController {
     })
     public ResponseEntity<byte[]> proxyAnonymousAuth(HttpServletRequest request,
                                                      @RequestBody(required = false) byte[] body) {
-        return proxyTo(request, body, gatewayRouteProperties.getAuth().getBaseUrl());
+        return proxyTo(request, body, gatewayRouteResolver.resolveBaseUrl(gatewayRouteProperties.getAuth()));
     }
 
     @RequestMapping({
@@ -45,7 +49,7 @@ public class GatewayProxyController {
     @RequireRoles(anyOf = {"platform_admin", "merchant_owner", "merchant_admin"})
     public ResponseEntity<byte[]> proxyProtectedAuth(HttpServletRequest request,
                                                      @RequestBody(required = false) byte[] body) {
-        return proxyTo(request, body, gatewayRouteProperties.getAuth().getBaseUrl());
+        return proxyTo(request, body, gatewayRouteResolver.resolveBaseUrl(gatewayRouteProperties.getAuth()));
     }
 
     @RequestMapping("/api/merchant/**")
@@ -55,7 +59,7 @@ public class GatewayProxyController {
     public ResponseEntity<byte[]> proxyMerchant(HttpServletRequest request,
                                                 @RequestBody(required = false) byte[] body) {
         merchantPermissionAuthorizer.authorize(request);
-        return proxyTo(request, body, gatewayRouteProperties.getMerchant().getBaseUrl());
+        return proxyTo(request, body, gatewayRouteResolver.resolveBaseUrl(gatewayRouteProperties.getMerchant()));
     }
 
     @RequestMapping("/api/decoration/**")
@@ -65,7 +69,7 @@ public class GatewayProxyController {
     public ResponseEntity<byte[]> proxyDecoration(HttpServletRequest request,
                                                   @RequestBody(required = false) byte[] body) {
         merchantPermissionAuthorizer.authorize(request);
-        return proxyTo(request, body, gatewayRouteProperties.getDecoration().getBaseUrl());
+        return proxyTo(request, body, gatewayRouteResolver.resolveBaseUrl(gatewayRouteProperties.getDecoration()));
     }
 
     @RequestMapping("/api/report/**")
@@ -75,7 +79,7 @@ public class GatewayProxyController {
     public ResponseEntity<byte[]> proxyReport(HttpServletRequest request,
                                               @RequestBody(required = false) byte[] body) {
         merchantPermissionAuthorizer.authorize(request);
-        return proxyTo(request, body, gatewayRouteProperties.getReport().getBaseUrl());
+        return proxyTo(request, body, gatewayRouteResolver.resolveBaseUrl(gatewayRouteProperties.getReport()));
     }
 
     @RequestMapping("/api/config/**")
@@ -85,7 +89,7 @@ public class GatewayProxyController {
     public ResponseEntity<byte[]> proxyConfig(HttpServletRequest request,
                                               @RequestBody(required = false) byte[] body) {
         merchantPermissionAuthorizer.authorize(request);
-        return proxyTo(request, body, gatewayRouteProperties.getConfig().getBaseUrl());
+        return proxyTo(request, body, gatewayRouteResolver.resolveBaseUrl(gatewayRouteProperties.getConfig()));
     }
 
     @RequestMapping("/api/product/**")
@@ -95,7 +99,7 @@ public class GatewayProxyController {
     public ResponseEntity<byte[]> proxyProduct(HttpServletRequest request,
                                                @RequestBody(required = false) byte[] body) {
         merchantPermissionAuthorizer.authorize(request);
-        return proxyTo(request, body, gatewayRouteProperties.getProduct().getBaseUrl());
+        return proxyTo(request, body, gatewayRouteResolver.resolveBaseUrl(gatewayRouteProperties.getProduct()));
     }
 
     @RequestMapping("/api/order/**")
@@ -105,7 +109,7 @@ public class GatewayProxyController {
     public ResponseEntity<byte[]> proxyOrder(HttpServletRequest request,
                                              @RequestBody(required = false) byte[] body) {
         merchantPermissionAuthorizer.authorize(request);
-        return proxyTo(request, body, gatewayRouteProperties.getOrder().getBaseUrl());
+        return proxyTo(request, body, gatewayRouteResolver.resolveBaseUrl(gatewayRouteProperties.getOrder()));
     }
 
     @RequestMapping("/api/marketing/**")
@@ -115,7 +119,7 @@ public class GatewayProxyController {
     public ResponseEntity<byte[]> proxyMarketing(HttpServletRequest request,
                                                  @RequestBody(required = false) byte[] body) {
         merchantPermissionAuthorizer.authorize(request);
-        return proxyTo(request, body, gatewayRouteProperties.getMarketing().getBaseUrl());
+        return proxyTo(request, body, gatewayRouteResolver.resolveBaseUrl(gatewayRouteProperties.getMarketing()));
     }
 
     @RequestMapping("/api/release/**")
@@ -125,7 +129,7 @@ public class GatewayProxyController {
     public ResponseEntity<byte[]> proxyRelease(HttpServletRequest request,
                                                @RequestBody(required = false) byte[] body) {
         merchantPermissionAuthorizer.authorize(request);
-        return proxyTo(request, body, gatewayRouteProperties.getRelease().getBaseUrl());
+        return proxyTo(request, body, gatewayRouteResolver.resolveBaseUrl(gatewayRouteProperties.getRelease()));
     }
 
     @RequestMapping("/actuator/report/**")
@@ -137,7 +141,7 @@ public class GatewayProxyController {
         String query = request.getQueryString();
         String rewrittenPath = request.getRequestURI().replaceFirst("^/actuator/report", "/actuator");
         return gatewayDownstreamClient.get(
-                gatewayRouteProperties.getReport().getBaseUrl(),
+                gatewayRouteResolver.resolveBaseUrl(gatewayRouteProperties.getReport()),
                 rewrittenPath + (query == null || query.isBlank() ? "" : "?" + query),
                 request);
     }

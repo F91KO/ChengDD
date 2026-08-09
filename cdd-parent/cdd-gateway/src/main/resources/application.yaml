@@ -20,22 +20,31 @@ cdd:
     routes:
       auth:
         base-url: ${CDD_GATEWAY_AUTH_BASE_URL:http://127.0.0.1:8081}
+        service-name: cdd-auth-service
       merchant:
         base-url: ${CDD_GATEWAY_MERCHANT_BASE_URL:http://127.0.0.1:8082}
+        service-name: cdd-merchant-service
       decoration:
         base-url: ${CDD_GATEWAY_DECORATION_BASE_URL:http://127.0.0.1:8083}
+        service-name: cdd-decoration-service
       report:
         base-url: ${CDD_GATEWAY_REPORT_BASE_URL:http://127.0.0.1:8088}
+        service-name: cdd-report-service
       config:
         base-url: ${CDD_GATEWAY_CONFIG_BASE_URL:http://127.0.0.1:8089}
+        service-name: cdd-config-service
       product:
         base-url: ${CDD_GATEWAY_PRODUCT_BASE_URL:http://127.0.0.1:8084}
+        service-name: cdd-product-service
       order:
         base-url: ${CDD_GATEWAY_ORDER_BASE_URL:http://127.0.0.1:8085}
+        service-name: cdd-order-service
       marketing:
         base-url: ${CDD_GATEWAY_MARKETING_BASE_URL:http://127.0.0.1:8086}
+        service-name: cdd-marketing-service
       release:
         base-url: ${CDD_GATEWAY_RELEASE_BASE_URL:http://127.0.0.1:8087}
+        service-name: cdd-release-service
   security:
     permit-all: false
     permit-paths:

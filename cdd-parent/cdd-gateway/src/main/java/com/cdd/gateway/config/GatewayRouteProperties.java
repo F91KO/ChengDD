@@ -59,6 +59,8 @@ public class GatewayRouteProperties {
         @NotBlank
         private String baseUrl;
 
+        private String serviceName;
+
         public String getBaseUrl() {
             return baseUrl;
         }
@@ -67,6 +69,14 @@ public class GatewayRouteProperties {
             this.baseUrl = baseUrl == null
                     ? null
                     : (baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl);
+        }
+
+        public String getServiceName() {
+            return serviceName;
+        }
+
+        public void setServiceName(String serviceName) {
+            this.serviceName = serviceName == null ? null : serviceName.trim();
         }
     }
 }
