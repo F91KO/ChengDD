@@ -3,7 +3,7 @@
 ## 验收结论
 
 - 验收完成时间：2026-08-09 17:10:15 +0800。
-- 结论：通过。Spring Cloud Alibaba + Nacos 接入、file 模式回归、Nacos 模式全服务启动、Gateway 鉴权转发、静态地址回退和停服注销均达到本轮标准。
+- 结论：功能验收通过，但保留一项已观测到的停机日志缺陷。Spring Cloud Alibaba + Nacos 接入、file 模式回归、Nacos 模式全服务启动、Gateway 鉴权转发、静态地址回退、进程退出和注册清理均达到本轮标准；Nacos 模式服务关闭时的 ERROR/NPE 详见“停服与注销”和“剩余生产风险”。
 - 令牌处理：登录令牌只存在于临时 shell 变量；报告和命令输出仅保留 `token=[REDACTED]` 摘要。
 
 ## 版本与依赖收敛
@@ -110,14 +110,15 @@ CDD_ENV=local CDD_CONFIG_MODE=nacos bash scripts/local/status_all_services.sh
 
 结果：
 
-- 全部 10 个受运行时状态文件保护的服务进程均被安全停止，HTTP healthy services=0/10。
+- 停服命令终止了全部 10 个受运行时状态文件保护的服务进程，HTTP healthy services=0/10。
 - `cdd-gateway`、`cdd-auth-service`、`cdd-merchant-service`、`cdd-decoration-service`、`cdd-product-service`、`cdd-order-service`、`cdd-marketing-service`、`cdd-release-service`、`cdd-report-service`、`cdd-config-service` 均显示 `deregistered`。
 - `lsof` 逐端口复核 `8080`–`8089`，10 个端口均无 LISTEN 进程。
+- 需要区分功能结果和日志结果：10 个 Nacos 模式服务日志均先记录了成功注销，随后在 `NacosGracefulShutdownDelegate` 记录 ERROR。栈中 Nacos Client `3.0.3` 抛出 `NullPointerException`，消息为 `NotifyCenter.INSTANCE` 为 null。该 ERROR 没有阻止进程退出、端口清理，也没有阻止最终 10 个 Nacos host 列表变为空；本报告仅记录本次日志证据，不进一步推断根因。
 - MySQL、Redis、Nacos 基础设施按验收要求保持运行，便于后续开发。
 
-## 失败项与已解决问题
+## 已解决问题与已知缺陷
 
-- 本轮最终验收无失败项。
+- 本轮进程退出、端口清理和注册清理等功能结果达到标准；但不能表述为“无最终失败或错误”，因为全部 10 个 Nacos 模式服务在成功注销后的关闭阶段记录了上述 ERROR/NPE。该停机日志缺陷尚未修复。
 - 验收过程中发现并先后独立修复、复核：Maven dependency tree 插件版本不稳定、订单测试同 JVM 顺序隔离、Liquibase 4.31.1 classpath changelog 解析兼容。修复后才恢复后续验收。
 
 ## 剩余生产风险
@@ -126,3 +127,4 @@ CDD_ENV=local CDD_CONFIG_MODE=nacos bash scripts/local/status_all_services.sh
 2. 当前 MySQL、Redis 为本地单节点，并使用开发默认凭据；不可直接复制到生产。
 3. Merchant 已验证 subclass mock maker；其他仍使用 Mockito inline 的测试模块在 JDK 21 可能继续输出 self-attach 提示，后续升级 JDK/Mockito 时需统一治理。
 4. 当前烟测覆盖 Gateway 基础鉴权与同步转发，尚未覆盖消息链路、异步补偿、故障注入、限流熔断和多节点滚动升级。
+5. 本次 10 个 Nacos 模式服务关闭时均在成功注销后由 `NacosGracefulShutdownDelegate` 记录 ERROR；日志显示 Nacos Client `3.0.3` 因 `NotifyCenter.INSTANCE` 为 null 抛出 NPE。虽然本轮进程、端口和注册均完成清理，仍需在后续版本兼容性验证中复现并处理该停机日志缺陷。

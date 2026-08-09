@@ -20,7 +20,7 @@
 
 静态回退也已单独验证：执行 `GatewayRouteResolverTest#shouldFallBackWhenNoInstanceExists` 通过 1/1；随后将 auth-service 与 Gateway 以 `CDD_CONFIG_MODE=file` 重启，二者日志确认 profiles 为 `local,file`。Gateway 经配置的静态地址 `http://127.0.0.1:8081` 转发登录成功，Gateway 日志没有 Nacos 配置、注册或发现活动。
 
-最终执行 `CDD_ENV=local CDD_CONFIG_MODE=nacos bash scripts/local/stop_all_services.sh` 和 `status_all_services.sh`：后端健康实例为 0/10，端口 `8080`–`8089` 均无监听，10 个 Nacos 应用均已注销。MySQL、Redis、Nacos 基础设施仍保持运行。
+最终执行 `CDD_ENV=local CDD_CONFIG_MODE=nacos bash scripts/local/stop_all_services.sh` 和 `status_all_services.sh`：后端健康实例为 0/10，端口 `8080`–`8089` 均无监听，10 个 Nacos 应用均已注销。需要同时披露：10 个 Nacos 模式服务日志都在成功注销后由 `NacosGracefulShutdownDelegate` 记录 ERROR；栈中 Nacos Client `3.0.3` 因 `NotifyCenter.INSTANCE` 为 null 抛出 NPE。该错误没有阻止本轮进程退出、端口清理或 host 列表清空，但属于待处理的停机日志缺陷。MySQL、Redis、Nacos 基础设施仍保持运行。
 
 | 项目 | 说明 |
 | --- | --- |
@@ -77,3 +77,4 @@
 3. 工作台当前直接对接 `report-service` 的 `/api/report/*` 路径；商家端与平台端文档中的 `/merchant/dashboard/*`、`/platform/dashboard/*` 聚合口径尚未落到网关聚合层。
 4. 若更换开发机或重置本地容器环境，需先重新执行 `bash scripts/local/up_local_infra.sh`，确保 `MySQL + Redis + Nacos` 全部就绪。
 5. 页面还未接入后端分页、复杂筛选与更细粒度状态变更，后续改动需重新执行本流程并更新报告。
+6. 10 个 Nacos 模式服务在本轮成功注销后的关闭阶段均记录了 `NacosGracefulShutdownDelegate` ERROR/NPE；虽然未影响进程、端口和注册清理，仍需后续复现并验证兼容性修复。
