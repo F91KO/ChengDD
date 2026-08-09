@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
 import java.util.Map;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -28,6 +29,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @ActiveProfiles("test")
 class OrderControllerIntegrationTest {
 
+    private static final long TEST_RUN_ID_OFFSET = Long.parseLong(
+            UUID.randomUUID().toString().replace("-", "").substring(0, 12), 16) * 10_000L;
+
     @Autowired
     private MockMvc mockMvc;
 
@@ -36,9 +40,9 @@ class OrderControllerIntegrationTest {
 
     @Test
     void shouldSupportOrderBaselineLifecycle() throws Exception {
-        long merchantId = 3001L;
-        long storeId = 4001L;
-        long userId = 5001L;
+        long merchantId = runScopedId(3001L);
+        long storeId = runScopedId(4001L);
+        long userId = runScopedId(5001L);
 
         mockMvc.perform(post("/api/order/cart/items")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -115,7 +119,7 @@ class OrderControllerIntegrationTest {
                                 "store_id", storeId,
                                 "user_id", userId,
                                 "pay_no", payNo,
-                                "third_party_trade_no", "wx_trade_10001",
+                                "third_party_trade_no", uniqueIdentifier("wx_trade_10001"),
                                 "paid_amount", new BigDecimal("25.00")))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(0))
@@ -157,9 +161,9 @@ class OrderControllerIntegrationTest {
 
     @Test
     void shouldSupportPayCallbackRefundAndCompensationFlow() throws Exception {
-        long merchantId = 3002L;
-        long storeId = 4002L;
-        long userId = 5002L;
+        long merchantId = runScopedId(3002L);
+        long storeId = runScopedId(4002L);
+        long userId = runScopedId(5002L);
 
         String orderNo = createPaidOrderByCallback(merchantId, storeId, userId, new BigDecimal("36.00"), "callback-success-1");
 
@@ -185,9 +189,9 @@ class OrderControllerIntegrationTest {
                         .content(writeJson(Map.of(
                                 "merchant_id", merchantId,
                                 "store_id", storeId,
-                                "callback_event_id", "refund-success-1",
+                                "callback_event_id", uniqueIdentifier("refund-success-1"),
                                 "callback_status", "success",
-                                "third_party_refund_no", "wx_refund_10001",
+                                "third_party_refund_no", uniqueIdentifier("wx_refund_10001"),
                                 "callback_payload_json", "{\"status\":\"success\"}"))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(0))
@@ -198,9 +202,9 @@ class OrderControllerIntegrationTest {
 
     @Test
     void shouldSupportMultiOrderStatusFilterForOrderListAndExport() throws Exception {
-        long merchantId = 3015L;
-        long storeId = 4015L;
-        long userId = 5015L;
+        long merchantId = runScopedId(3015L);
+        long storeId = runScopedId(4015L);
+        long userId = runScopedId(5015L);
 
         String shippedOrderNo = createPaidOrderByCallback(merchantId, storeId, userId, new BigDecimal("42.00"), "callback-multi-filter-1");
 
@@ -254,9 +258,9 @@ class OrderControllerIntegrationTest {
 
     @Test
     void shouldCreateCompensationTaskWhenRefundCallbackFails() throws Exception {
-        long merchantId = 3003L;
-        long storeId = 4003L;
-        long userId = 5003L;
+        long merchantId = runScopedId(3003L);
+        long storeId = runScopedId(4003L);
+        long userId = runScopedId(5003L);
 
         String orderNo = createPaidOrderByCallback(merchantId, storeId, userId, new BigDecimal("50.00"), "callback-failed-1");
 
@@ -275,12 +279,14 @@ class OrderControllerIntegrationTest {
         String refundNo = readData(refundResult).path("refund_no").asText();
         assertThat(refundNo).isNotBlank();
 
+        String duplicateCallbackEventId = uniqueIdentifier("refund-failed-1");
+
         MvcResult failedCallback = mockMvc.perform(post("/api/order/refunds/{refund_no}/callbacks", refundNo)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(writeJson(Map.of(
                                 "merchant_id", merchantId,
                                 "store_id", storeId,
-                                "callback_event_id", "refund-failed-1",
+                                "callback_event_id", duplicateCallbackEventId,
                                 "callback_status", "failed",
                                 "failure_reason", "渠道超时",
                                 "callback_payload_json", "{\"status\":\"failed\"}"))))
@@ -299,7 +305,7 @@ class OrderControllerIntegrationTest {
                         .content(writeJson(Map.of(
                                 "merchant_id", merchantId,
                                 "store_id", storeId,
-                                "callback_event_id", "refund-failed-1",
+                                "callback_event_id", duplicateCallbackEventId,
                                 "callback_status", "failed",
                                 "failure_reason", "渠道超时",
                                 "callback_payload_json", "{\"status\":\"failed\"}"))))
@@ -312,9 +318,9 @@ class OrderControllerIntegrationTest {
 
     @Test
     void shouldRestrictCumulativePartialRefundAmount() throws Exception {
-        long merchantId = 3004L;
-        long storeId = 4004L;
-        long userId = 5004L;
+        long merchantId = runScopedId(3004L);
+        long storeId = runScopedId(4004L);
+        long userId = runScopedId(5004L);
 
         String orderNo = createPaidOrderByCallback(merchantId, storeId, userId, new BigDecimal("36.00"), "callback-partial-1");
 
@@ -347,9 +353,9 @@ class OrderControllerIntegrationTest {
 
     @Test
     void shouldSupportItemLevelRefundOnlyAfterSaleFlow() throws Exception {
-        long merchantId = 3010L;
-        long storeId = 4010L;
-        long userId = 5010L;
+        long merchantId = runScopedId(3010L);
+        long storeId = runScopedId(4010L);
+        long userId = runScopedId(5010L);
 
         String orderNo = createPaidOrderWithItems(
                 merchantId,
@@ -421,9 +427,9 @@ class OrderControllerIntegrationTest {
 
     @Test
     void shouldSupportReturnRefundAfterSaleFlow() throws Exception {
-        long merchantId = 3011L;
-        long storeId = 4011L;
-        long userId = 5011L;
+        long merchantId = runScopedId(3011L);
+        long storeId = runScopedId(4011L);
+        long userId = runScopedId(5011L);
 
         String orderNo = createPaidOrderWithItems(
                 merchantId,
@@ -502,9 +508,9 @@ class OrderControllerIntegrationTest {
 
     @Test
     void shouldListAfterSalesAndSupportStatusFilter() throws Exception {
-        long merchantId = 3012L;
-        long storeId = 4012L;
-        long userId = 5012L;
+        long merchantId = runScopedId(3012L);
+        long storeId = runScopedId(4012L);
+        long userId = runScopedId(5012L);
 
         String orderNo = createPaidOrderWithItems(
                 merchantId,
@@ -614,9 +620,9 @@ class OrderControllerIntegrationTest {
 
     @Test
     void shouldReturnExtendedOrderSummaryAndExportCsv() throws Exception {
-        long merchantId = 3013L;
-        long storeId = 4013L;
-        long userId = 5013L;
+        long merchantId = runScopedId(3013L);
+        long storeId = runScopedId(4013L);
+        long userId = runScopedId(5013L);
 
         String orderNo = createPaidOrderWithItems(
                 merchantId,
@@ -658,9 +664,9 @@ class OrderControllerIntegrationTest {
 
     @Test
     void shouldReturnAfterSaleDetailAndLogs() throws Exception {
-        long merchantId = 3014L;
-        long storeId = 4014L;
-        long userId = 5014L;
+        long merchantId = runScopedId(3014L);
+        long storeId = runScopedId(4014L);
+        long userId = runScopedId(5014L);
 
         String orderNo = createPaidOrderWithItems(
                 merchantId,
@@ -828,15 +834,17 @@ class OrderControllerIntegrationTest {
         String payNo = readData(payingResult).path("pay_no").asText();
         assertThat(payNo).isNotBlank();
 
+        String uniqueCallbackEventId = uniqueIdentifier(callbackEventId);
+
         mockMvc.perform(post("/api/order/pay/callbacks")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(writeJson(Map.of(
                                 "merchant_id", merchantId,
                                 "store_id", storeId,
                                 "pay_no", payNo,
-                                "callback_event_id", callbackEventId,
+                                "callback_event_id", uniqueCallbackEventId,
                                 "paid_amount", orderAmount(items),
-                                "third_party_trade_no", "wx_trade_" + callbackEventId,
+                                "third_party_trade_no", "wx_trade_" + uniqueCallbackEventId,
                                 "pay_channel", "wechat_pay",
                                 "callback_payload_json", "{\"status\":\"success\"}"))))
                 .andExpect(status().isOk())
@@ -885,17 +893,27 @@ class OrderControllerIntegrationTest {
                                                                               long storeId,
                                                                               String callbackEventId,
                                                                               String thirdPartyRefundNo) throws Exception {
+        String uniqueCallbackEventId = uniqueIdentifier(callbackEventId);
         return mockMvc.perform(post("/api/order/refunds/{refund_no}/callbacks", refundNo)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(writeJson(Map.of(
                                 "merchant_id", merchantId,
                                 "store_id", storeId,
-                                "callback_event_id", callbackEventId,
+                                "callback_event_id", uniqueCallbackEventId,
                                 "callback_status", "success",
-                                "third_party_refund_no", thirdPartyRefundNo,
+                                "third_party_refund_no", uniqueIdentifier(thirdPartyRefundNo),
                                 "callback_payload_json", "{\"status\":\"success\"}"))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(0));
+    }
+
+    private String uniqueIdentifier(String prefix) {
+        String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 12);
+        return prefix + "-" + suffix;
+    }
+
+    private long runScopedId(long seed) {
+        return TEST_RUN_ID_OFFSET + seed;
     }
 
     private JsonNode readData(MvcResult result) throws Exception {
