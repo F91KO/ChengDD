@@ -6,5 +6,5 @@ spring:
     driver-class-name: ${CDD_DB_MIGRATION_DRIVER_CLASS_NAME:com.mysql.cj.jdbc.Driver}
   liquibase:
     enabled: true
-    change-log: ${CDD_DB_CHANGELOG:file:../../config/db-migration/db.changelog-master.yaml}
+    change-log: ${CDD_DB_CHANGELOG:classpath:config/db-migration/db.changelog-master.yaml}
     clear-checksums: false

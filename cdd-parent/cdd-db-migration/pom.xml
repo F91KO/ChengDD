@@ -34,9 +34,33 @@
             <groupId>com.mysql</groupId>
             <artifactId>mysql-connector-j</artifactId>
         </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+            </resource>
+            <resource>
+                <directory>${project.basedir}/../../config/db-migration</directory>
+                <includes>
+                    <include>db.changelog-master.yaml</include>
+                </includes>
+                <targetPath>config/db-migration</targetPath>
+            </resource>
+            <resource>
+                <directory>${project.basedir}/../../db/migration</directory>
+                <includes>
+                    <include>V*.sql</include>
+                </includes>
+                <targetPath>db/migration</targetPath>
+            </resource>
+        </resources>
         <plugins>
             <plugin>
                 <groupId>org.springframework.boot</groupId>

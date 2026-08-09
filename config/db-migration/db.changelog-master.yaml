@@ -1,11 +1,12 @@
 databaseChangeLog:
+  - logicalFilePath: file:../../config/db-migration/db.changelog-master.yaml
   - changeSet:
       id: V1__auth_and_config
       author: codex
       changes:
         - sqlFile:
-            path: ../../db/migration/V1__auth_and_config.sql
-            relativeToChangelogFile: true
+            path: db/migration/V1__auth_and_config.sql
+            relativeToChangelogFile: false
             splitStatements: true
             stripComments: false
   - changeSet:
@@ -13,8 +14,8 @@ databaseChangeLog:
       author: codex
       changes:
         - sqlFile:
-            path: ../../db/migration/V2__merchant.sql
-            relativeToChangelogFile: true
+            path: db/migration/V2__merchant.sql
+            relativeToChangelogFile: false
             splitStatements: true
             stripComments: false
   - changeSet:
@@ -22,8 +23,8 @@ databaseChangeLog:
       author: codex
       changes:
         - sqlFile:
-            path: ../../db/migration/V3__decoration.sql
-            relativeToChangelogFile: true
+            path: db/migration/V3__decoration.sql
+            relativeToChangelogFile: false
             splitStatements: true
             stripComments: false
   - changeSet:
@@ -31,8 +32,8 @@ databaseChangeLog:
       author: codex
       changes:
         - sqlFile:
-            path: ../../db/migration/V4__product.sql
-            relativeToChangelogFile: true
+            path: db/migration/V4__product.sql
+            relativeToChangelogFile: false
             splitStatements: true
             stripComments: false
   - changeSet:
@@ -40,8 +41,8 @@ databaseChangeLog:
       author: codex
       changes:
         - sqlFile:
-            path: ../../db/migration/V5__order.sql
-            relativeToChangelogFile: true
+            path: db/migration/V5__order.sql
+            relativeToChangelogFile: false
             splitStatements: true
             stripComments: false
   - changeSet:
@@ -49,8 +50,8 @@ databaseChangeLog:
       author: codex
       changes:
         - sqlFile:
-            path: ../../db/migration/V6__release.sql
-            relativeToChangelogFile: true
+            path: db/migration/V6__release.sql
+            relativeToChangelogFile: false
             splitStatements: true
             stripComments: false
   - changeSet:
@@ -58,8 +59,8 @@ databaseChangeLog:
       author: codex
       changes:
         - sqlFile:
-            path: ../../db/migration/V7__marketing_and_report.sql
-            relativeToChangelogFile: true
+            path: db/migration/V7__marketing_and_report.sql
+            relativeToChangelogFile: false
             splitStatements: true
             stripComments: false
   - changeSet:
@@ -67,8 +68,8 @@ databaseChangeLog:
       author: codex
       changes:
         - sqlFile:
-            path: ../../db/migration/V8__seed_data.sql
-            relativeToChangelogFile: true
+            path: db/migration/V8__seed_data.sql
+            relativeToChangelogFile: false
             splitStatements: true
             stripComments: false
   - changeSet:
@@ -76,8 +77,8 @@ databaseChangeLog:
       author: codex
       changes:
         - sqlFile:
-            path: ../../db/migration/V9__idempotency_and_compensation.sql
-            relativeToChangelogFile: true
+            path: db/migration/V9__idempotency_and_compensation.sql
+            relativeToChangelogFile: false
             splitStatements: true
             stripComments: false
   - changeSet:
@@ -85,8 +86,8 @@ databaseChangeLog:
       author: codex
       changes:
         - sqlFile:
-            path: ../../db/migration/V10__auth_persistence.sql
-            relativeToChangelogFile: true
+            path: db/migration/V10__auth_persistence.sql
+            relativeToChangelogFile: false
             splitStatements: true
             stripComments: false
   - changeSet:
@@ -94,8 +95,8 @@ databaseChangeLog:
       author: codex
       changes:
         - sqlFile:
-            path: ../../db/migration/V11__auth_seed_accounts.sql
-            relativeToChangelogFile: true
+            path: db/migration/V11__auth_seed_accounts.sql
+            relativeToChangelogFile: false
             splitStatements: true
             stripComments: false
   - changeSet:
@@ -103,8 +104,8 @@ databaseChangeLog:
       author: codex
       changes:
         - sqlFile:
-            path: ../../db/migration/V12__merchant_onboarding_baseline.sql
-            relativeToChangelogFile: true
+            path: db/migration/V12__merchant_onboarding_baseline.sql
+            relativeToChangelogFile: false
             splitStatements: true
             stripComments: false
   - changeSet:
@@ -112,8 +113,8 @@ databaseChangeLog:
       author: codex
       changes:
         - sqlFile:
-            path: ../../db/migration/V13__release_governance_baseline.sql
-            relativeToChangelogFile: true
+            path: db/migration/V13__release_governance_baseline.sql
+            relativeToChangelogFile: false
             splitStatements: true
             stripComments: false
   - changeSet:
@@ -121,8 +122,8 @@ databaseChangeLog:
       author: codex
       changes:
         - sqlFile:
-            path: ../../db/migration/V14__config_switches_baseline.sql
-            relativeToChangelogFile: true
+            path: db/migration/V14__config_switches_baseline.sql
+            relativeToChangelogFile: false
             splitStatements: true
             stripComments: false
   - changeSet:
@@ -130,8 +131,8 @@ databaseChangeLog:
       author: codex
       changes:
         - sqlFile:
-            path: ../../db/migration/V15__product_catalog_baseline.sql
-            relativeToChangelogFile: true
+            path: db/migration/V15__product_catalog_baseline.sql
+            relativeToChangelogFile: false
             splitStatements: true
             stripComments: false
   - changeSet:
@@ -139,8 +140,8 @@ databaseChangeLog:
       author: codex
       changes:
         - sqlFile:
-            path: ../../db/migration/V16__order_baseline.sql
-            relativeToChangelogFile: true
+            path: db/migration/V16__order_baseline.sql
+            relativeToChangelogFile: false
             splitStatements: true
             stripComments: false
   - changeSet:
@@ -148,8 +149,8 @@ databaseChangeLog:
       author: codex
       changes:
         - sqlFile:
-            path: ../../db/migration/V17__order_item_level_after_sale_refund.sql
-            relativeToChangelogFile: true
+            path: db/migration/V17__order_item_level_after_sale_refund.sql
+            relativeToChangelogFile: false
             splitStatements: true
             stripComments: false
   - changeSet:
@@ -159,8 +160,8 @@ databaseChangeLog:
         - 9:b6a127cdde3144c68586c16459b1ba22
       changes:
         - sqlFile:
-            path: ../../db/migration/V18__local_demo_product_order_seed.sql
-            relativeToChangelogFile: true
+            path: db/migration/V18__local_demo_product_order_seed.sql
+            relativeToChangelogFile: false
             splitStatements: true
             stripComments: false
   - changeSet:
@@ -168,8 +169,8 @@ databaseChangeLog:
       author: codex
       changes:
         - sqlFile:
-            path: ../../db/migration/V19__local_demo_product_seed_patch.sql
-            relativeToChangelogFile: true
+            path: db/migration/V19__local_demo_product_seed_patch.sql
+            relativeToChangelogFile: false
             splitStatements: true
             stripComments: false
   - changeSet:
@@ -177,8 +178,8 @@ databaseChangeLog:
       author: codex
       changes:
         - sqlFile:
-            path: ../../db/migration/V20__local_demo_report_seed.sql
-            relativeToChangelogFile: true
+            path: db/migration/V20__local_demo_report_seed.sql
+            relativeToChangelogFile: false
             splitStatements: true
             stripComments: false
   - changeSet:
@@ -186,8 +187,8 @@ databaseChangeLog:
       author: codex
       changes:
         - sqlFile:
-            path: ../../db/migration/V21__local_demo_dashboard_refresh.sql
-            relativeToChangelogFile: true
+            path: db/migration/V21__local_demo_dashboard_refresh.sql
+            relativeToChangelogFile: false
             splitStatements: true
             stripComments: false
   - changeSet:
@@ -195,8 +196,8 @@ databaseChangeLog:
       author: codex
       changes:
         - sqlFile:
-            path: ../../db/migration/V22__local_demo_after_sale_seed.sql
-            relativeToChangelogFile: true
+            path: db/migration/V22__local_demo_after_sale_seed.sql
+            relativeToChangelogFile: false
             splitStatements: true
             stripComments: false
   - changeSet:
@@ -204,8 +205,8 @@ databaseChangeLog:
       author: codex
       changes:
         - sqlFile:
-            path: ../../db/migration/V23__local_demo_release_seed.sql
-            relativeToChangelogFile: true
+            path: db/migration/V23__local_demo_release_seed.sql
+            relativeToChangelogFile: false
             splitStatements: true
             stripComments: false
   - changeSet:
@@ -213,8 +214,8 @@ databaseChangeLog:
       author: codex
       changes:
         - sqlFile:
-            path: ../../db/migration/V24__product_category_template_nodes_and_fresh_templates.sql
-            relativeToChangelogFile: true
+            path: db/migration/V24__product_category_template_nodes_and_fresh_templates.sql
+            relativeToChangelogFile: false
             splitStatements: true
             stripComments: false
   - changeSet:
@@ -222,8 +223,8 @@ databaseChangeLog:
       author: codex
       changes:
         - sqlFile:
-            path: ../../db/migration/V25__rename_product_category_template_names.sql
-            relativeToChangelogFile: true
+            path: db/migration/V25__rename_product_category_template_names.sql
+            relativeToChangelogFile: false
             splitStatements: true
             stripComments: false
   - changeSet:
@@ -231,8 +232,8 @@ databaseChangeLog:
       author: codex
       changes:
         - sqlFile:
-            path: ../../db/migration/V26__order_shipping_fields.sql
-            relativeToChangelogFile: true
+            path: db/migration/V26__order_shipping_fields.sql
+            relativeToChangelogFile: false
             splitStatements: true
             stripComments: false
   - changeSet:
@@ -240,8 +241,8 @@ databaseChangeLog:
       author: codex
       changes:
         - sqlFile:
-            path: ../../db/migration/V27__local_demo_order_shipping_patch.sql
-            relativeToChangelogFile: true
+            path: db/migration/V27__local_demo_order_shipping_patch.sql
+            relativeToChangelogFile: false
             splitStatements: true
             stripComments: false
   - changeSet:
@@ -249,8 +250,8 @@ databaseChangeLog:
       author: codex
       changes:
         - sqlFile:
-            path: ../../db/migration/V28__local_demo_after_sale_refunding_patch.sql
-            relativeToChangelogFile: true
+            path: db/migration/V28__local_demo_after_sale_refunding_patch.sql
+            relativeToChangelogFile: false
             splitStatements: true
             stripComments: false
   - changeSet:
@@ -258,8 +259,8 @@ databaseChangeLog:
       author: codex
       changes:
         - sqlFile:
-            path: ../../db/migration/V29__local_demo_after_sale_item_refund_status_patch.sql
-            relativeToChangelogFile: true
+            path: db/migration/V29__local_demo_after_sale_item_refund_status_patch.sql
+            relativeToChangelogFile: false
             splitStatements: true
             stripComments: false
   - changeSet:
@@ -267,7 +268,7 @@ databaseChangeLog:
       author: codex
       changes:
         - sqlFile:
-            path: ../../db/migration/V30__merchant_account_permissions_and_roles.sql
-            relativeToChangelogFile: true
+            path: db/migration/V30__merchant_account_permissions_and_roles.sql
+            relativeToChangelogFile: false
             splitStatements: true
             stripComments: false
