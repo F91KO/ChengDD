@@ -1,54 +1,98 @@
-# Nacos 配置中心与服务发现收口设计
+# Spring Cloud Alibaba Nacos 接入收口设计
 
 ## 1. 背景
 
-项目已有 Nacos 配置加载基线，当前工作区还包含服务注册、Gateway 动态发现和本地全服务启停脚本的未提交实现。本轮不重新选型，而是延续现有 Nacos Java Client 方案，将代码、配置、测试和本地联调收口到一致状态。
+项目当前使用 Spring Boot 3.3.2，并在工作区中存在一组直接调用 `nacos-client` 的未提交实现，包括自定义配置加载、服务注册监听和 Gateway 实例解析。
 
-本轮目标是完成代码层 Nacos 接入及本地 Docker Nacos 端到端联调。生产服务器 Compose、Nacos 生产鉴权和高可用集群继续作为后续部署任务。
+本轮改用 Spring Cloud Alibaba 官方集成，不保留自研 Nacos 生命周期实现。同时将 Spring Boot 和 Spring Cloud 升级到 Spring Cloud Alibaba 2025.0 支持的版本线。
 
-## 2. 设计决策
+本轮目标是完成代码层 Nacos 配置中心、服务注册发现和 Gateway 负载均衡接入，并通过本地 Docker Nacos 3.0.3 完成端到端验收。生产 Compose、Nacos 生产鉴权和高可用集群仍属于后续部署任务。
 
-采用轻量直连方案：
+## 2. 版本基线
 
-- 使用 `nacos-client 2.3.2`。
-- 不引入 Spring Cloud Alibaba 依赖和版本矩阵。
-- `cdd-common-core` 统一承载运行时参数解析、配置加载和服务注册。
-- `cdd-gateway` 使用相同的客户端参数规则发现下游实例。
-- 保留静态 `base-url` 作为 Gateway 的最后回退地址。
-- `cdd-db-migration` 保持文件配置，不参与 Nacos 加载或服务注册。
+| 组件 | 目标版本 | 说明 |
+| --- | --- | --- |
+| JDK | 21 | 保持现有基线 |
+| Spring Boot | 3.5.14 | 3.5.x 当前稳定补丁版 |
+| Spring Cloud | 2025.0.3 | 与 Spring Boot 3.5.x 对应的稳定发布列车 |
+| Spring Cloud Alibaba | 2025.0.0.0 | 官方对应 Spring Boot 3.5.x / Spring Cloud 2025.0.x |
+| Nacos Client | 3.0.3 | 由 Spring Cloud Alibaba BOM 管理 |
+| Nacos Server | 3.0.3 | 与客户端基线保持一致 |
 
-## 3. 配置隔离与命名
+父 POM 统一导入：
 
-### 3.1 环境隔离
+- `spring-boot-dependencies`
+- `spring-cloud-dependencies`
+- `spring-cloud-alibaba-dependencies`
+
+实施后必须执行 Maven dependency tree 和 Enforcer 收敛检查，确认没有混入 Spring Cloud 2024.x、Nacos Client 2.x 或旧版 Spring Framework。
+
+## 3. 设计决策
+
+- 配置中心使用 `spring-cloud-starter-alibaba-nacos-config`。
+- 服务注册发现使用 `spring-cloud-starter-alibaba-nacos-discovery`。
+- 配置导入统一使用 `spring.config.import`，不使用 `bootstrap.yaml`、`shared-configs` 或 `extension-configs`。
+- Gateway 使用 Spring Cloud LoadBalancer 选择服务实例，不直接创建 Nacos `NamingService`。
+- 删除自定义 Nacos `EnvironmentPostProcessor`、服务注册监听器和 Nacos Client 工厂逻辑。
+- `cdd-db-migration` 继续使用文件配置，不引入 Nacos Starter，也不注册服务。
+- 本轮只验收启动时配置加载，不把 Nacos 动态刷新作为完成条件。
+
+## 4. 模块边界
+
+### 4.1 `cdd-common-core`
+
+- 保留通用环境、命名和运行时模型。
+- 移除 `nacos-client` 直接依赖。
+- 移除自定义 Nacos 配置加载与注册逻辑。
+- 不承担 Spring Cloud Alibaba 适配职责。
+
+### 4.2 `cdd-common-nacos`
+
+新增独立适配模块，用于隔离 Spring Cloud Alibaba 依赖：
+
+- 依赖 Nacos Config Starter 和 Discovery Starter。
+- 提供项目统一的 Nacos 配置属性校验。
+- 提供 `nacos` Spring Profile 下的共享配置导入约定。
+- 不包含任何商品、订单或商户业务逻辑。
+
+所有业务服务和 Gateway 依赖该模块；`cdd-db-migration`、`cdd-api-*`、`cdd-pay-core` 和 `cdd-agent-core` 不依赖该模块。
+
+### 4.3 `cdd-gateway`
+
+- 引入 `spring-cloud-starter-loadbalancer`。
+- `GatewayRouteResolver` 仅依赖 Spring Cloud `LoadBalancerClient` 或等价抽象。
+- 根据 `service-name` 选择实例，将 `ServiceInstance` 转换为下游基础 URL。
+- 无可用实例时保留现有静态 `base-url` 回退。
+- 不将现有 Spring MVC 代理强制改写为 Spring Cloud Gateway WebFlux，避免扩大本轮范围。
+
+## 5. 配置隔离与命名
+
+### 5.1 环境隔离
 
 | 环境 | Namespace |
 | --- | --- |
-| `local` | 默认公共 namespace |
+| `local` | Nacos 3.x public namespace |
 | `dev` | `chengdd-dev` |
 | `test` | `chengdd-test` |
 | `prod` | `chengdd-prod` |
 
-所有环境默认使用 `group=CHENGDD`。Namespace 和 Group 均允许通过环境变量覆盖。
+所有环境默认使用 `group=CHENGDD`。Namespace 实际传递值必须使用 Nacos 控制台显示的 Namespace ID，不依赖展示名称。
 
-### 3.2 公共配置
+### 5.2 公共与独立配置
 
-每个环境保留一份公共配置：
+共享 DataId：
 
 ```text
 cdd-common-{env}.yaml
 ```
 
-公共配置仅承载可被多个服务共享的参数，例如 MySQL、Redis、JWT、日志和通用超时基线。不在公共配置中放入单个业务域的规则。
-
-### 3.3 服务独立配置
-
-每个可启动服务都有独立 DataId：
+服务独立 DataId：
 
 ```text
 {spring.application.name}-{env}.yaml
 ```
 
-`prod` 环境的标准 DataId 为：
+`prod` 环境包含：
 
 ```text
 cdd-common-prod.yaml
@@ -64,134 +108,123 @@ cdd-report-service-prod.yaml
 cdd-config-service-prod.yaml
 ```
 
-服务独立配置承载端口、领域开关、线程池、路由和单服务超时等参数。
+公共配置放 MySQL、Redis、JWT、日志和通用超时基线；服务独立配置放端口、领域开关、线程池、Gateway 路由和单服务超时。
 
-### 3.4 加载顺序
+### 5.3 `spring.config.import`
 
-服务启动时按以下顺序处理：
+Nacos Profile 下必须使用非 optional 导入，配置缺失直接导致启动失败：
 
-1. Spring Boot 启动参数和操作系统环境变量。
-2. Nacos 共享配置 `cdd-common-{env}.yaml`。
-3. Nacos 服务配置 `{service-name}-{env}.yaml`。
-4. 仓库内的基础 `application*.yaml` 保留启动必需默认值和静态回退值。
-
-优先级必须保证：服务独立 Nacos 配置可覆盖共享 Nacos 配置；命令行参数和环境变量仍可覆盖 Nacos 值。
-
-## 4. 组件边界
-
-### 4.1 `NacosRuntimeSupport`
-
-统一处理：
-
-- `cdd.runtime.config-mode` / `CDD_CONFIG_MODE`
-- `cdd.runtime.env` / `CDD_ENV`
-- server address 规范化
-- namespace、config group 和 discovery group
-- 用户名、密码与 Nacos Client Properties
-- fail-fast、必需配置和服务发现开关
-- 共享 DataId 和服务 DataId 命名
-
-Gateway 不应再自行复制 server address、namespace 和鉴权参数的解析逻辑。实施时将公共构建能力以有限、可测试的 API 暴露给 Gateway。
-
-### 4.2 `NacosConfigEnvironmentPostProcessor`
-
-- 仅在 `config-mode=nacos` 时运行。
-- 在 Spring Bean 创建前加载远程 YAML。
-- 先加载公共配置，再加载服务配置。
-- 根据必需开关区分“缺失则跳过”与“缺失则启动失败”。
-- 不为 `cdd-db-migration` 加载 Nacos 配置。
-
-### 4.3 `NacosServiceRegistrationListener`
-
-- 仅在 `config-mode=nacos` 且 discovery enabled 时运行。
-- 收到 `ApplicationReadyEvent` 后注册服务实例。
-- 收到 `ContextClosedEvent` 后注销实例并关闭客户端。
-- 注册元数据包含运行环境、配置模式、context path 和管理端口。
-- `local` 环境默认注册 `127.0.0.1`，其他环境允许通过参数显式指定 IP。
-- 注册过程必须幂等，避免重复事件造成重复注册。
-
-### 4.4 `GatewayRouteResolver`
-
-- `file` 模式直接返回静态 `base-url`。
-- `nacos` 模式按 `service-name` 和 discovery group 选择健康实例。
-- Nacos Client 惰性创建并复用，应用关闭时释放。
-- 暂时无健康实例或 Nacos 请求异常时，记录可定位的告警后回退到 `base-url`。
-- 不改变 Gateway 现有的鉴权、权限和请求转发语义。
-
-## 5. 运行时数据流
-
-### 5.1 启动配置流
-
-```text
-启动命令
-  -> 解析 env / config-mode
-  -> 连接 Nacos
-  -> 加载 cdd-common-{env}.yaml
-  -> 加载 {service-name}-{env}.yaml
-  -> 创建 Spring ApplicationContext
-  -> 服务就绪
-  -> 注册 Nacos 实例
+```yaml
+spring:
+  config:
+    import:
+      - nacos:cdd-common-${CDD_ENV:local}.yaml?group=CHENGDD&refreshEnabled=false
+      - nacos:${spring.application.name}-${CDD_ENV:local}.yaml?group=CHENGDD&refreshEnabled=false
 ```
 
-### 5.2 Gateway 转发流
+公共配置先导入，服务独立配置后导入，因此服务配置可覆盖公共值。命令行参数、系统属性和操作系统环境变量仍保持更高优先级。
+
+### 5.4 Profile 与兼容模式
+
+- Nacos 模式启动 Profile：`{env},nacos`。
+- `nacos` Profile 负责开启 Config Import 和 Discovery。
+- 仅启用 `{env}` Profile 时，允许使用仓库文件配置，并显式设置：
+
+  ```yaml
+  spring:
+    cloud:
+      nacos:
+        config:
+          enabled: false
+          import-check:
+            enabled: false
+        discovery:
+          enabled: false
+  ```
+
+- `nacos` Profile 显式将 Config、Config Import Check 和 Discovery 设为启用，并提供两个非 optional Config Import。
+- 现有 `CDD_CONFIG_MODE` 在过渡期保留，启动脚本将其映射到 Spring Profile 和官方 enabled 配置，业务代码不再根据该字段创建 Nacos Client。
+
+## 6. 运行时数据流
+
+### 6.1 启动配置流
+
+```text
+启动脚本激活 {env},nacos
+  -> Spring Config Data 处理 spring.config.import
+  -> 加载 cdd-common-{env}.yaml
+  -> 加载 {service-name}-{env}.yaml
+  -> 创建 ApplicationContext
+  -> Spring Cloud Alibaba 注册服务实例
+```
+
+### 6.2 Gateway 转发流
 
 ```text
 前端请求
   -> cdd-gateway 鉴权/授权
-  -> 根据路由获取 service-name
-  -> Nacos 选择健康实例
-  -> 转发下游
-  -> 发现失败时回退 base-url
+  -> GatewayRouteResolver 获取 service-name
+  -> Spring Cloud LoadBalancer 选择 ServiceInstance
+  -> 构造下游 URL 并转发
+  -> 无实例时记录告警并回退 base-url
 ```
 
-## 6. 容错规则
+## 7. 容错规则
 
 | 场景 | 行为 |
 | --- | --- |
-| `config-mode=file` | 不创建 Nacos Config/Naming Client |
-| 非必需的 Nacos 配置缺失 | 跳过该 DataId，继续启动 |
-| 必需配置缺失 | 抛出明确异常，阻止启动 |
-| Nacos 连接失败且 fail-fast 开启 | 阻止启动 |
-| 服务注册失败且 discovery fail-fast 开启 | 阻止服务完成启动 |
-| Gateway 发现失败 | 记录告警，回退静态 `base-url` |
-| 应用关闭时注销失败 | 记录告警，继续完成关闭 |
+| 未激活 `nacos` Profile | 禁用 Nacos Config/Discovery，使用文件配置 |
+| Nacos Profile 缺少共享或服务配置 | 非 optional import 使启动失败 |
+| Nacos Server 不可达 | 配置导入阶段快速失败 |
+| 服务注册失败 | 启动验收失败，记录官方 Discovery 错误 |
+| Gateway 无可用实例 | 记录告警，回退静态 `base-url` |
+| 应用关闭 | 由 Spring Cloud Alibaba 完成实例注销和客户端释放 |
 
-本地全服务启动脚本默认开启共享配置必需、服务配置必需、配置 fail-fast 和服务发现，使环境漂移在启动阶段直接暴露。
+Nacos Config 和 Discovery HealthIndicator 默认保持关闭。端到端验收单独查询 Nacos 状态和服务列表，避免将 Nacos 短暂抖动直接等同于业务进程不存活。
 
-## 7. 测试设计
+## 8. 动态刷新边界
 
-### 7.1 单元测试
+Spring Cloud Alibaba 2025.0.0.0 在较新 Spring Boot 3.5 补丁版上存在已报告的 `spring.config.import` 动态刷新风险。当前项目的旧实现也只支持启动时加载，因此本轮明确：
+
+- Nacos 配置导入使用 `refreshEnabled=false`。
+- 配置变更后通过受控重启服务生效。
+- 动态刷新在 Spring Cloud Alibaba 后续补丁版发布后单独评估。
+- 不使用自研监听器绕过官方刷新机制。
+
+## 9. 测试设计
+
+### 9.1 版本升级验证
+
+- Maven Reactor 全量 `validate` / `compile` / `test`。
+- 输出 Spring Boot、Spring Cloud、Spring Cloud Alibaba、Nacos Client 的 dependency tree。
+- 检查重复类、版本冲突和过时 API。
+- 执行现有认证、权限、商品、订单和 Gateway 回归测试。
+
+### 9.2 Nacos 集成测试
 
 需要覆盖：
 
-- Nacos server address 的协议、`/nacos` 和尾斜杠规范化。
-- Namespace、Group、DataId 和环境默认值。
-- 共享配置与服务配置的覆盖顺序。
-- 必需配置缺失时的 fail-fast。
-- `file` 模式不访问 Nacos。
-- 服务注册、重复事件幂等、关闭注销和客户端释放。
-- Gateway 健康实例选择、`file` 模式和静态回退。
+- `file` 模式不导入 Nacos、不注册服务。
+- Nacos 模式公共配置与服务配置加载顺序。
+- 服务独立配置覆盖公共配置。
+- 缺少必需 DataId 时启动失败。
+- Spring Cloud Discovery 可看到已注册实例。
+- LoadBalancer 可选择健康实例。
+- Gateway 无实例时回退静态 URL。
 
-当前 JDK 21 环境中 Mockito inline mock maker 无法自附加。测试实现应优先使用不需要 Java Agent 的 mock maker 或轻量 fake，不将开放 JVM attach 当作项目运行前提。
+单元测试不依赖 Mockito inline Java Agent，优先使用 Spring Cloud 抽象的 fake 或非 inline mock maker。
 
-### 7.2 构建与静态校验
+### 9.3 本地端到端验收
 
-- Nacos 相关模块定向测试。
-- Maven 全量编译和项目边界检查。
-- `git diff --check`。
-- Shell 脚本语法校验。
-
-### 7.3 本地端到端验收
-
-1. 启动 MySQL、Redis 和 Nacos。
+1. 将本地 Nacos 容器升级到 3.0.3，启动 MySQL、Redis 和 Nacos。
 2. 发布 `local` 共享配置及所有服务配置。
 3. 执行数据库迁移。
-4. 以 `CDD_CONFIG_MODE=nacos` 启动 Gateway 和所有业务服务。
+4. 激活 `local,nacos` 启动 Gateway 和所有业务服务。
 5. 检查 Nacos 配置列表与 `CHENGDD` 服务列表。
 6. 通过 Gateway 验证登录、当前身份、商品、订单、报表和配置中心链路。
 7. 停止服务，验证实例注销和停止脚本。
 
-## 8. 文档与脚本交付
+## 10. 文档与脚本交付
 
 实施完成后同步：
 
@@ -202,28 +235,31 @@ Gateway 不应再自行复制 server address、namespace 和鉴权参数的解�
 - 骨架验证和前端验收说明
 - 全服务启动、状态检查和停止脚本
 
-文档必须区分“本地已验证”和“生产待实施”，不把本轮本地联调写成服务器部署完成。
+文档必须区分“本地已验证”和“生产待实施”，不把本轮联调写成生产服务器部署完成。
 
-## 9. 非目标
+## 11. 非目标
 
 本轮不包含：
 
-- Spring Cloud Alibaba 迁移
+- Spring Cloud Gateway WebFlux 重写
+- Nacos 配置动态刷新
 - Nacos 生产鉴权与多节点集群
 - 生产 Docker Compose 或 Kubernetes 清单
 - Nginx、HTTPS 或 CI/CD
 - 业务功能扩展
 - 数据库迁移模块接入 Nacos
 
-## 10. 完成标准
+## 12. 完成标准
 
 同时满足以下条件时，Nacos 接入才可标记完成：
 
-- 公共配置与所有服务独立配置可正常加载。
+- Maven 最终解析版本与第 2 节基线一致，不存在 Nacos Client 2.x 残留。
+- 自定义 Nacos 配置加载器、注册监听器和直连 Naming Client 已移除。
+- 公共配置与所有服务独立配置可通过 `spring.config.import` 正常加载。
 - 服务独立配置可覆盖公共配置。
-- Gateway 与业务服务都注册到 `CHENGDD`。
-- Gateway 可通过 Nacos 健康实例完成真实请求转发。
-- 必需配置、注册 fail-fast 和 Gateway 回退策略均有自动化测试。
-- Nacos 相关单元测试、后端编译、模块边界检查和 Shell 语法检查通过。
+- Gateway 与业务服务都由 Spring Cloud Alibaba 注册到 `CHENGDD`。
+- Gateway 可通过 Spring Cloud LoadBalancer 完成真实请求转发。
+- 必需配置失败、Profile 切换和 Gateway 回退均有自动化测试。
+- 全量后端编译、回归测试、模块边界检查和 Shell 语法检查通过。
 - 本地全服务启动、状态检查、Gateway 冒烟和服务停止验证通过。
-- 文档与实际配置键、DataId、Group 和启动命令一致。
+- 文档与实际版本、配置键、DataId、Group 和启动命令一致。
