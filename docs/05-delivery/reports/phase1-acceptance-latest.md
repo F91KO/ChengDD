@@ -1,53 +1,128 @@
 # 一期自动化测试报告
 
-## 测试范围
-- 一期核心链路：认证、网关、商户、商品、订单、发布、配置与通用权限校验。
-- 验证脚本：scripts/validation/check_module_boundaries.py、scripts/validation/validate_backend_skeleton.sh。
+## 验收结论
 
-## 执行时间
-- 开始时间：2026-03-22 15:09:32 +0800
-- 结束时间：2026-03-22 15:10:29 +0800
+- 验收完成时间：2026-08-09 17:10:15 +0800。
+- 结论：通过。Spring Cloud Alibaba + Nacos 接入、file 模式回归、Nacos 模式全服务启动、Gateway 鉴权转发、静态地址回退和停服注销均达到本轮标准。
+- 令牌处理：登录令牌只存在于临时 shell 变量；报告和命令输出仅保留 `token=[REDACTED]` 摘要。
 
-## 2026-03-23 增量验证
-- 测试库准备：`bash scripts/testing/prepare_mysql_test_db.sh`
-- 配置服务 MySQL 集成测试：
-  `mvn -q -s /tmp/chengdd-mvn-settings.xml -Dmaven.repo.local=~/.m2/repository -Dsurefire.failIfNoSpecifiedTests=false -pl cdd-config-service -am -Dtest=ConfigControllerIntegrationTest test`
-- 报表服务 MySQL 集成测试：
-  `mvn -q -s /tmp/chengdd-mvn-settings.xml -Dmaven.repo.local=~/.m2/repository -Dsurefire.failIfNoSpecifiedTests=false -pl cdd-report-service -am -Dtest=ReportControllerIntegrationTest,ReportApplicationServiceTest test`
-- 商品服务 MySQL 集成测试：
-  `mvn -q -s /tmp/chengdd-mvn-settings.xml -Dmaven.repo.local=~/.m2/repository -Dsurefire.failIfNoSpecifiedTests=false -pl cdd-product-service -am -Dtest=ProductControllerIntegrationTest test`
-- 结果：
-  - `cdd-config-service` 通过，发布记录创建/详情/回滚链路已验证。
-  - `cdd-report-service` 通过，`data-health` 与商家维度 `health` 链路已验证。
-  - `cdd-product-service` 通过，修复了同商品重复编辑时因历史软删 SKU 唯一键冲突导致的 500。
-- 本轮关键修复：
-  - `scripts/testing/prepare_mysql_test_db.sh` 显式导出测试库 MySQL 环境，确保迁移稳定落到 `chengdd_test`。
-  - `JdbcProductCatalogStore.updateProduct` 在重建 SKU/库存前清理历史软删记录，避免重复编辑冲突。
+## 版本与依赖收敛
 
-## 执行命令
-- `bash scripts/validation/validate_backend_skeleton.sh`
-- `source scripts/testing/prepare_mysql_test_db.sh`
-- `MAVEN_OPTS=' -Djdk.attach.allowAttachSelf=true' mvn -q -s /var/folders/_f/dpr5gr191p5d564mykw_lpr80000gn/T//chengdd-mvn-settings.CQjNuB -Dmaven.repo.local=~/.m2/repository -f cdd-parent/pom.xml -pl cdd-common-security,cdd-auth-service,cdd-gateway,cdd-merchant-service,cdd-product-service,cdd-order-service,cdd-release-service,cdd-config-service -am test`
+执行命令：
 
-## 通过项
-- cdd-common-security: tests=8 failures=0 errors=0 skipped=0
-- cdd-auth-service: tests=2 failures=0 errors=0 skipped=0
-- cdd-gateway: tests=3 failures=0 errors=0 skipped=0
-- cdd-merchant-service: tests=5 failures=0 errors=0 skipped=0
-- cdd-product-service: tests=3 failures=0 errors=0 skipped=0
-- cdd-order-service: tests=6 failures=0 errors=0 skipped=0
-- cdd-release-service: tests=4 failures=0 errors=0 skipped=0
-- cdd-config-service: tests=3 failures=0 errors=0 skipped=0
+```bash
+mvn -f cdd-parent/pom.xml -DskipTests validate
+mvn -f cdd-parent/pom.xml -DskipTests help:evaluate -Dexpression=spring.boot.version -q -DforceStdout
+mvn -f cdd-parent/pom.xml -DskipTests help:evaluate -Dexpression=spring.cloud.version -q -DforceStdout
+mvn -f cdd-parent/pom.xml -DskipTests help:evaluate -Dexpression=spring.cloud.alibaba.version -q -DforceStdout
+mvn -f cdd-parent/pom.xml -DskipTests dependency:tree -Dincludes=org.springframework.boot:*,org.springframework.cloud:*,com.alibaba.cloud:*,com.alibaba.nacos:nacos-client
+```
 
-## 失败项与失败原因
-- 无。
+结果：
 
-## 关键日志或错误摘要
-- 无。
+- Maven reactor：30/30 模块成功。
+- Spring Boot：`3.5.14`。
+- Spring Cloud：`2025.0.3`。
+- Spring Cloud Alibaba：`2025.0.0.0`。
+- Alibaba Starter：`2025.0.0.0`；Nacos Client 只有 `3.0.3`，未出现 Nacos Client 2.x。
 
-## 是否达到当前任务验收标准
-- 是
-- 汇总：tests=34, failures=0, errors=0, skipped=0
+## file 模式回归
 
-## 未执行项与风险
-- 本地基础设施现已补齐 `Redis`，`order-service` 与 `config-service` 在 `local` 环境下的 `/actuator/health` 已恢复 `UP`；后续若更换开发机，需先执行 `bash scripts/local/up_local_infra.sh` 拉起完整基础设施。
+执行命令：
+
+```bash
+CDD_CONFIG_MODE=file mvn -f cdd-parent/pom.xml -pl cdd-merchant-service -am -Dtest=MerchantAccountApplicationServiceTest -Dsurefire.failIfNoSpecifiedTests=false test
+CDD_CONFIG_MODE=file mvn -f cdd-parent/pom.xml test
+python3 scripts/validation/check_module_boundaries.py
+bash -n scripts/local/*.sh scripts/nacos/*.sh scripts/testing/*.sh
+```
+
+结果：
+
+- Merchant Mockito 使用 `mock-maker-subclass`，定向测试 1/1 通过；JDK 21 下未添加 Byte Buddy self-attach 参数。
+- 全 reactor 30/30 模块成功；在完整命令结束后立即汇总的 Surefire 结果为 23 个测试套件、tests=101、failures=0、errors=0、skipped=0。
+- 模块边界检查通过；全部本地、Nacos、测试 shell 脚本语法检查通过。
+- 静态回退定向测试 `GatewayRouteResolverTest#shouldFallBackWhenNoInstanceExists` 1/1 通过，7 模块 reactor 成功。
+
+## Nacos 模式本地端到端
+
+执行命令：
+
+```bash
+export CDD_ENV=local
+export CDD_CONFIG_MODE=nacos
+bash scripts/local/run_all_services_mysql.sh
+bash scripts/local/status_all_services.sh
+```
+
+基础设施与配置结果：
+
+- MySQL `127.0.0.1:3306`、Redis `127.0.0.1:6379`、Nacos Client API `127.0.0.1:8848` 均健康；Nacos Console 使用 `127.0.0.1:18080`，版本 `3.0.3`。
+- 发布 11 份 Nacos 配置：公共配置、Gateway 配置和 9 个服务配置。
+- Liquibase 对现有 `chengdd` 数据库执行结果：Run=0、Previously run=30、Total=30。
+- HTTP 健康检查 10/10；Nacos `CHENGDD` 组内以下应用均为 hosts=1：
+  - `cdd-gateway`
+  - `cdd-auth-service`
+  - `cdd-merchant-service`
+  - `cdd-decoration-service`
+  - `cdd-product-service`
+  - `cdd-order-service`
+  - `cdd-marketing-service`
+  - `cdd-release-service`
+  - `cdd-report-service`
+  - `cdd-config-service`
+
+本地验收执行器在一次性 PTY 退出时会清理后代进程，因此本轮在持久交互 PTY 中执行原始 `run_all_services_mysql.sh`，并从独立命令执行 status 和 HTTP 请求；PTY 保持期间 10/10 服务持续健康。这是验收运行器行为，不是服务启动脚本或产品缺陷。
+
+## Gateway 鉴权转发烟测
+
+所有请求均通过 `http://127.0.0.1:8080`。先执行商户登录，随后仅在 shell 变量中携带 Bearer token；保存结果如下：
+
+| 请求 | HTTP | JSON `code` |
+| --- | ---: | ---: |
+| `POST /api/auth/merchant/login` | 200 | 0 |
+| `GET /api/auth/me` | 200 | 0 |
+| `GET /api/product/spu?merchant_id=1001&store_id=1001` | 200 | 0 |
+| `GET /api/order/orders?merchant_id=1001&store_id=1001&user_id=1001` | 200 | 0 |
+| `GET /api/report/merchant-dashboard/latest?merchant_id=1001&store_id=1001` | 200 | 0 |
+| `GET /api/config/merchant/feature-switches?merchant_id=merchant_1001` | 200 | 0 |
+
+访问令牌：`[REDACTED]`。
+
+## 静态地址回退实测
+
+1. 停止 Nacos 模式的 Gateway 与 auth-service，确认端口 `8080`、`8081` 无监听，且 Gateway 注册 hosts=0。
+2. 在持久 PTY 中以 `CDD_CONFIG_MODE=file` 分别执行 `bash scripts/local/run_auth_service_mysql.sh` 和 `bash scripts/local/run_gateway.sh`。
+3. 两个进程日志均确认激活 profiles 为 `local,file`；Gateway 的 auth 静态基址为 `http://127.0.0.1:8081`。
+4. 经 Gateway 请求 `POST /api/auth/merchant/login`，结果 HTTP 200、JSON `code=0`、`token=[REDACTED]`。
+5. Gateway file-mode 日志扫描未出现 `NacosConfigDataLoader`、`NacosServiceRegistry`、`REGISTER-SERVICE` 或 Nacos discovery 活动。
+
+结论：下游和 Gateway 在 file 模式重启后，Gateway 通过静态地址成功转发，未查询服务发现。
+
+## 停服与注销
+
+执行命令：
+
+```bash
+CDD_ENV=local CDD_CONFIG_MODE=nacos bash scripts/local/stop_all_services.sh
+CDD_ENV=local CDD_CONFIG_MODE=nacos bash scripts/local/status_all_services.sh
+```
+
+结果：
+
+- 全部 10 个受运行时状态文件保护的服务进程均被安全停止，HTTP healthy services=0/10。
+- `cdd-gateway`、`cdd-auth-service`、`cdd-merchant-service`、`cdd-decoration-service`、`cdd-product-service`、`cdd-order-service`、`cdd-marketing-service`、`cdd-release-service`、`cdd-report-service`、`cdd-config-service` 均显示 `deregistered`。
+- `lsof` 逐端口复核 `8080`–`8089`，10 个端口均无 LISTEN 进程。
+- MySQL、Redis、Nacos 基础设施按验收要求保持运行，便于后续开发。
+
+## 失败项与已解决问题
+
+- 本轮最终验收无失败项。
+- 验收过程中发现并先后独立修复、复核：Maven dependency tree 插件版本不稳定、订单测试同 JVM 顺序隔离、Liquibase 4.31.1 classpath changelog 解析兼容。修复后才恢复后续验收。
+
+## 剩余生产风险
+
+1. 当前 Nacos 为本地 standalone；生产需要独立评估集群高可用、持久化、TLS、认证、权限和密钥轮换。
+2. 当前 MySQL、Redis 为本地单节点，并使用开发默认凭据；不可直接复制到生产。
+3. Merchant 已验证 subclass mock maker；其他仍使用 Mockito inline 的测试模块在 JDK 21 可能继续输出 self-attach 提示，后续升级 JDK/Mockito 时需统一治理。
+4. 当前烟测覆盖 Gateway 基础鉴权与同步转发，尚未覆盖消息链路、异步补偿、故障注入、限流熔断和多节点滚动升级。

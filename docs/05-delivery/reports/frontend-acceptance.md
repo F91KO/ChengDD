@@ -1,5 +1,27 @@
 # 前端验收报告
 
+## 2026-08-09 Gateway 联调复验
+
+- 验收完成时间：2026-08-09 17:10:15 +0800。
+- 后端版本基线：Spring Boot `3.5.14`、Spring Cloud `2025.0.3`、Spring Cloud Alibaba `2025.0.0.0`、Nacos Client `3.0.3`。
+- 后端 file 模式完整 reactor：tests=101、failures=0、errors=0、skipped=0；模块边界和 shell 语法检查均通过。
+- 执行 `CDD_ENV=local CDD_CONFIG_MODE=nacos bash scripts/local/run_all_services_mysql.sh` 后，Gateway 与 9 个服务 HTTP 健康检查为 10/10，Nacos `CHENGDD` 组中 10 个应用均 hosts=1。
+- 注册应用清单：`cdd-gateway`、`cdd-auth-service`、`cdd-merchant-service`、`cdd-decoration-service`、`cdd-product-service`、`cdd-order-service`、`cdd-marketing-service`、`cdd-release-service`、`cdd-report-service`、`cdd-config-service`。
+- 本轮前端后端联调入口统一验证为 `http://127.0.0.1:8080`。商户登录后令牌只保存在临时 shell 变量，报告中为 `[REDACTED]`。
+
+| Gateway 请求 | HTTP | JSON `code` | 结果 |
+| --- | ---: | ---: | --- |
+| `POST /api/auth/merchant/login` | 200 | 0 | 登录成功，token 已脱敏 |
+| `GET /api/auth/me` | 200 | 0 | 当前身份可用 |
+| `GET /api/product/spu?merchant_id=1001&store_id=1001` | 200 | 0 | 商品链路可用 |
+| `GET /api/order/orders?merchant_id=1001&store_id=1001&user_id=1001` | 200 | 0 | 订单链路可用 |
+| `GET /api/report/merchant-dashboard/latest?merchant_id=1001&store_id=1001` | 200 | 0 | 工作台报表链路可用 |
+| `GET /api/config/merchant/feature-switches?merchant_id=merchant_1001` | 200 | 0 | 功能开关链路可用 |
+
+静态回退也已单独验证：执行 `GatewayRouteResolverTest#shouldFallBackWhenNoInstanceExists` 通过 1/1；随后将 auth-service 与 Gateway 以 `CDD_CONFIG_MODE=file` 重启，二者日志确认 profiles 为 `local,file`。Gateway 经配置的静态地址 `http://127.0.0.1:8081` 转发登录成功，Gateway 日志没有 Nacos 配置、注册或发现活动。
+
+最终执行 `CDD_ENV=local CDD_CONFIG_MODE=nacos bash scripts/local/stop_all_services.sh` 和 `status_all_services.sh`：后端健康实例为 0/10，端口 `8080`–`8089` 均无监听，10 个 Nacos 应用均已注销。MySQL、Redis、Nacos 基础设施仍保持运行。
+
 | 项目 | 说明 |
 | --- | --- |
 | 目标 | 确保 `cdd-frontend` 作为一期后端补充交付，安装/构建/运行/探活可行 |
@@ -51,7 +73,7 @@
 ## 风险与未覆盖
 
 1. 商品、认证、订单链路已统一到本地 MySQL，但商品模板定义仍保留服务内默认模板；若后续要把模板节点也落库，需要追加独立迁移与持久化实现。
-2. 当前验收已覆盖登录、商品、订单、售后、工作台报表、配置中心与页面可用性，但仍未覆盖网关聚合、消息链路、异步补偿与多角色权限组合场景。
+2. 当前验收已覆盖 Gateway 登录、鉴权和认证/商品/订单/报表/配置同步转发，但仍未覆盖网关聚合接口、消息链路、异步补偿与多角色权限组合场景。
 3. 工作台当前直接对接 `report-service` 的 `/api/report/*` 路径；商家端与平台端文档中的 `/merchant/dashboard/*`、`/platform/dashboard/*` 聚合口径尚未落到网关聚合层。
 4. 若更换开发机或重置本地容器环境，需先重新执行 `bash scripts/local/up_local_infra.sh`，确保 `MySQL + Redis + Nacos` 全部就绪。
 5. 页面还未接入后端分页、复杂筛选与更细粒度状态变更，后续改动需重新执行本流程并更新报告。
