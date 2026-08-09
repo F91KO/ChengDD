@@ -1,3 +1,5 @@
+cdd.nacos.config.service-data-id: cdd-product-service-dev.yaml
+
 spring:
   datasource:
     url: ${CDD_PRODUCT_DB_URL:jdbc:mysql://127.0.0.1:${CDD_LOCAL_MYSQL_PORT:3306}/${CDD_LOCAL_MYSQL_DATABASE:chengdd}?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false}

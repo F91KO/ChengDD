@@ -32,6 +32,10 @@ class NacosConfigImportIT {
             assertThat(environment.getProperty("cdd.contract.shared-only")).isEqualTo("from-common");
             assertThat(environment.getProperty("cdd.contract.precedence")).isEqualTo("from-service");
             assertThat(environment.getProperty("cdd.contract.service-only")).isEqualTo("from-service");
+            assertThat(environment.getProperty("cdd.nacos.config.shared-data-id"))
+                    .isEqualTo("cdd-common-local.yaml");
+            assertThat(environment.getProperty("cdd.nacos.config.service-data-id"))
+                    .isEqualTo("cdd-nacos-contract-test-local.yaml");
             await().atMost(Duration.ofSeconds(30)).untilAsserted(() ->
                     assertThat(discoveryClient.getInstances("cdd-nacos-contract-test")).isNotEmpty());
             ServiceInstance selected = loadBalancerClient.choose("cdd-nacos-contract-test");

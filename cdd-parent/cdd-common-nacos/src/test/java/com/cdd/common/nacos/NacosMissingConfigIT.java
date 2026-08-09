@@ -19,6 +19,7 @@ class NacosMissingConfigIT {
                     .profiles("local", "nacos")
                     .web(WebApplicationType.SERVLET)
                     .run("--spring.application.name=cdd-nacos-missing-contract-test")))
+                    .hasStackTraceContaining("Required Nacos remote configuration was not loaded")
                     .hasStackTraceContaining("cdd-nacos-missing-contract-test-local.yaml");
         }
         finally {

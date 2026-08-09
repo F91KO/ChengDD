@@ -1,3 +1,5 @@
+cdd.nacos.config.shared-data-id: cdd-common-dev.yaml
+
 cdd:
   runtime:
     env: dev

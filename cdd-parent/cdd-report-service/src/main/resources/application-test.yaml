@@ -1,3 +1,5 @@
+cdd.nacos.config.service-data-id: cdd-report-service-test.yaml
+
 spring:
   datasource:
     url: ${CDD_REPORT_DB_URL:${CDD_TEST_MYSQL_URL:jdbc:mysql://127.0.0.1:${CDD_LOCAL_MYSQL_PORT:3306}/${CDD_TEST_MYSQL_DATABASE:chengdd_test}?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false}}

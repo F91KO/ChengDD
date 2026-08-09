@@ -1,3 +1,5 @@
+cdd.nacos.config.service-data-id: cdd-gateway-dev.yaml
+
 cdd:
   runtime:
     env: dev

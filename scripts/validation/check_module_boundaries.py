@@ -295,6 +295,37 @@ def validate_nacos_boundaries() -> list[str]:
     return errors
 
 
+def validate_nacos_config_markers() -> list[str]:
+    errors: list[str] = []
+    marker_keys = (
+        "cdd.nacos.config.shared-data-id",
+        "cdd.nacos.config.service-data-id",
+    )
+
+    for runtime_env in sorted(EXPECTED_PROFILES):
+        data_id = f"cdd-common-{runtime_env}.yaml"
+        source = ROOT / "config" / "nacos" / data_id
+        expected = f"cdd.nacos.config.shared-data-id: {data_id}"
+        if not source.exists() or expected not in source.read_text(encoding="utf-8").splitlines():
+            errors.append(f"Nacos 共享配置缺少精确远端标记: {data_id}")
+
+    for module in sorted(NACOS_CONSUMERS):
+        resource_dir = PARENT_ROOT / module / "src" / "main" / "resources"
+        nacos_profile = resource_dir / "application-nacos.yaml"
+        profile_text = nacos_profile.read_text(encoding="utf-8") if nacos_profile.exists() else ""
+        if any(marker_key in profile_text for marker_key in marker_keys):
+            errors.append(f"{module} 的 application-nacos.yaml 不允许提供远端配置标记默认值")
+
+        for runtime_env in sorted(EXPECTED_PROFILES):
+            data_id = f"{module}-{runtime_env}.yaml"
+            source = resource_dir / f"application-{runtime_env}.yaml"
+            expected = f"cdd.nacos.config.service-data-id: {data_id}"
+            if not source.exists() or expected not in source.read_text(encoding="utf-8").splitlines():
+                errors.append(f"Nacos 服务配置缺少精确远端标记: {data_id}")
+
+    return errors
+
+
 def main() -> int:
     errors: list[str] = []
     errors.extend(validate_root_modules())
@@ -303,6 +334,7 @@ def main() -> int:
     errors.extend(validate_shared_config_assets())
     errors.extend(validate_service_config_assets())
     errors.extend(validate_nacos_boundaries())
+    errors.extend(validate_nacos_config_markers())
 
     for pom_path in sorted(PARENT_ROOT.glob("cdd-*/pom.xml")):
         errors.extend(validate_project_boundaries(pom_path))

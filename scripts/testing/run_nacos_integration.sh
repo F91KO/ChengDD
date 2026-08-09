@@ -370,8 +370,8 @@ authenticate
 
 create_test_namespace
 
-publish_config "$shared_data_id" $'cdd:\n  contract:\n    shared-only: from-common\n    precedence: from-common\n'
-publish_config "$service_data_id" $'cdd:\n  contract:\n    precedence: from-service\n    service-only: from-service\n'
+publish_config "$shared_data_id" $'cdd:\n  nacos:\n    config:\n      shared-data-id: cdd-common-local.yaml\n  contract:\n    shared-only: from-common\n    precedence: from-common\n'
+publish_config "$service_data_id" $'cdd:\n  nacos:\n    config:\n      service-data-id: cdd-nacos-contract-test-local.yaml\n  contract:\n    precedence: from-service\n    service-only: from-service\n'
 
 set +e
 CDD_ENV=local \

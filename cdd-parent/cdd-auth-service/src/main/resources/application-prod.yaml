@@ -1,3 +1,5 @@
+cdd.nacos.config.service-data-id: cdd-auth-service-prod.yaml
+
 spring:
   datasource:
     url: ${CDD_AUTH_DB_URL}

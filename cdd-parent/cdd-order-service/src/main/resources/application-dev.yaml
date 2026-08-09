@@ -1,7 +1,8 @@
+cdd.nacos.config.service-data-id: cdd-order-service-dev.yaml
+
 cdd:
   runtime:
     env: dev
 
 server:
   port: 8085
-

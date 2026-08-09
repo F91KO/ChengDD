@@ -21,9 +21,8 @@ class NacosUnavailableIT {
                     .run(
                             "--spring.cloud.nacos.server-addr=127.0.0.1:65534",
                             "--spring.cloud.nacos.discovery.enabled=false")))
-                    .hasStackTraceContaining("Nacos Config Data import")
-                    .hasStackTraceContaining("cdd-nacos-contract-test-local.yaml")
-                    .hasStackTraceContaining("127.0.0.1:65534");
+                    .hasStackTraceContaining("Required Nacos remote configuration was not loaded")
+                    .hasStackTraceContaining("cdd-common-local.yaml");
         }
         finally {
             if (startedContext.get() != null) {
