@@ -6,7 +6,7 @@ $ErrorActionPreference = 'Stop'
 
 $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $nacosAddr = if ($env:CDD_NACOS_SERVER_ADDR) { $env:CDD_NACOS_SERVER_ADDR } else { '127.0.0.1:8848' }
-$nacosGroup = if ($env:CDD_NACOS_GROUP) { $env:CDD_NACOS_GROUP } else { 'CHENGDD' }
+$nacosGroup = 'CHENGDD'
 $nacosNamespace = if ($env:CDD_NACOS_NAMESPACE) { $env:CDD_NACOS_NAMESPACE } else { '' }
 $serviceModules = @(
     'cdd-gateway',
@@ -28,7 +28,7 @@ function Publish-ConfigFile {
     )
 
     if (-not (Test-Path -LiteralPath $FilePath)) {
-        return
+        throw "Configuration source file not found: $FilePath"
     }
 
     $body = @{
@@ -41,14 +41,31 @@ function Publish-ConfigFile {
         $body.tenant = $nacosNamespace
     }
 
-    Invoke-RestMethod -Method Post -Uri "http://$nacosAddr/nacos/v1/cs/configs" -Body $body | Out-Null
+    $response = Invoke-WebRequest -Method Post -Uri "http://$nacosAddr/nacos/v1/cs/configs" -Body $body
+    if ($response.Content -cne 'true') {
+        throw "Nacos rejected $DataId: expected response true, got: $($response.Content)"
+    }
     Write-Host "published $DataId"
 }
 
-Publish-ConfigFile -DataId "cdd-common-$EnvName.yaml" -FilePath (Join-Path $repoRoot "config\\nacos\\cdd-common-$EnvName.yaml")
+$configFiles = @(
+    @{ DataId = "cdd-common-$EnvName.yaml"; FilePath = (Join-Path $repoRoot "config\\nacos\\cdd-common-$EnvName.yaml") }
+)
 
 foreach ($module in $serviceModules) {
-    Publish-ConfigFile `
-        -DataId "$module-$EnvName.yaml" `
-        -FilePath (Join-Path $repoRoot "cdd-parent\\$module\\src\\main\\resources\\application-$EnvName.yaml")
+    $configFiles += @{ DataId = "$module-$EnvName.yaml"; FilePath = (Join-Path $repoRoot "cdd-parent\\$module\\src\\main\\resources\\application-$EnvName.yaml") }
+}
+
+if ($EnvName -ne 'local' -and [string]::IsNullOrWhiteSpace($nacosNamespace)) {
+    throw "CDD_NACOS_NAMESPACE is required for non-local environment: $EnvName"
+}
+
+foreach ($configFile in $configFiles) {
+    if (-not (Test-Path -LiteralPath $configFile.FilePath)) {
+        throw "Configuration source file not found: $($configFile.FilePath)"
+    }
+}
+
+foreach ($configFile in $configFiles) {
+    Publish-ConfigFile -DataId $configFile.DataId -FilePath $configFile.FilePath
 }

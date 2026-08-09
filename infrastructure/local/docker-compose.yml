@@ -22,23 +22,31 @@ services:
       retries: 12
 
   nacos:
-    image: nacos/nacos-server:v2.3.2
+    image: nacos/nacos-server:v3.0.3
     container_name: cdd-local-nacos
     restart: unless-stopped
     environment:
       MODE: standalone
       PREFER_HOST_MODE: hostname
       NACOS_AUTH_ENABLE: "false"
+      NACOS_AUTH_TOKEN: ${CDD_LOCAL_NACOS_AUTH_TOKEN:-Y2hlbmdkZGxvY2FsbmFjb3NhdXRoLXRva2VuLTIwMjY=}
+      NACOS_AUTH_IDENTITY_KEY: ${CDD_LOCAL_NACOS_IDENTITY_KEY:-chengdd-local-key}
+      NACOS_AUTH_IDENTITY_VALUE: ${CDD_LOCAL_NACOS_IDENTITY_VALUE:-chengdd-local-value}
       JVM_XMS: 256m
       JVM_XMX: 256m
       JVM_XMN: 128m
     ports:
+      - "${CDD_LOCAL_NACOS_CONSOLE_PORT:-8080}:8080"
       - "${CDD_LOCAL_NACOS_PORT:-8848}:8848"
       - "${CDD_LOCAL_NACOS_GRPC_PORT:-9848}:9848"
-      - "${CDD_LOCAL_NACOS_RAFT_PORT:-9849}:9849"
     volumes:
       - cdd-local-nacos-data:/home/nacos/data
       - cdd-local-nacos-logs:/home/nacos/logs
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://127.0.0.1:8848/nacos/v1/console/health/liveness"]
+      interval: 10s
+      timeout: 5s
+      retries: 18
 
   redis:
     image: redis:7.2.5-alpine

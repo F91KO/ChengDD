@@ -20,10 +20,25 @@ fi
 
 "${COMPOSE_CMD[@]}" -f "$compose_file" up -d
 
+echo "Waiting for Nacos to become healthy..."
+nacos_health_url="http://127.0.0.1:${CDD_LOCAL_NACOS_PORT:-8848}/nacos/v1/console/health/liveness"
+for _ in {1..60}; do
+  if curl --silent --fail "$nacos_health_url" >/dev/null 2>&1; then
+    break
+  fi
+  sleep 2
+done
+
+if ! curl --silent --show-error --fail "$nacos_health_url" >/dev/null; then
+  echo "Nacos did not become healthy: $nacos_health_url" >&2
+  exit 1
+fi
+
 echo
 echo "本地基础设施已启动。"
 echo "MySQL: 127.0.0.1:${CDD_LOCAL_MYSQL_PORT:-3306}  数据库: ${CDD_LOCAL_MYSQL_DATABASE:-chengdd}"
-echo "Nacos: http://127.0.0.1:${CDD_LOCAL_NACOS_PORT:-8848}/nacos"
+echo "Nacos Console: http://127.0.0.1:${CDD_LOCAL_NACOS_CONSOLE_PORT:-8080}/index.html"
+echo "Nacos Client API: 127.0.0.1:${CDD_LOCAL_NACOS_PORT:-8848}"
 echo "Redis: 127.0.0.1:${CDD_LOCAL_REDIS_PORT:-6379}"
 echo
 echo "下一步建议："
