@@ -11,6 +11,17 @@ nacos_password="${CDD_NACOS_PASSWORD:-}"
 nacos_connect_timeout_seconds="${CDD_NACOS_CONNECT_TIMEOUT_SECONDS:-2}"
 nacos_request_timeout_seconds="${CDD_NACOS_REQUEST_TIMEOUT_SECONDS:-5}"
 nacos_auth_args=()
+nacos_secret_dir=""
+
+cleanup_nacos_secrets() {
+  local status=$?
+  trap - EXIT HUP INT TERM
+  if [[ -n "$nacos_secret_dir" && -d "$nacos_secret_dir" ]]; then
+    rm -rf -- "$nacos_secret_dir"
+  fi
+  exit "$status"
+}
+trap cleanup_nacos_secrets EXIT HUP INT TERM
 
 [[ "$nacos_connect_timeout_seconds" =~ ^[1-9][0-9]*$ ]] || {
   echo "CDD_NACOS_CONNECT_TIMEOUT_SECONDS must be a positive integer." >&2
@@ -36,8 +47,21 @@ nacos_authenticate() {
     return 1
   fi
 
+  local username_file password_file authorization_file
+  local previous_umask
+  previous_umask="$(umask)"
+  umask 077
+  nacos_secret_dir="$(mktemp -d "${TMPDIR:-/tmp}/chengdd-nacos-auth.XXXXXX")"
+  username_file="$nacos_secret_dir/username"
+  password_file="$nacos_secret_dir/password"
+  authorization_file="$nacos_secret_dir/authorization"
+  printf '%s' "$nacos_username" >"$username_file"
+  printf '%s' "$nacos_password" >"$password_file"
+  chmod 600 "$username_file" "$password_file"
+  umask "$previous_umask"
+
   local response
-  if ! response="$(nacos_curl "http://${nacos_addr}/nacos/v3/auth/user/login" --silent --show-error --fail --request POST --data-urlencode "username=${nacos_username}" --data-urlencode "password=${nacos_password}")"; then
+  if ! response="$(nacos_curl "http://${nacos_addr}/nacos/v3/auth/user/login" --silent --show-error --fail --request POST --data-urlencode "username@${username_file}" --data-urlencode "password@${password_file}")"; then
     echo "Nacos authentication failed." >&2
     return 1
   fi
@@ -55,7 +79,10 @@ print(token)
     echo "Nacos authentication response did not contain an access token." >&2
     return 1
   fi
-  nacos_auth_args=(-H "Authorization: Bearer ${access_token}")
+  printf 'Authorization: Bearer %s' "$access_token" >"$authorization_file"
+  chmod 600 "$authorization_file"
+  nacos_auth_args=(--header "@${authorization_file}")
+  unset access_token response
 }
 
 service_modules=(

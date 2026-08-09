@@ -6,8 +6,12 @@ $ErrorActionPreference = 'Stop'
 
 $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $nacosAddr = if ($env:CDD_NACOS_SERVER_ADDR) { $env:CDD_NACOS_SERVER_ADDR } else { '127.0.0.1:8848' }
-$nacosGroup = 'CHENGDD'
+$nacosGroup = if ($env:CDD_NACOS_GROUP) { $env:CDD_NACOS_GROUP } else { 'CHENGDD' }
 $nacosNamespace = if ($env:CDD_NACOS_NAMESPACE) { $env:CDD_NACOS_NAMESPACE } else { '' }
+$nacosUsername = if ($env:CDD_NACOS_USERNAME) { $env:CDD_NACOS_USERNAME } else { '' }
+$nacosPassword = if ($env:CDD_NACOS_PASSWORD) { $env:CDD_NACOS_PASSWORD } else { '' }
+$nacosConnectTimeoutSeconds = if ($env:CDD_NACOS_CONNECT_TIMEOUT_SECONDS) { $env:CDD_NACOS_CONNECT_TIMEOUT_SECONDS } else { '2' }
+$nacosRequestTimeoutSeconds = if ($env:CDD_NACOS_REQUEST_TIMEOUT_SECONDS) { $env:CDD_NACOS_REQUEST_TIMEOUT_SECONDS } else { '5' }
 $serviceModules = @(
     'cdd-gateway',
     'cdd-auth-service',
@@ -21,10 +25,68 @@ $serviceModules = @(
     'cdd-config-service'
 )
 
+if ($nacosConnectTimeoutSeconds -notmatch '^[1-9][0-9]*$') {
+    throw 'CDD_NACOS_CONNECT_TIMEOUT_SECONDS must be a positive integer.'
+}
+if ($nacosRequestTimeoutSeconds -notmatch '^[1-9][0-9]*$') {
+    throw 'CDD_NACOS_REQUEST_TIMEOUT_SECONDS must be a positive integer.'
+}
+if ([string]::IsNullOrEmpty($nacosUsername) -xor [string]::IsNullOrEmpty($nacosPassword)) {
+    throw 'CDD_NACOS_USERNAME and CDD_NACOS_PASSWORD must be set together.'
+}
+
+function Invoke-NacosWebRequest {
+    param(
+        [string]$Method,
+        [string]$Uri,
+        [hashtable]$Body,
+        [hashtable]$Headers
+    )
+
+    $requestParameters = @{
+        Method = $Method
+        Uri = $Uri
+        TimeoutSec = [int]$nacosRequestTimeoutSeconds
+    }
+    if ($Body) {
+        $requestParameters.Body = $Body
+    }
+    if ($Headers -and $Headers.Count -gt 0) {
+        $requestParameters.Headers = $Headers
+    }
+    if ((Get-Command Invoke-WebRequest).Parameters.ContainsKey('ConnectionTimeoutSeconds')) {
+        $requestParameters.ConnectionTimeoutSeconds = [int]$nacosConnectTimeoutSeconds
+    }
+    Invoke-WebRequest @requestParameters
+}
+
+function Get-NacosAuthorizationHeaders {
+    if ([string]::IsNullOrEmpty($nacosUsername)) {
+        return @{}
+    }
+
+    try {
+        $response = Invoke-NacosWebRequest -Method Post -Uri "http://$nacosAddr/nacos/v3/auth/user/login" -Body @{
+            username = $nacosUsername
+            password = $nacosPassword
+        }
+        $payload = $response.Content | ConvertFrom-Json
+        $accessToken = $payload.accessToken
+    }
+    catch {
+        throw 'Nacos authentication failed.'
+    }
+    if ([string]::IsNullOrWhiteSpace($accessToken)) {
+        throw 'Nacos authentication response did not contain an access token.'
+    }
+    return @{ Authorization = "Bearer $accessToken" }
+}
+
 function Publish-ConfigFile {
     param(
         [string]$DataId,
-        [string]$FilePath
+        [string]$FilePath,
+        [hashtable]$AuthorizationHeaders
     )
 
     if (-not (Test-Path -LiteralPath $FilePath)) {
@@ -41,7 +103,7 @@ function Publish-ConfigFile {
         $body.tenant = $nacosNamespace
     }
 
-    $response = Invoke-WebRequest -Method Post -Uri "http://$nacosAddr/nacos/v1/cs/configs" -Body $body
+    $response = Invoke-NacosWebRequest -Method Post -Uri "http://$nacosAddr/nacos/v1/cs/configs" -Body $body -Headers $AuthorizationHeaders
     if ($response.Content -cne 'true') {
         throw "Nacos rejected $DataId: expected response true, got: $($response.Content)"
     }
@@ -66,6 +128,7 @@ foreach ($configFile in $configFiles) {
     }
 }
 
+$authorizationHeaders = Get-NacosAuthorizationHeaders
 foreach ($configFile in $configFiles) {
-    Publish-ConfigFile -DataId $configFile.DataId -FilePath $configFile.FilePath
+    Publish-ConfigFile -DataId $configFile.DataId -FilePath $configFile.FilePath -AuthorizationHeaders $authorizationHeaders
 }

@@ -13,21 +13,53 @@ cleanup() {
 }
 trap cleanup EXIT
 
-printf '%s\n' \
-  '#!/usr/bin/env bash' \
-  'request="$*"' \
-  '[[ "$request" == *"--connect-timeout"* && "$request" == *"--max-time"* ]] || exit 90' \
-  'if [[ "$request" == *"/nacos/v3/auth/user/login"* ]]; then' \
-  '  [[ "$request" == *"username=fixture-user"* && "$request" == *"password=fixture-password"* ]] || exit 91' \
-  '  printf "%s" "{\"accessToken\":\"fixture-token\"}"' \
-  '  exit 0' \
-  'fi' \
-  'if [[ "${CDD_TEST_REQUIRE_AUTH:-0}" == "1" ]]; then [[ "$request" == *"Authorization: Bearer fixture-token"* ]] || exit 92; fi' \
-  'if [[ "$request" == *"/nacos/v1/cs/configs"* ]]; then' \
-  '  if [[ "$request" == *"--request POST"* ]]; then printf true; else printf shared; fi' \
-  'else' \
-  '  printf "{\"hosts\":[]}"' \
-  'fi' >"$fixture_bin/curl"
+cat >"$fixture_bin/curl" <<'PY'
+#!/usr/bin/env python3
+import pathlib
+import sys
+
+args = sys.argv[1:]
+if "--connect-timeout" not in args or "--max-time" not in args:
+    raise SystemExit(90)
+
+def value_from_at_argument(raw):
+    name, separator, path = raw.partition("@")
+    if not separator:
+        name, _, value = raw.partition("=")
+        return name, value
+    return name, pathlib.Path(path).read_text(encoding="utf-8")
+
+fields = {}
+headers = []
+i = 0
+while i < len(args) - 1:
+    if args[i] == "--data-urlencode":
+        name, value = value_from_at_argument(args[i + 1])
+        fields[name] = value
+        i += 2
+    elif args[i] in {"--header", "-H"}:
+        header = args[i + 1]
+        if header.startswith("@"):
+            header = pathlib.Path(header[1:]).read_text(encoding="utf-8")
+        headers.append(header)
+        i += 2
+    else:
+        i += 1
+
+url = args[-1]
+if url.endswith("/nacos/v3/auth/user/login"):
+    if fields.get("username") != "fixture-user" or fields.get("password") != "fixture-password":
+        raise SystemExit(91)
+    print('{"accessToken":"fixture-token"}', end="")
+    raise SystemExit(0)
+if __import__("os").environ.get("CDD_TEST_REQUIRE_AUTH", "0") == "1":
+    if "Authorization: Bearer fixture-token" not in headers:
+        raise SystemExit(92)
+if url.endswith("/nacos/v1/cs/configs"):
+    print("true" if "--request" in args else "shared", end="")
+else:
+    print('{"hosts":[]}', end="")
+PY
 chmod +x "$fixture_bin/curl"
 
 run_with_credentials() {
