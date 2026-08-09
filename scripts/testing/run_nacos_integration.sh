@@ -146,10 +146,10 @@ done
 
 authenticate
 
-publish_config "$shared_data_id" $'cdd:\n  contract:\n    shared-only: from-common\n    precedence: from-common\n'
 published_shared=1
-publish_config "$service_data_id" $'cdd:\n  contract:\n    precedence: from-service\n    service-only: from-service\n'
+publish_config "$shared_data_id" $'cdd:\n  contract:\n    shared-only: from-common\n    precedence: from-common\n'
 published_service=1
+publish_config "$service_data_id" $'cdd:\n  contract:\n    precedence: from-service\n    service-only: from-service\n'
 delete_config "$missing_data_id"
 
 set +e
