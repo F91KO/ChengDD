@@ -4,7 +4,7 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 runtime_env="${1:-${CDD_ENV:-dev}}"
 nacos_addr="${CDD_NACOS_SERVER_ADDR:-127.0.0.1:8848}"
-nacos_group="CHENGDD"
+nacos_group="${CDD_NACOS_GROUP:-CHENGDD}"
 nacos_namespace="${CDD_NACOS_NAMESPACE:-}"
 
 service_modules=(

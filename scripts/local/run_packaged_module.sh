@@ -93,6 +93,12 @@ run_packaged_module() {
   local service_port="$7"
 
   source "$repo_root/scripts/local/backend_runtime_guard.sh"
+  configure_backend_runtime
+
+  if [[ "$runtime_config_mode" == "nacos" && "${CDD_NACOS_CONFIG_PUBLISHED_FOR:-}" != "$runtime_env" ]]; then
+    "$repo_root/scripts/nacos/publish_nacos_configs.sh" "$runtime_env"
+    export CDD_NACOS_CONFIG_PUBLISHED_FOR="$runtime_env"
+  fi
 
   mvn -q -s "$settings_file" "-Dmaven.repo.local=$work_repo" -f "${parent_root}/pom.xml" \
     -pl "${module_name}" -am \
@@ -104,7 +110,7 @@ run_packaged_module() {
     return 1
   fi
 
-  "$JAVA_HOME/bin/java" -jar "$jar_path" --server.port="${service_port}" &
+  "$JAVA_HOME/bin/java" -jar "$jar_path" --server.port="${service_port}" --spring.profiles.active="${runtime_env},${runtime_config_mode}" &
   local service_pid=$!
 
   if ! wait_for_service_health "$service_name" "$service_port" "$service_pid"; then
@@ -112,6 +118,6 @@ run_packaged_module() {
     return 1
   fi
 
-  record_backend_runtime_state "$repo_root" "$service_name" "$module_name" "$service_port"
+  record_backend_runtime_state "$repo_root" "$service_name" "$module_name" "$service_port" "$service_pid"
   wait "$service_pid"
 }
