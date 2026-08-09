@@ -27,7 +27,8 @@ fi
 
 bash "$runtime_migrate_script"
 
-runtime_log_dir="$repo_root/.local/backend-runtime/logs"
+runtime_state_dir="$(backend_runtime_state_dir "$repo_root")"
+runtime_log_dir="$runtime_state_dir/logs"
 mkdir -p "$runtime_log_dir"
 
 while IFS='|' read -r service_name _service_module _service_port launcher; do

@@ -7,7 +7,8 @@ trace_file="$fixture_root/trace"
 fixture_bin="$fixture_root/bin"
 fixture_scripts="$fixture_root/scripts"
 fixture_launchers="$fixture_root/launchers"
-mkdir -p "$fixture_bin" "$fixture_scripts" "$fixture_launchers"
+fixture_state_dir="$fixture_root/runtime-state"
+mkdir -p "$fixture_bin" "$fixture_scripts" "$fixture_launchers" "$fixture_state_dir"
 
 cleanup() {
   local code=$?
@@ -45,7 +46,7 @@ write_fixture "$fixture_scripts/publish.sh" '#!/usr/bin/env bash' 'echo publish 
 write_fixture "$fixture_scripts/migrate.sh" '#!/usr/bin/env bash' 'echo migrate >>"$CDD_TEST_TRACE"'
 
 for launcher in run_gateway.sh run_auth_service_mysql.sh run_merchant_service_mysql.sh run_decoration_service_mysql.sh run_product_service_mysql.sh run_order_service_mysql.sh run_marketing_service_mysql.sh run_release_service_mysql.sh run_report_service_mysql.sh run_config_service_mysql.sh; do
-  write_fixture "$fixture_launchers/$launcher" '#!/usr/bin/env bash' 'echo "launch '"$launcher"'" >>"$CDD_TEST_TRACE"' 'sleep 30'
+  write_fixture "$fixture_launchers/$launcher" '#!/usr/bin/env bash' 'echo "fixture-launcher:'"$launcher"'"' 'echo "launch '"$launcher"'" >>"$CDD_TEST_TRACE"' 'sleep 30'
 done
 
 run_all() {
@@ -55,6 +56,7 @@ run_all() {
     CDD_RUNTIME_PUBLISH_SCRIPT="$fixture_scripts/publish.sh" \
     CDD_RUNTIME_MIGRATE_SCRIPT="$fixture_scripts/migrate.sh" \
     CDD_RUNTIME_LAUNCHER_DIR="$fixture_launchers" \
+    CDD_RUNTIME_STATE_DIR="$fixture_state_dir" \
     CDD_RUNTIME_HEALTH_TIMEOUT_SECONDS=1 \
     "$@" bash "$repo_root/scripts/local/run_all_services_mysql.sh"
 }
@@ -62,6 +64,25 @@ run_all() {
 run_all CDD_ENV=local CDD_CONFIG_MODE=nacos
 expected_nacos_trace=$'infra:18080\npublish\nmigrate\nlaunch run_gateway.sh\nlaunch run_auth_service_mysql.sh\nlaunch run_merchant_service_mysql.sh\nlaunch run_decoration_service_mysql.sh\nlaunch run_product_service_mysql.sh\nlaunch run_order_service_mysql.sh\nlaunch run_marketing_service_mysql.sh\nlaunch run_release_service_mysql.sh\nlaunch run_report_service_mysql.sh\nlaunch run_config_service_mysql.sh'
 assert_equals "$expected_nacos_trace" "$(<"$trace_file")" "nacos lifecycle ordering"
+[[ -f "$fixture_state_dir/logs/gateway.launcher.env" ]] || {
+  echo "Assertion failed: fixture launch state was not written to its isolated root." >&2
+  exit 1
+}
+rg -F 'fixture-launcher:run_gateway.sh' "$fixture_state_dir/logs/gateway.log" >/dev/null || {
+  echo "Assertion failed: fixture launcher log was not written to its isolated root." >&2
+  exit 1
+}
+if rg -F 'fixture-launcher:' "$repo_root/.local/backend-runtime/logs" >/dev/null 2>&1; then
+  echo "Assertion failed: fixture log leaked into the default runtime root." >&2
+  exit 1
+fi
+while IFS= read -r launcher_state; do
+  launcher_pid="$(awk -F= '$1 == "LAUNCHER_PID" { print $2 }' "$launcher_state")"
+  if [[ -n "$launcher_pid" ]] && rg -F "LAUNCHER_PID=${launcher_pid}" "$repo_root/.local/backend-runtime" >/dev/null 2>&1; then
+    echo "Assertion failed: fixture launcher state leaked into the default runtime root." >&2
+    exit 1
+  fi
+done < <(find "$fixture_state_dir/logs" -name '*.launcher.env' -type f | sort)
 
 : >"$trace_file"
 run_all CDD_ENV=local CDD_CONFIG_MODE=file

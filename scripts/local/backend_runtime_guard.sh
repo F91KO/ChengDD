@@ -69,7 +69,12 @@ wait_for_runtime_service_health() {
 
 backend_runtime_state_dir() {
   local repo_root="$1"
-  echo "$repo_root/.local/backend-runtime"
+  local state_dir="${CDD_RUNTIME_STATE_DIR:-$repo_root/.local/backend-runtime}"
+  if [[ "$state_dir" == "/" || "$state_dir" != /* ]]; then
+    echo "CDD_RUNTIME_STATE_DIR must be a non-root absolute path." >&2
+    return 1
+  fi
+  echo "$state_dir"
 }
 
 backend_runtime_state_file() {

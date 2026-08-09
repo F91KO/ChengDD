@@ -230,12 +230,14 @@ service_is_confirmed_stopped() {
   fi
   [[ "$state_result" -eq 1 ]] || return 2
 
-  if find_unmanaged_service_process "$module_name" "$service_port"; then
+  local unmanaged_result=0
+  find_unmanaged_service_process "$module_name" "$service_port" || unmanaged_result=$?
+  if [[ "$unmanaged_result" -eq 0 ]]; then
     echo "Unmanaged matching process remains for ${service_name}; refusing termination." >&2
     return 2
   fi
-  [[ "$?" -eq 1 ]] || return 2
-  return 0
+  [[ "$unmanaged_result" -eq 1 ]] && return 0
+  return 2
 }
 
 catalog_entries=()
