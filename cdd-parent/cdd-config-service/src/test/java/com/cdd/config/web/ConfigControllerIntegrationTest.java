@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.Map;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -155,11 +156,12 @@ class ConfigControllerIntegrationTest {
 
     @Test
     void shouldSupportPublishRecordListDetailAndRollback() throws Exception {
-        String merchantId = "merchant_910001";
-        String storeId = "store_910001";
-        String configGroup = "publish_test_group";
-        String configKey = "publish_test_key";
-        String switchCode = "publish_test_switch";
+        String invocationId = Long.toString(UUID.randomUUID().getMostSignificantBits() & Long.MAX_VALUE);
+        String merchantId = "merchant_" + invocationId;
+        String storeId = "store_" + invocationId;
+        String configGroup = "publish_group_" + invocationId;
+        String configKey = "publish_key_" + invocationId;
+        String switchCode = "publish_switch_" + invocationId;
 
         mockMvc.perform(post("/api/config/platform/kv")
                         .contentType(MediaType.APPLICATION_JSON)
