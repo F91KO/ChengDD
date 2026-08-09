@@ -59,7 +59,17 @@ publish_file() {
     args+=(--data-urlencode "tenant=${nacos_namespace}")
   fi
   local response
-  response="$(curl "${args[@]}" "${url}")"
+  local response_sentinel=$'\x1f'
+  if ! response="$(
+    set +e
+    curl "${args[@]}" "${url}"
+    curl_status=$?
+    printf '%s' "$response_sentinel"
+    exit "$curl_status"
+  )"; then
+    return 1
+  fi
+  response="${response%"$response_sentinel"}"
   if [[ "$response" != "true" ]]; then
     echo "Nacos rejected ${data_id}: expected response true, got: ${response:-<empty>}" >&2
     return 1
